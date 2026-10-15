@@ -1,9 +1,10 @@
 using System;
 using UnityEngine;
 
-namespace TacticalMaps
+namespace TacticalMaps.Generation
 {
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
     internal sealed class MapLevel
     {
         internal Vector2Int Resolution { get => resolution; set => resolution = value; }
@@ -13,6 +14,7 @@ namespace TacticalMaps
     }
 
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
     internal sealed class MapSettings
     {
         [SerializeField, Range(1, 512)] private int sourceRadius = 50;

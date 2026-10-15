@@ -3,9 +3,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace TacticalMaps
+namespace TacticalMaps.Generation
 {
     // Owns source data, settings, generation and output lifetime. No UI dependencies.
+    [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
     internal sealed class MapGenerator : MonoBehaviour
     {
         [SerializeField] private Texture2D heightSource;

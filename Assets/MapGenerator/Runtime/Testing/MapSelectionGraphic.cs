@@ -1,9 +1,10 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace TacticalMaps
+namespace TacticalMaps.Testing
 {
     [RequireComponent(typeof(CanvasRenderer))]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
     internal sealed class MapSelectionGraphic : UnityEngine.UI.MaskableGraphic, IPointerDownHandler, IDragHandler
     {
         [SerializeField] private MapWorkbench workbench;

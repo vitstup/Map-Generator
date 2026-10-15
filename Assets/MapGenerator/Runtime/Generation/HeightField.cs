@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using UnityEngine;
 
-namespace TacticalMaps
+namespace TacticalMaps.Generation
 {
     // Pure CPU data: no Unity objects are accessed by the background worker.
     internal sealed class HeightField

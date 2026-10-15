@@ -1,3 +1,5 @@
+using TacticalMaps.Generation;
+using TacticalMaps.Construction;
 using System;
 using System.Globalization;
 using System.Threading;
@@ -5,11 +7,14 @@ using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 
-namespace TacticalMaps
+namespace TacticalMaps.Testing
 {
+    [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
     internal sealed class MapWorkbench : MonoBehaviour
     {
         [SerializeField] private MapGenerator generator;
+        [SerializeField] private TerrainBuilder terrainBuilder;
+        [SerializeField] private UnityEngine.UI.Button buildTerrainButton;
         [SerializeField] private UnityEngine.UI.RawImage globalOverlay, cropImage;
         [SerializeField] private UnityEngine.UI.RawImage[] results;
         [SerializeField] private TMP_Text status, selectionLabel;
@@ -25,6 +30,8 @@ namespace TacticalMaps
         private CancellationTokenSource cancellation;
         private Task job;
         private float queuedAt = -1;
+        private bool buildPending;
+        private bool hasBuiltTerrain;
 
         internal MapGenerator Generator => generator;
 
@@ -35,6 +42,7 @@ namespace TacticalMaps
             foreach (var image in results) image.material = runtimePreviewMaterial;
             SyncControls();
             generateButton.onClick.AddListener(Generate);
+            buildTerrainButton.onClick.AddListener(BuildTerrains);
             overlaySlider.onValueChanged.AddListener(v => globalOverlay.color = new Color(1, 1, 1, v));
             exposureSlider.onValueChanged.AddListener(v => runtimePreviewMaterial.SetFloat("_Exposure", v));
             foreach (var input in new[] { radiusInput, xInput, yInput, heightInput, coastInput, smoothingInput, slopeInput, transitionInput })
@@ -114,10 +122,34 @@ namespace TacticalMaps
             if (job != null && job.IsCompleted)
             {
                 if (job.IsFaulted) { status.text = "Ошибка: " + job.Exception.GetBaseException().Message; Debug.LogException(job.Exception); }
-                else if (!job.IsCanceled && queuedAt < 0) DisplayResults();
+                else if (!job.IsCanceled && queuedAt < 0)
+                {
+                    DisplayResults();
+                    if (buildPending || hasBuiltTerrain) BuildTerrains();
+                }
                 job = null;
             }
             if (queuedAt >= 0 && Time.unscaledTime >= queuedAt && job == null) Generate();
+        }
+
+        private void BuildTerrains()
+        {
+            if ((job != null && !job.IsCompleted) || queuedAt >= 0)
+            {
+                buildPending = true;
+                status.text = "Terrain будут построены после завершения генерации…";
+                return;
+            }
+            try
+            {
+                var settings = generator.ResultSettings;
+                var maps = new Texture2D[3]; var sizes = new Vector2[3];
+                for (int i = 0; i < 3; i++) { maps[i] = generator.GetHeightmap(i); sizes[i] = settings.Levels[i].Size; }
+                terrainBuilder.Build(maps, sizes, settings.HeightMeters);
+                buildPending = false; hasBuiltTerrain = true;
+                status.text = "Построены 3 Terrain · осмотр в Scene · коллайдер у основного уровня";
+            }
+            catch (Exception e) { buildPending = false; status.text = "Ошибка построения: " + e.Message; Debug.LogException(e); }
         }
 
         internal void DisplayResults()

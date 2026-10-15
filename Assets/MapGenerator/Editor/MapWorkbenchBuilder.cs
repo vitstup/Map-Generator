@@ -1,3 +1,6 @@
+using TacticalMaps.Generation;
+using TacticalMaps.Testing;
+using TacticalMaps.Construction;
 using System;
 using System.IO;
 using System.Linq;
@@ -42,6 +45,9 @@ namespace TacticalMaps.Editor
             Undo.RegisterCreatedObjectUndo(generator.gameObject, "Create map generator");
             SetReference(generator, "heightSource", heights); SetReference(generator, "landSource", land);
             SetReference(w, "generator", generator);
+            var terrainBuilder = new GameObject("TerrainBuilder").AddComponent<TerrainBuilder>();
+            Undo.RegisterCreatedObjectUndo(terrainBuilder.gameObject, "Create terrain builder");
+            SetReference(w, "terrainBuilder", terrainBuilder);
             UnityEngine.UI.RawImage globalOverlay;
             UnityEngine.UI.RawImage cropImage;
             UnityEngine.UI.RawImage[] results;
@@ -67,6 +73,7 @@ namespace TacticalMaps.Editor
             Panel(parent, "Background", 0, 0, 1920, 1080, new Color(0.035f, 0.055f, 0.075f));
             Label(parent, "ТАКТИЧЕСКАЯ КАРТА", 30, 25, 1000, 44, 32, Ink);
             Label(parent, "Выбор местности / три уровня высот", 32, 77, 1000, 28, 18, Muted);
+            SetReference(w, "buildTerrainButton", Button(parent, "ПОСТРОИТЬ TERRAIN", 1400, 35, 450, 44));
             Label(parent, "01 / ИСХОДНАЯ КАРТА", 30, 118, 640, 24, 17, Ink);
             var global = Rect(parent, "GlobalMap", 30, 155, 620, 620);
             Raw(global, "Land", MakeOverview(land), null, Color.white);
