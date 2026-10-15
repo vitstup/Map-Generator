@@ -10,11 +10,11 @@ namespace TacticalMaps.Generation
         internal int Side => side;
         internal float Compression => compression;
         private readonly int side;
-        private readonly float[] original, playable;
+        private readonly float[] original, playable, seaBaseline;
         private readonly MapSettings settings;
         private readonly float compression;
 
-        internal HeightField(float[] sourceHeights, byte[] land, int width, int height, MapSettings settings)
+        internal HeightField(float[] sourceHeights, byte[] land, int width, int height, Vector2Int point, MapSettings settings)
         {
             settings.Validate(width, height);
             this.settings = settings.Copy();
@@ -24,27 +24,34 @@ namespace TacticalMaps.Generation
             for (int y = 0; y < side; y++)
                 for (int x = 0; x < side; x++)
                 {
-                    int sx = settings.Center.x + x - settings.SourceRadius;
-                    int sy = settings.Center.y + y - settings.SourceRadius;
+                    int sx = point.x + x - settings.SourceRadius;
+                    int sy = point.y + y - settings.SourceRadius;
                     int p = y * side + x;
                     // Outside the source image is water; the selection never silently shifts.
                     if (sx < 0 || sy < 0 || sx >= width || sy >= height) continue;
                     int src = sy * width + sx;
                     mask[p] = land[src] >= 128;
-                    original[p] = mask[p] ? sourceHeights[src] : 0;
+                    original[p] = mask[p] ? sourceHeights[src] * settings.GlobalMaxHeightMeters / settings.TerrainHeightMeters : 0;
                 }
             float[] shoreDistance = DistanceToWater(mask, side);
-            for (int i = 0; i < original.Length; i++)
-                original[i] *= Smooth(Mathf.Clamp01((shoreDistance[i] - 0.5f) / settings.CoastPixels));
             playable = Blur(original, side, settings.SmoothingPixels);
-            // The blurred coast remains exactly zero in water, and approaches it with zero derivative.
-            for (int i = 0; i < playable.Length; i++)
-                playable[i] *= Smooth(Mathf.Clamp01((shoreDistance[i] - 0.5f) / settings.CoastPixels));
-
+            seaBaseline = new float[original.Length];
             Vector2 outer = settings.Levels[2].Size;
             Vector2 inner = settings.Levels[0].Size;
             float dx = outer.x / (side - 1), dy = outer.y / (side - 1);
-            float maxGradient = 0;
+            float sea = settings.SeaLevelMeters / settings.TerrainHeightMeters;
+            float slopeLimit = Mathf.Tan(settings.MaxSlope * Mathf.Deg2Rad);
+            // A sufficiently wide coastal baseline leaves slope budget for the land relief.
+            float playableCoast = Mathf.Max(settings.CoastPixels, 4 * settings.SeaLevelMeters / (slopeLimit * Mathf.Min(dx, dy)));
+            for (int i = 0; i < original.Length; i++)
+            {
+                float coast = Smooth(Mathf.Clamp01((shoreDistance[i] - 0.5f) / settings.CoastPixels));
+                original[i] = (original[i] + (mask[i] ? sea : 0)) * coast;
+                float playableWeight = Smooth(Mathf.Clamp01((shoreDistance[i] - 0.5f) / playableCoast));
+                playable[i] *= playableWeight;
+                seaBaseline[i] = sea * playableWeight;
+            }
+            float maxGradient = 0, maxSeaGradient = 0;
             // Bilinear interpolation has bounded derivatives in each source cell.
             // Include every cell intersecting the main terrain, including narrow selections.
             for (int y = 0; y < side - 1; y++)
@@ -56,9 +63,12 @@ namespace TacticalMaps.Generation
                     int p = y * side + x;
                     float gx = Mathf.Max(Mathf.Abs(playable[p + 1] - playable[p]), Mathf.Abs(playable[p + side + 1] - playable[p + side])) / dx;
                     float gy = Mathf.Max(Mathf.Abs(playable[p + side] - playable[p]), Mathf.Abs(playable[p + side + 1] - playable[p + 1])) / dy;
-                    maxGradient = Mathf.Max(maxGradient, Mathf.Sqrt(gx * gx + gy * gy) * settings.HeightMeters);
+                    maxGradient = Mathf.Max(maxGradient, Mathf.Sqrt(gx * gx + gy * gy) * settings.TerrainHeightMeters);
+                    float sx = Mathf.Max(Mathf.Abs(seaBaseline[p + 1] - seaBaseline[p]), Mathf.Abs(seaBaseline[p + side + 1] - seaBaseline[p + side])) / dx;
+                    float sy = Mathf.Max(Mathf.Abs(seaBaseline[p + side] - seaBaseline[p]), Mathf.Abs(seaBaseline[p + side + 1] - seaBaseline[p + 1])) / dy;
+                    maxSeaGradient = Mathf.Max(maxSeaGradient, Mathf.Sqrt(sx * sx + sy * sy) * settings.TerrainHeightMeters);
                 }
-            compression = Mathf.Min(1, Mathf.Tan(settings.MaxSlope * Mathf.Deg2Rad) / Mathf.Max(0.000001f, maxGradient));
+            compression = Mathf.Min(1, Mathf.Max(0, slopeLimit - maxSeaGradient) / Mathf.Max(0.000001f, maxGradient));
         }
 
         internal float Sample(float worldX, float worldY)
@@ -71,7 +81,7 @@ namespace TacticalMaps.Generation
             // Finish the transition before reaching the middle terrain boundary.
             float blendWidth = Mathf.Min(settings.TransitionMeters, Mathf.Min(middle.x - inner.x, middle.y - inner.y) * 0.45f);
             float blend = Smooth(Mathf.Clamp01(distance / Mathf.Max(0.01f, blendWidth)));
-            return Mathf.Lerp(Bilinear(playable, side, u, v) * compression, Bilinear(original, side, u, v), blend);
+            return Mathf.Lerp(Bilinear(seaBaseline, side, u, v) + Bilinear(playable, side, u, v) * compression, Bilinear(original, side, u, v), blend);
         }
 
         internal ushort[] Render(int level, CancellationToken cancellation)

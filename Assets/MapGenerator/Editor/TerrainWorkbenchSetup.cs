@@ -39,6 +39,9 @@ namespace TacticalMaps.Editor
                     serialized.FindProperty("buildTerrainButton").objectReferenceValue = button;
                 }
                 serialized.ApplyModifiedPropertiesWithoutUndo();
+                var map = view.Generator.Generate(view.SelectedPoint);
+                view.DisplayResults(map);
+                for (int i = 0; i < 3; i++) AssetDatabase.CreateAsset(map.Heightmaps[i], AssetDatabase.GenerateUniqueAssetPath(Root + "/Heightmap" + (i + 1) + ".asset"));
                 view.SendMessage("BuildTerrains", SendMessageOptions.RequireReceiver);
                 var terrains = builder.GetComponentsInChildren<Terrain>();
                 if (terrains.Length != 3) throw new InvalidOperationException("Expected three built terrains.");

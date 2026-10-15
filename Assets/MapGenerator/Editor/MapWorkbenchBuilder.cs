@@ -99,7 +99,7 @@ namespace TacticalMaps.Editor
             selectionLabel = Label(parent, "", 700, 497, 365, 68, 16, Muted);
 
             Label(parent, "ПАРАМЕТРЫ ГЕНЕРАЦИИ", 1090, 118, 790, 24, 17, Ink);
-            heightInput = Field(parent, "Шкала высот, м", 1090, 155, 180);
+            heightInput = Field(parent, "Высота Terrain, м", 1090, 155, 180);
             coastInput = Field(parent, "Берег, исх. px", 1290, 155, 180);
             smoothingInput = Field(parent, "Сглаживание, px", 1490, 155, 180);
             slopeInput = Field(parent, "Макс. склон, °", 1690, 155, 180);
@@ -160,9 +160,11 @@ namespace TacticalMaps.Editor
             SetReference(w, "globalSelection", globalSelection);
             SetReference(w, "cropSelection", cropSelection);
             SetReference(w, "previewMaterial", previewMaterial);
+            SetReference(w, "globalHeightInput", Field(parent, "Макс. высота глобальной карты, м", 700, 25, 280));
+            SetReference(w, "seaLevelInput", Field(parent, "Уровень моря, м", 1000, 25, 280));
             w.SyncControls(); w.RefreshSelection();
-            generator.Generate(); w.DisplayResults();
-            for (int i = 0; i < 3; i++) AssetDatabase.CreateAsset(generator.GetHeightmap(i), Root + "/Heightmap" + (i + 1) + ".asset");
+            var map = generator.Generate(w.SelectedPoint); w.DisplayResults(map);
+            for (int i = 0; i < 3; i++) AssetDatabase.CreateAsset(map.Heightmaps[i], Root + "/Heightmap" + (i + 1) + ".asset");
             AssetDatabase.CreateAsset((Texture2D)cropImage.texture, Root + "/SelectedPixels.asset");
             AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene);
             Selection.activeGameObject = canvasGO;

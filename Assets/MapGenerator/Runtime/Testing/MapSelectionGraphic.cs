@@ -35,7 +35,7 @@ namespace TacticalMaps.Testing
             else
             {
                 float w = workbench.Generator.HeightSource.width, h = workbench.Generator.HeightSource.height;
-                var center = new Vector2(r.xMin + (s.Center.x + 0.5f) / w * r.width, r.yMin + (s.Center.y + 0.5f) / h * r.height);
+                var center = new Vector2(r.xMin + (workbench.SelectedPoint.x + 0.5f) / w * r.width, r.yMin + (workbench.SelectedPoint.y + 0.5f) / h * r.height);
                 float side = s.SourceRadius * 2 + 1;
                 Box(vh, new Rect(center.x - side / w * r.width / 2, center.y - side / h * r.height / 2, side / w * r.width, side / h * r.height), new Color(0.3f, 1, 0.65f), 1.8f);
                 Line(vh, center - Vector2.right * 7, center + Vector2.right * 7, 1, Color.white);

@@ -19,7 +19,7 @@ namespace TacticalMaps.Testing
         [SerializeField] private UnityEngine.UI.RawImage[] results;
         [SerializeField] private TMP_Text status, selectionLabel;
         [SerializeField] private TMP_Text[] resultLabels;
-        [SerializeField] private TMP_InputField radiusInput, xInput, yInput, heightInput, coastInput, smoothingInput, slopeInput, transitionInput;
+        [SerializeField] private TMP_InputField radiusInput, xInput, yInput, heightInput, globalHeightInput, seaLevelInput, coastInput, smoothingInput, slopeInput, transitionInput;
         [SerializeField] private TMP_InputField[] levelInputs;
         [SerializeField] private UnityEngine.UI.Button generateButton;
         [SerializeField] private UnityEngine.UI.Slider overlaySlider, exposureSlider;
@@ -28,12 +28,15 @@ namespace TacticalMaps.Testing
         private Texture2D cropTexture;
         private Material runtimePreviewMaterial;
         private CancellationTokenSource cancellation;
-        private Task job;
+        private Task<MapData> job;
+        private MapData currentMap;
+        [SerializeField] private Vector2Int selectedPoint = new Vector2Int(2550, 2250);
         private float queuedAt = -1;
         private bool buildPending;
         private bool hasBuiltTerrain;
 
         internal MapGenerator Generator => generator;
+        internal Vector2Int SelectedPoint => selectedPoint;
 
         private void Awake()
         {
@@ -45,18 +48,20 @@ namespace TacticalMaps.Testing
             buildTerrainButton.onClick.AddListener(BuildTerrains);
             overlaySlider.onValueChanged.AddListener(v => globalOverlay.color = new Color(1, 1, 1, v));
             exposureSlider.onValueChanged.AddListener(v => runtimePreviewMaterial.SetFloat("_Exposure", v));
-            foreach (var input in new[] { radiusInput, xInput, yInput, heightInput, coastInput, smoothingInput, slopeInput, transitionInput })
+            foreach (var input in new[] { radiusInput, xInput, yInput, heightInput, globalHeightInput, seaLevelInput, coastInput, smoothingInput, slopeInput, transitionInput })
                 input.onEndEdit.AddListener(_ => QueueGeneration());
             foreach (var input in levelInputs) input.onEndEdit.AddListener(_ => QueueGeneration());
             RefreshSelection();
+            queuedAt = Time.unscaledTime;
         }
 
         internal void SyncControls()
         {
             var settings = generator.Settings;
             radiusInput.SetTextWithoutNotify(settings.SourceRadius.ToString());
-            xInput.SetTextWithoutNotify(settings.Center.x.ToString()); yInput.SetTextWithoutNotify(settings.Center.y.ToString());
-            heightInput.SetTextWithoutNotify(F(settings.HeightMeters)); coastInput.SetTextWithoutNotify(F(settings.CoastPixels));
+            xInput.SetTextWithoutNotify(selectedPoint.x.ToString()); yInput.SetTextWithoutNotify(selectedPoint.y.ToString());
+            globalHeightInput.SetTextWithoutNotify(F(settings.GlobalMaxHeightMeters)); seaLevelInput.SetTextWithoutNotify(F(settings.SeaLevelMeters));
+            heightInput.SetTextWithoutNotify(F(settings.TerrainHeightMeters)); coastInput.SetTextWithoutNotify(F(settings.CoastPixels));
             smoothingInput.SetTextWithoutNotify(F(settings.SmoothingPixels)); slopeInput.SetTextWithoutNotify(F(settings.MaxSlope));
             transitionInput.SetTextWithoutNotify(F(settings.TransitionMeters));
             for (int i = 0; i < 3; i++)
@@ -74,8 +79,8 @@ namespace TacticalMaps.Testing
         private MapSettings ReadControls()
         {
             var s = generator.Settings;
-            s.SourceRadius = Integer(radiusInput); s.Center = new Vector2Int(Integer(xInput), Integer(yInput));
-            s.HeightMeters = Parse(heightInput); s.CoastPixels = Parse(coastInput); s.SmoothingPixels = Parse(smoothingInput);
+            s.SourceRadius = Integer(radiusInput);
+            s.TerrainHeightMeters = Parse(heightInput); s.GlobalMaxHeightMeters = Parse(globalHeightInput); s.SeaLevelMeters = Parse(seaLevelInput); s.CoastPixels = Parse(coastInput); s.SmoothingPixels = Parse(smoothingInput);
             s.MaxSlope = Parse(slopeInput); s.TransitionMeters = Parse(transitionInput);
             for (int i = 0; i < 3; i++)
             {
@@ -96,6 +101,7 @@ namespace TacticalMaps.Testing
             try
             {
                 generator.Configure(ReadControls());
+                selectedPoint = ReadPoint();
                 cancellation?.Cancel();
                 RefreshSelection(); queuedAt = Time.unscaledTime + 0.3f;
                 status.text = "Параметры изменены. Ожидание генерации…";
@@ -107,10 +113,11 @@ namespace TacticalMaps.Testing
             try
             {
                 generator.Configure(ReadControls());
+                selectedPoint = ReadPoint();
                 if (job != null && !job.IsCompleted) { cancellation.Cancel(); queuedAt = Time.unscaledTime; return; }
                 RefreshSelection();
                 cancellation?.Dispose(); cancellation = new CancellationTokenSource();
-                job = generator.GenerateAsync(cancellation.Token);
+                job = generator.GenerateAsync(selectedPoint, cancellation.Token);
                 status.text = "Генерация трёх карт…";
                 queuedAt = -1;
             }
@@ -124,9 +131,10 @@ namespace TacticalMaps.Testing
                 if (job.IsFaulted) { status.text = "Ошибка: " + job.Exception.GetBaseException().Message; Debug.LogException(job.Exception); }
                 else if (!job.IsCanceled && queuedAt < 0)
                 {
-                    DisplayResults();
+                    DisplayResults(job.Result);
                     if (buildPending || hasBuiltTerrain) BuildTerrains();
                 }
+                else if (!job.IsCanceled && !job.IsFaulted) job.Result.Release();
                 job = null;
             }
             if (queuedAt >= 0 && Time.unscaledTime >= queuedAt && job == null) Generate();
@@ -142,27 +150,35 @@ namespace TacticalMaps.Testing
             }
             try
             {
-                var settings = generator.ResultSettings;
-                var maps = new Texture2D[3]; var sizes = new Vector2[3];
-                for (int i = 0; i < 3; i++) { maps[i] = generator.GetHeightmap(i); sizes[i] = settings.Levels[i].Size; }
-                terrainBuilder.Build(maps, sizes, settings.HeightMeters);
+                if (currentMap == null) { buildPending = true; Generate(); return; }
+                terrainBuilder.Build(currentMap);
                 buildPending = false; hasBuiltTerrain = true;
                 status.text = "Построены 3 Terrain · осмотр в Scene · коллайдер у основного уровня";
             }
             catch (Exception e) { buildPending = false; status.text = "Ошибка построения: " + e.Message; Debug.LogException(e); }
         }
 
-        internal void DisplayResults()
+        internal void DisplayResults(MapData map)
         {
-            var settings = generator.ResultSettings;
+            var previous = currentMap;
+            currentMap = map;
             for (int i = 0; i < 3; i++)
             {
-                var level = settings.Levels[i];
-                results[i].texture = generator.GetHeightmap(i);
-                results[i].GetComponent<UnityEngine.UI.AspectRatioFitter>().aspectRatio = (float)level.Resolution.x / level.Resolution.y;
-                resultLabels[i].text = $"{level.Resolution.x} × {level.Resolution.y} px   /   {F(level.Size.x)} × {F(level.Size.y)} м";
+                var texture = map.Heightmaps[i]; var size = map.Sizes[i];
+                results[i].texture = texture;
+                results[i].GetComponent<UnityEngine.UI.AspectRatioFitter>().aspectRatio = (float)texture.width / texture.height;
+                resultLabels[i].text = $"{texture.width} × {texture.height} px   /   {F(size.x)} × {F(size.y)} м";
             }
-            status.text = $"Готово · R16 · общая шкала 0–{F(settings.HeightMeters)} м · масштаб высот основной зоны {F(generator.HeightCompression)}";
+            status.text = $"Готово · Terrain {F(map.TerrainHeightMeters)} м · море {F(map.SeaLevelMeters)} м · высоты ×{F(map.HeightCompression)}";
+            if (previous != map) previous?.Release();
+        }
+
+        private Vector2Int ReadPoint()
+        {
+            var point = new Vector2Int(Integer(xInput), Integer(yInput));
+            if (point.x < 0 || point.y < 0 || point.x >= generator.HeightSource.width || point.y >= generator.HeightSource.height)
+                throw new ArgumentException("Точка должна находиться внутри исходной карты.");
+            return point;
         }
 
         internal void RefreshSelection()
@@ -174,14 +190,14 @@ namespace TacticalMaps.Testing
             var pixels = new Color32[n * n];
             for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
             {
-                int sx = settings.Center.x + x - settings.SourceRadius, sy = settings.Center.y + y - settings.SourceRadius;
+                int sx = selectedPoint.x + x - settings.SourceRadius, sy = selectedPoint.y + y - settings.SourceRadius;
                 Color color = new Color(0.035f, 0.11f, 0.17f);
                 if (generator.TryReadSource(sx, sy, out float height, out bool land) && land)
                     color = Color.Lerp(new Color(0.22f, 0.36f, 0.26f), new Color(0.92f, 0.93f, 0.82f), Mathf.Sqrt(height));
                 pixels[y * n + x] = color;
             }
             cropTexture.SetPixels32(pixels); cropTexture.Apply(); cropImage.texture = cropTexture;
-            selectionLabel.text = $"Пиксель {settings.Center.x}, {settings.Center.y}  ·  выборка {n} × {n}\nЗелёный — основной · оранжевый — средний · голубой — дальний";
+            selectionLabel.text = $"Пиксель {selectedPoint.x}, {selectedPoint.y}  ·  выборка {n} × {n}\nЗелёный — основной · оранжевый — средний · голубой — дальний";
             globalSelection.SetVerticesDirty(); cropSelection.SetVerticesDirty();
         }
 
@@ -197,6 +213,8 @@ namespace TacticalMaps.Testing
         {
             cancellation?.Cancel(); cancellation?.Dispose();
             ReleaseCrop();
+            if (job != null && job.Status == TaskStatus.RanToCompletion && job.Result != currentMap) job.Result.Release();
+            currentMap?.Release();
             if (runtimePreviewMaterial != null) Destroy(runtimePreviewMaterial);
         }
     }

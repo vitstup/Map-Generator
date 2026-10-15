@@ -1,3 +1,4 @@
+using TacticalMaps.Generation;
 using System;
 using System.Linq;
 using System.Reflection;
@@ -35,7 +36,7 @@ namespace TacticalMaps.Editor
                     }
                     texture.SetPixelData(pixels, 0); texture.Apply();
                 }
-                builder.Build(maps, sizes, 4000);
+                builder.Build(new MapData(maps, sizes, 4000, 0, 4000, Vector2Int.zero));
                 var terrains = root.GetComponentsInChildren<Terrain>();
                 Check(terrains.Length == 3, "Three terrains");
                 for (int i = 0; i < 3; i++)
@@ -57,9 +58,9 @@ namespace TacticalMaps.Editor
                 Check(Mathf.Abs(terrains[0].terrainData.GetHeight(64, 0) - expected) < 0.2f, "Height orientation and shared vertical scale");
                 var oldData = terrains.Select(t => t.terrainData).ToArray();
                 var invalid = (Texture2D[])maps.Clone(); invalid[1] = null; bool rejected = false;
-                try { builder.Build(invalid, sizes, 4000); } catch (ArgumentException) { rejected = true; }
+                try { builder.Build(new MapData(invalid, sizes, 4000, 0, 4000, Vector2Int.zero)); } catch (ArgumentException) { rejected = true; }
                 Check(rejected && root.GetComponentsInChildren<Terrain>().Length == 3 && oldData[0] != null, "Invalid input preserves existing build");
-                builder.Build(maps, sizes, 4000);
+                builder.Build(new MapData(maps, sizes, 4000, 0, 4000, Vector2Int.zero));
                 Check(root.GetComponentsInChildren<Terrain>().Length == 3 && oldData.All(t => t == null), "Rebuild replaces objects and disposes owned data");
                 var api = typeof(TerrainBuilder).GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly).Where(m => m.IsAssembly).ToArray();
                 Check(api.Length == 1 && api[0].Name == "Build" && api[0].ReturnType == typeof(void), "Exactly one internal void entry point");

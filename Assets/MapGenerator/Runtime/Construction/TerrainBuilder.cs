@@ -1,3 +1,4 @@
+using TacticalMaps.Generation;
 using System;
 using Unity.Collections;
 using UnityEngine;
@@ -5,7 +6,7 @@ using UnityEngine;
 namespace TacticalMaps.Construction
 {
     // Accepts completed heightmaps only. Does not know about generation or its test controller.
-    internal sealed class TerrainBuilder : MonoBehaviour
+    public sealed class TerrainBuilder : MonoBehaviour
     {
         [SerializeField] private Vector3 center;
         [SerializeField, Min(0)] private float seamBlendMeters = 100;
@@ -17,8 +18,13 @@ namespace TacticalMaps.Construction
         [SerializeField, HideInInspector] private Transform builtRoot;
         [SerializeField, HideInInspector] private TerrainData[] builtData;
 
-        internal void Build(Texture2D[] heightmaps, Vector2[] sizes, float heightMeters)
+        public void Build(MapData map)
         {
+            if (map == null) throw new ArgumentNullException(nameof(map));
+            var heightmaps = new Texture2D[map.Heightmaps.Count]; var sizes = new Vector2[map.Sizes.Count];
+            for (int i = 0; i < heightmaps.Length; i++) heightmaps[i] = map.Heightmaps[i];
+            for (int i = 0; i < sizes.Length; i++) sizes[i] = map.Sizes[i];
+            float heightMeters = map.TerrainHeightMeters;
             Validate(heightmaps, sizes, heightMeters);
             var nextRoot = new GameObject("GeneratedTerrains");
             nextRoot.transform.SetParent(transform, false);
