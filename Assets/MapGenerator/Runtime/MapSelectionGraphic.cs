@@ -4,19 +4,19 @@ using UnityEngine.EventSystems;
 namespace TacticalMaps
 {
     [RequireComponent(typeof(CanvasRenderer))]
-    public sealed class MapSelectionGraphic : UnityEngine.UI.MaskableGraphic, IPointerDownHandler, IDragHandler
+    internal sealed class MapSelectionGraphic : UnityEngine.UI.MaskableGraphic, IPointerDownHandler, IDragHandler
     {
-        public MapWorkbench workbench;
-        public bool crop;
+        [SerializeField] private MapWorkbench workbench;
+        [SerializeField] private bool crop;
         protected override void OnPopulateMesh(UnityEngine.UI.VertexHelper vh)
         {
             vh.Clear();
-            if (workbench == null || workbench.heightSource == null) return;
-            var s = workbench.settings;
+            if (workbench == null || workbench.Generator == null || workbench.Generator.HeightSource == null) return;
+            var s = workbench.Generator.Settings;
             Rect r = rectTransform.rect;
             if (crop)
             {
-                int side = 2 * s.sourceRadius + 1;
+                int side = 2 * s.SourceRadius + 1;
                 // Avoid a solid grid when the selected pixels are too small to distinguish.
                 if (side <= 151)
                     for (int i = 0; i <= side; i++)
@@ -27,26 +27,26 @@ namespace TacticalMaps
                     }
                 for (int i = 0; i < 3; i++)
                 {
-                    Vector2 ratio = s.levels[i].size / s.levels[2].size;
+                    Vector2 ratio = s.Levels[i].Size / s.Levels[2].Size;
                     Box(vh, new Rect(-r.width * ratio.x / 2, -r.height * ratio.y / 2, r.width * ratio.x, r.height * ratio.y), i == 0 ? new Color(0.3f, 1, 0.65f) : i == 1 ? new Color(1, 0.74f, 0.3f) : new Color(0.3f, 0.7f, 1), 1.5f);
                 }
             }
             else
             {
-                float w = workbench.heightSource.width, h = workbench.heightSource.height;
-                var center = new Vector2(r.xMin + (s.center.x + 0.5f) / w * r.width, r.yMin + (s.center.y + 0.5f) / h * r.height);
-                float side = s.sourceRadius * 2 + 1;
+                float w = workbench.Generator.HeightSource.width, h = workbench.Generator.HeightSource.height;
+                var center = new Vector2(r.xMin + (s.Center.x + 0.5f) / w * r.width, r.yMin + (s.Center.y + 0.5f) / h * r.height);
+                float side = s.SourceRadius * 2 + 1;
                 Box(vh, new Rect(center.x - side / w * r.width / 2, center.y - side / h * r.height / 2, side / w * r.width, side / h * r.height), new Color(0.3f, 1, 0.65f), 1.8f);
                 Line(vh, center - Vector2.right * 7, center + Vector2.right * 7, 1, Color.white);
                 Line(vh, center - Vector2.up * 7, center + Vector2.up * 7, 1, Color.white);
             }
         }
-        static void Box(UnityEngine.UI.VertexHelper vh, Rect r, Color c, float thickness)
+        private static void Box(UnityEngine.UI.VertexHelper vh, Rect r, Color c, float thickness)
         {
             Vector2 a = new Vector2(r.xMin, r.yMin), b = new Vector2(r.xMax, r.yMin), d = new Vector2(r.xMin, r.yMax), e = new Vector2(r.xMax, r.yMax);
             Line(vh, a, b, thickness, c); Line(vh, b, e, thickness, c); Line(vh, e, d, thickness, c); Line(vh, d, a, thickness, c);
         }
-        static void Line(UnityEngine.UI.VertexHelper vh, Vector2 a, Vector2 b, float width, Color color)
+        private static void Line(UnityEngine.UI.VertexHelper vh, Vector2 a, Vector2 b, float width, Color color)
         {
             Vector2 normal = new Vector2(-(b - a).y, (b - a).x).normalized * width / 2;
             int index = vh.currentVertCount;
@@ -54,14 +54,14 @@ namespace TacticalMaps
             vh.AddVert(b + normal, color, Vector2.zero); vh.AddVert(b - normal, color, Vector2.zero);
             vh.AddTriangle(index, index + 1, index + 2); vh.AddTriangle(index, index + 2, index + 3);
         }
-        public void OnPointerDown(PointerEventData e) => Select(e);
-        public void OnDrag(PointerEventData e) => Select(e);
-        void Select(PointerEventData e)
+        void IPointerDownHandler.OnPointerDown(PointerEventData e) => Select(e);
+        void IDragHandler.OnDrag(PointerEventData e) => Select(e);
+        private void Select(PointerEventData e)
         {
             if (crop || workbench == null) return;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, e.position, e.pressEventCamera, out var p)) return;
             Rect r = rectTransform.rect;
-            workbench.SelectPixel(Mathf.FloorToInt((p.x - r.xMin) / r.width * workbench.heightSource.width), Mathf.FloorToInt((p.y - r.yMin) / r.height * workbench.heightSource.height));
+            workbench.SelectPixel(Mathf.FloorToInt((p.x - r.xMin) / r.width * workbench.Generator.HeightSource.width), Mathf.FloorToInt((p.y - r.yMin) / r.height * workbench.Generator.HeightSource.height));
         }
     }
 }

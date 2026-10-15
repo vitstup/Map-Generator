@@ -3416,23 +3416,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c8fea4d123469974397dbde7838c87a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.MapWorkbench
-  heightSource: {fileID: 2800000, guid: 6ae0dd953434cc847bc058b74001e223, type: 3}
-  landSource: {fileID: 2800000, guid: 594b935da04677d489ed22c8e5a94530, type: 3}
-  settings:
-    sourceRadius: 50
-    center: {x: 2550, y: 2250}
-    levels:
-    - resolution: {x: 2049, y: 2049}
-      size: {x: 2048, y: 2048}
-    - resolution: {x: 2049, y: 2049}
-      size: {x: 8096, y: 8096}
-    - resolution: {x: 2049, y: 2049}
-      size: {x: 20000, y: 20000}
-    heightMeters: 4000
-    coastPixels: 2
-    smoothingPixels: 3
-    maxSlope: 12
-    transitionMeters: 1500
+  generator: {fileID: 1113947856}
   globalOverlay: {fileID: 1509255470}
   cropImage: {fileID: 2025528273}
   results:
@@ -3472,10 +3456,6 @@ MonoBehaviour:
   globalSelection: {fileID: 2094654251}
   cropSelection: {fileID: 1827224599}
   previewMaterial: {fileID: 2100000, guid: ae2b523e4839fb94ea4bd0c6d898bcdb, type: 2}
-  generated:
-  - {fileID: 2800000, guid: 6930bcf37ef02ab459e9c79530f4f646, type: 2}
-  - {fileID: 2800000, guid: f1edaba30bd346542983bf6c3a17d8f7, type: 2}
-  - {fileID: 2800000, guid: 2b52525ab037772439898f27f49c42cf, type: 2}
 --- !u!114 &548641583
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6683,6 +6663,87 @@ RectTransform:
   m_AnchoredPosition: {x: 30, y: -155}
   m_SizeDelta: {x: 620, y: 620}
   m_Pivot: {x: 0, y: 1}
+--- !u!1 &1113947855
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1113947857}
+  - component: {fileID: 1113947856}
+  m_Layer: 0
+  m_Name: MapGenerator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1113947856
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113947855}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c16b33d06de96744a075be40765e37c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.MapGenerator
+  heightSource: {fileID: 2800000, guid: 6ae0dd953434cc847bc058b74001e223, type: 3}
+  landSource: {fileID: 2800000, guid: 594b935da04677d489ed22c8e5a94530, type: 3}
+  settings:
+    sourceRadius: 50
+    center: {x: 2550, y: 2250}
+    levels:
+    - resolution: {x: 2049, y: 2049}
+      size: {x: 2048, y: 2048}
+    - resolution: {x: 2049, y: 2049}
+      size: {x: 8096, y: 8096}
+    - resolution: {x: 2049, y: 2049}
+      size: {x: 20000, y: 20000}
+    heightMeters: 4000
+    coastPixels: 2
+    smoothingPixels: 3
+    maxSlope: 12
+    transitionMeters: 1500
+  generated:
+  - {fileID: 2800000, guid: 6930bcf37ef02ab459e9c79530f4f646, type: 2}
+  - {fileID: 2800000, guid: f1edaba30bd346542983bf6c3a17d8f7, type: 2}
+  - {fileID: 2800000, guid: 2b52525ab037772439898f27f49c42cf, type: 2}
+  resultSettings:
+    sourceRadius: 50
+    center: {x: 2550, y: 2250}
+    levels:
+    - resolution: {x: 2049, y: 2049}
+      size: {x: 2048, y: 2048}
+    - resolution: {x: 2049, y: 2049}
+      size: {x: 8096, y: 8096}
+    - resolution: {x: 2049, y: 2049}
+      size: {x: 20000, y: 20000}
+    heightMeters: 4000
+    coastPixels: 2
+    smoothingPixels: 3
+    maxSlope: 12
+    transitionMeters: 1500
+  heightCompression: 1
+--- !u!4 &1113947857
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113947855}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1128516261
 GameObject:
   m_ObjectHideFlags: 0
@@ -14244,3 +14305,4 @@ SceneRoots:
   - {fileID: 832575519}
   - {fileID: 548641586}
   - {fileID: 1323227737}
+  - {fileID: 1113947857}

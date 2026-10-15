@@ -27,9 +27,11 @@ Runtime regeneration runs on a background task. Changing the selection cancels t
 
 ## Files and checks
 
-`Generated/Heightmap1.asset` through `Heightmap3.asset` contain the saved initial previews. Runtime results are available through `MapWorkbench.generated` and the Canvas RawImages.
+`Generated/Heightmap1.asset` through `Heightmap3.asset` contain the saved initial previews. The separate root object `MapGenerator` owns input maps, settings and output textures. Its internal `Generate` / `GenerateAsync` methods work without a Canvas. Other project systems read outputs through internal `GetHeightmap(level)`.
 
-`Tools > Tactical Maps > Verify Height Generation` runs synthetic checks for water override, rectangular output, shared coordinates, main-zone slope, transition continuity, source borders and cancellation. `MapGeneratorChecks.cs` contains these checks.
+`MapWorkbench` on the Canvas handles input and display only. `MapSelectionGraphic` handles selection outlines and pointer input. `HeightField` contains the numerical algorithm, and `MapSettings` contains serialized configuration. All these types are internal; configurable fields are `[SerializeField] private`. Settings are copied when read or configured, so callers cannot silently mutate a running generation. Editor tools access internal methods through `InternalsVisibleTo("Assembly-CSharp-Editor")`; inspector references are assigned through `SerializedObject`.
+
+`Tools > Tactical Maps > Verify Height Generation` checks water override, rectangular output, shared coordinates, slope, transitions, source borders and cancellation. It also creates a standalone generator without UI, verifies private serialized fields and the internal API, and checks that settings are defensively copied.
 
 `Tools > Tactical Maps > Create MainScene Workbench` builds the interface in an open MainScene that has no workbench yet. It refuses to overwrite an existing workbench. Scene creation uses Unity Editor APIs. There are no Terrain objects in this stage.
 
