@@ -81,6 +81,8 @@ namespace TacticalMaps.Editor
                 Check(oldColors.wrapMode == TextureWrapMode.Repeat && oldSurface.tileSize.x < 20 && oldSurface.smoothness == 0, "Metre-scale detailed terrain layer");
                 Check(terrains[0].terrainData.alphamapLayers == 6, "Six biome weights uploaded");
                 var oldData = terrains.Select(t => t.terrainData).ToArray();
+                var oldTerrainMaterials = terrains.Select(t => t.materialTemplate).ToArray();
+                var sourceTerrainMaterial = terrainConfig.FindProperty("terrainMaterial").objectReferenceValue;
                 var invalid = (Texture2D[])maps.Clone(); invalid[1] = null; bool rejected = false;
                 try { builder.Build(new MapData(invalid, sizes, 4000, 0, 4000, Vector2Int.zero, surface: surface)); } catch (ArgumentException) { rejected = true; }
                 Check(rejected && root.GetComponentsInChildren<Terrain>().Length == 3 && oldData[0] != null, "Invalid input preserves existing build");
@@ -94,6 +96,7 @@ namespace TacticalMaps.Editor
                 builder.Build(new MapData(maps, sizes, 4000, 0, 4000, Vector2Int.zero, surface: surface));
                 Check(oldSurface == null && oldColors != null, "Owned layers released, shared library textures preserved");
                 Check(mesh == null && material == null && depth == null, "Old water resources released on rebuild");
+                Check(oldTerrainMaterials.All(m => m == null) && sourceTerrainMaterial != null, "Owned terrain materials released; source material preserved");
                 Check(root.GetComponentsInChildren<Terrain>().Length == 3 && oldData.All(t => t == null), "Rebuild replaces objects and disposes owned data");
                 var finalDepth = (Texture2D)root.GetComponentInChildren<MeshRenderer>().sharedMaterial.GetTexture("_Depth0");
                 foreach (var source in maps) UnityEngine.Object.DestroyImmediate(source);

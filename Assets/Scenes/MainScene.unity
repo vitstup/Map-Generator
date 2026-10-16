@@ -2729,7 +2729,7 @@ Terrain:
   m_DetailObjectDistance: 80
   m_DetailObjectDensity: 1
   m_HeightmapPixelError: 1
-  m_SplatMapDistance: 6000
+  m_SplatMapDistance: 12000
   m_HeightmapMinimumLODSimplification: 0
   m_HeightmapMaximumLOD: 0
   m_ShadowCastingMode: 2
@@ -2739,7 +2739,7 @@ Terrain:
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1
-  m_MaterialTemplate: {fileID: 2100000, guid: af684412a4aeed94199b9ee1dbf0a3d6, type: 2}
+  m_MaterialTemplate: {fileID: 2100000, guid: 42252c0bcd363824abcd984f4a18fe6f, type: 2}
   m_BakeLightProbesForTrees: 1
   m_PreserveTreePrototypeLayers: 0
   m_DeringLightProbesForTrees: 1
@@ -8283,7 +8283,7 @@ Terrain:
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1
-  m_MaterialTemplate: {fileID: 2100000, guid: af684412a4aeed94199b9ee1dbf0a3d6, type: 2}
+  m_MaterialTemplate: {fileID: 2100000, guid: f65cfc322b29ab3448a99c5e20c5a64f, type: 2}
   m_BakeLightProbesForTrees: 1
   m_PreserveTreePrototypeLayers: 0
   m_DeringLightProbesForTrees: 1
@@ -14560,8 +14560,9 @@ MonoBehaviour:
   overlapDepth: 0.25
   mainPixelError: 1
   backgroundPixelError: 5
-  terrainMaterial: {fileID: 2100000, guid: af684412a4aeed94199b9ee1dbf0a3d6, type: 2}
+  terrainMaterial: {fileID: 2100000, guid: 7f459520c29c4934f97e129ab2be46fd, type: 2}
   detailedSurfaceDistance: 6000
+  mainSurfaceDistance: 12000
 --- !u!4 &1968958946
 Transform:
   m_ObjectHideFlags: 0
@@ -16112,7 +16113,7 @@ Terrain:
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1
-  m_MaterialTemplate: {fileID: 2100000, guid: af684412a4aeed94199b9ee1dbf0a3d6, type: 2}
+  m_MaterialTemplate: {fileID: 2100000, guid: a6d060df7ccaea142a89f889b9610bf0, type: 2}
   m_BakeLightProbesForTrees: 1
   m_PreserveTreePrototypeLayers: 0
   m_DeringLightProbesForTrees: 1

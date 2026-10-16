@@ -15,6 +15,7 @@ namespace TacticalMaps.Construction
         [SerializeField, Range(1, 200)] private float backgroundPixelError = 5;
         [SerializeField] private Material terrainMaterial;
         [SerializeField, Min(100)] private float detailedSurfaceDistance = 6000;
+        [SerializeField, Min(100)] private float mainSurfaceDistance = 12000;
 
         internal void Generate(MapData map, Transform parent, Vector3 center)
         {
@@ -24,6 +25,7 @@ namespace TacticalMaps.Construction
             for (int i = 0; i < sizes.Length; i++) sizes[i] = map.Sizes[i];
             float heightMeters = map.TerrainHeightMeters;
             Validate(heightmaps, sizes, heightMeters);
+            if (terrainMaterial == null) throw new InvalidOperationException("Assign the terrain surface material on TerrainGenerator.");
             for (int level = 0; level < 3; level++)
             {
                 var texture = heightmaps[level];
@@ -45,8 +47,11 @@ namespace TacticalMaps.Construction
                 terrain.allowAutoConnect = false;
                 terrain.heightmapPixelError = level == 0 ? mainPixelError : backgroundPixelError;
                 terrain.drawInstanced = true;
-                terrain.basemapDistance = detailedSurfaceDistance;
-                if (terrainMaterial != null) terrain.materialTemplate = terrainMaterial;
+                terrain.basemapDistance = level == 0 ? mainSurfaceDistance : detailedSurfaceDistance;
+                var material = new Material(terrainMaterial) { name = "TerrainSurface_" + level };
+                terrain.materialTemplate = material;
+                if (material.HasProperty("_TacticalTerrainSize"))
+                    material.SetVector("_TacticalTerrainSize", new Vector4(sizes[level].x, sizes[level].y, 0, 0));
                 // Background rings contribute visuals, not gameplay collision.
                 go.GetComponent<TerrainCollider>().enabled = level == 0;
                 terrain.Flush();

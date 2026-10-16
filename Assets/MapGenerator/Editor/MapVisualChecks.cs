@@ -76,7 +76,7 @@ namespace TacticalMaps.Editor
             }
             catch (Exception e) { File.WriteAllText("Temp/water-motion-check.txt", e.ToString()); Debug.LogException(e); }
         }
-        private static GameObject CameraAt(Vector3 point, float size, Vector3 offset, int layers)
+        internal static GameObject CameraAt(Vector3 point, float size, Vector3 offset, int layers)
         {
             var go = new GameObject("Map verification camera") { hideFlags = HideFlags.HideAndDontSave };
             var camera = go.AddComponent<Camera>(); camera.enabled = false;
@@ -85,7 +85,7 @@ namespace TacticalMaps.Editor
             go.transform.position = point + offset; go.transform.LookAt(point);
             return go;
         }
-        private static Color32[] Capture(Camera camera, string path, int width, int height)
+        internal static Color32[] Capture(Camera camera, string path, int width, int height)
         {
             var render = new RenderTexture(width, height, 24);
             var texture = new Texture2D(width, height, TextureFormat.RGB24, false);
@@ -94,7 +94,7 @@ namespace TacticalMaps.Editor
             {
                 camera.aspect = (float)width / height; camera.targetTexture = render; camera.Render();
                 RenderTexture.active = render; texture.ReadPixels(new Rect(0, 0, width, height), 0, 0); texture.Apply();
-                File.WriteAllBytes(path, texture.EncodeToPNG()); return texture.GetPixels32();
+                if (path != null) File.WriteAllBytes(path, texture.EncodeToPNG()); return texture.GetPixels32();
             }
             finally
             {

@@ -45,6 +45,8 @@ namespace TacticalMaps.Construction
             {
                 if (terrain.terrainData == null) continue;
                 resources.Add(terrain.terrainData);
+                // TerrainGenerator creates a private material instance for each terrain.
+                resources.Add(terrain.materialTemplate);
                 foreach (var layer in terrain.terrainData.terrainLayers)
                 {
                     if (layer == null) continue;

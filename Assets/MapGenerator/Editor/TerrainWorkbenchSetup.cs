@@ -57,12 +57,12 @@ namespace TacticalMaps.Editor
 
         private static void ConfigureSurface(MapBuilder builder)
         {
-            var material = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Terrain.mat");
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/MapGenerator/Materials/MatteTerrain.mat");
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Terrain/Lit")) { name = "TacticalTerrain", enableInstancing = true };
+                material = new Material(Shader.Find("TacticalMaps/Terrain/MatteStochastic")) { name = "TacticalTerrain", enableInstancing = true };
                 material.EnableKeyword("_ALPHATEST_ON");
-                AssetDatabase.CreateAsset(material, Root + "/Terrain.mat");
+                AssetDatabase.CreateAsset(material, "Assets/MapGenerator/Materials/MatteTerrain.mat");
             }
             var serialized = new SerializedObject(builder.GetComponent<TerrainGenerator>());
             serialized.FindProperty("terrainMaterial").objectReferenceValue = material;

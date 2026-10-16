@@ -23,7 +23,7 @@ namespace TacticalMaps.Editor
                 string path = Textures + Names[i] + ".png";
                 var albedo = (TextureImporter)AssetImporter.GetAtPath(path);
                 albedo.wrapMode = TextureWrapMode.Repeat; albedo.filterMode = FilterMode.Trilinear;
-                albedo.anisoLevel = 8; albedo.mipmapEnabled = true; albedo.mipMapBias = -0.25f;
+                albedo.anisoLevel = 16; albedo.mipmapEnabled = true; albedo.mipMapBias = 0;
                 albedo.maxTextureSize = 2048; albedo.sRGBTexture = true; albedo.alphaSource = TextureImporterAlphaSource.None;
                 albedo.textureCompression = TextureImporterCompression.CompressedHQ; albedo.SaveAndReimport();
                 string normalPath = Textures + Names[i] + "Normal.png";
@@ -32,7 +32,7 @@ namespace TacticalMaps.Editor
                 var normal = (TextureImporter)AssetImporter.GetAtPath(normalPath);
                 normal.textureType = TextureImporterType.NormalMap; normal.convertToNormalmap = true;
                 normal.heightmapScale = 0.012f; normal.normalmapFilter = TextureImporterNormalFilter.Sobel;
-                normal.wrapMode = TextureWrapMode.Repeat; normal.filterMode = FilterMode.Trilinear; normal.anisoLevel = 8;
+                normal.wrapMode = TextureWrapMode.Repeat; normal.filterMode = FilterMode.Trilinear; normal.anisoLevel = 16;
                 normal.mipmapEnabled = true; normal.maxTextureSize = 2048;
                 normal.textureCompression = TextureImporterCompression.CompressedHQ; normal.SaveAndReimport();
                 string layerPath = Layers + Names[i] + ".terrainlayer";

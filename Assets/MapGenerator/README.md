@@ -74,7 +74,7 @@ MapData.Surface contains the shared layer library, three normalized splat arrays
 
 `Textures/Surfaces` holds six generated albedos plus normal-map import sources. `Materials/TerrainLayers` holds their editable TerrainLayer assets. Change a layer's albedo, normal map, normal strength, tint/remap, smoothness and Tile Size directly; tile dimensions are metres (defaults about 6–13 m), independent of terrain size. Mipmaps, anisotropic filtering and normals keep close views detailed and reduce shimmer. Slightly different tile scales and blending of related surfaces reduce visible repetition. No geometry grass is spawned.
 
-The main splat map is 1024 square, backgrounds 512. These maps control material coverage, not fine surface detail. URP Terrain/Lit supplies ordinary terrain instancing, holes, lighting and shadows. Six layers can require two terrain layer passes; these are conventional Terrain materials, not a one-pass or measured FPS guarantee. `Detailed Surface Distance` on TerrainGenerator controls the distance before Unity's cheaper far basemap.
+The main splat map is 1024 square, backgrounds 512. These maps control material coverage, not fine surface detail. The matte terrain shader reuses URP terrain instancing, holes, lighting and shadows. Six layers can require two terrain layer passes; these are conventional Terrain materials, not a one-pass or measured FPS guarantee. `Detailed Surface Distance` on TerrainGenerator controls the distance before Unity's cheaper far basemap.
 
 `Tools > Tactical Maps > Set Up Terrain Surface Library` configures/imports the six albedo/normal pairs and assigns the generation component. It also enables animated material updates in the active Scene View. `Rebuild Saved Map Preview` regenerates the current selection and saves MainScene. Existing generator height settings and camera setup are preserved.
 
@@ -83,3 +83,17 @@ Water now combines GPU vertex waves, drifting fine ripple normals, moving crest 
 `Verify Biome Generation` checks deterministic normalized weights, coast/bed/slope rules, rectangular dimensions and cancellation. `Verify Water Motion` renders two fixed-camera frames and checks their pixel difference in active Edit Mode or unpaused Play Mode. Keep Unity foreground while running the check so the Editor updates its rendering loop. `Capture Surface Preview` writes a close view to Temp for visual inspection. All three testing tools are editor-only and create temporary verification cameras; the user's camera controller is unchanged.
 
 Generated albedos use the built-in image_gen tool. The prompt set is saved in `Textures/Surfaces/GenerationPrompts.md`.
+
+## Matte terrain and stochastic texturing
+
+`Materials/MatteTerrain.mat` is the source material used by TerrainGenerator. It uses `TacticalMaps/Terrain/MatteStochastic`, with custom additive and distant matte shaders. Lighting is diffuse-only: no specular, Fresnel or environment-reflection term, regardless of TerrainLayer smoothness or texture alpha. Detail normals, directional/additional lights, shadows, fog and ambient lighting remain.
+
+Three hashed samples on a triangular world-space lattice randomize texture translation and quarter-turn orientation. Albedo and normal samples share transforms and weights; normal XY is rotated back into the original tangent frame. Explicit rotated texture gradients retain anisotropic mip filtering at grazing angles. Variance correction preserves fine contrast across blend regions. The lattice scale is independent of terrain dimensions, and each terrain material stores its physical size so nested levels retain the same lattice after saving/reopening.
+
+The source material exposes Anti-tiling Strength, Patch Width (in texture tiles), Blend Sharpness, Pattern Seed, Anti-tiling Fade Start/End (metres), and Detail Normal Strength. Defaults fade stochastic sampling from 1200 to 3000 metres; beyond that a single ordinary sample per map is used. During the fade an additional regular sample allows a continuous transition. Unused layers are skipped where their splat weights are zero. These are sampling costs, not a guaranteed frame-rate result.
+
+TerrainGenerator keeps geometric LOD (`Main Pixel Error = 1`). `Main Surface Distance` defaults to 12000 m, with a separate 6000 m background distance. This controls material basemaps, not mesh simplification. Surface imports use anisotropy 16 and ordinary mip bias 0. The distant basemap has its own diffuse-only shader so gloss cannot reappear there.
+
+Each built terrain owns a material clone; source materials/textures remain shared assets. Rebuild/rollback releases transient clones. `Tools > Tactical Maps > Set Up Matte Terrain` updates the saved scene materials without regenerating heightmaps or water. Rebuild after editing source-material settings to update all three clones.
+
+`Verify Matte Terrain` renders a solid glossy-input regression under high/low viewing angles, checks additive layers 5/6 and basemap visibility, and compares the tile-period difference with anti-tiling off/on. It also reports synchronized offscreen render/readback timings, which include CPU work and are not a pure GPU measurement. `Capture Matte Terrain Angles` writes top/grazing/distant images to Temp. Current Editor GPU frame timing was unavailable; profile target gameplay hardware before deciding the final quality distances.
