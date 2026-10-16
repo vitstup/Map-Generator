@@ -14,10 +14,11 @@ namespace TacticalMaps.Generation
         internal float GlobalMaxHeightMeters { get; private set; }
         internal Vector2Int SourcePoint { get; private set; }
         internal float HeightCompression { get; private set; }
+        internal SurfaceData Surface { get; private set; }
         private bool released;
 
         internal MapData(Texture2D[] heightmaps, Vector2[] sizes, float terrainHeightMeters,
-            float seaLevelMeters, float globalMaxHeightMeters, Vector2Int sourcePoint, float heightCompression = 1)
+            float seaLevelMeters, float globalMaxHeightMeters, Vector2Int sourcePoint, float heightCompression = 1, SurfaceData surface = null)
         {
             if (heightmaps == null || sizes == null || heightmaps.Length != 3 || sizes.Length != 3)
                 throw new ArgumentException("A map requires three heightmaps and three world sizes.");
@@ -25,12 +26,14 @@ namespace TacticalMaps.Generation
             Sizes = Array.AsReadOnly((Vector2[])sizes.Clone());
             TerrainHeightMeters = terrainHeightMeters; SeaLevelMeters = seaLevelMeters;
             GlobalMaxHeightMeters = globalMaxHeightMeters; SourcePoint = sourcePoint; HeightCompression = heightCompression;
+            Surface = surface;
         }
 
         internal void Release()
         {
             if (released) return;
             released = true;
+            Surface = null;
             foreach (var texture in Heightmaps)
             {
                 if (texture == null) continue;

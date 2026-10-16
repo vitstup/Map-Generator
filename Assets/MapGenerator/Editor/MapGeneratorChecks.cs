@@ -105,6 +105,7 @@ namespace TacticalMaps.Editor
                 for (int i = 0; i < heights.Length; i++) { heights[i] = (ushort)(10000 + i * 10); mask[i] = 255; }
                 height.SetPixelData(heights, 0); height.Apply(); land.SetPixelData(mask, 0); land.Apply();
                 var generator = go.AddComponent<MapGenerator>();
+                SurfaceLibrarySetup.Configure(generator, true);
                 var serialized = new UnityEditor.SerializedObject(generator);
                 serialized.FindProperty("heightSource").objectReferenceValue = height;
                 serialized.FindProperty("landSource").objectReferenceValue = land;

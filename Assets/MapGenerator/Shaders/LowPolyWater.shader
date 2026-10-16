@@ -6,13 +6,17 @@ Shader "TacticalMaps/LowPolyWater"
         _DeepColor ("Deep water", Color) = (0.025,0.28,0.40,1)
         _SkyColor ("Sky reflection tint", Color) = (0.48,0.72,0.80,1)
         _FoamColor ("Shore foam", Color) = (0.78,0.92,0.87,1)
-        _WaveAmplitude ("Wave height, metres", Range(0,3)) = 0.55
-        _WaveLength ("Wave length, metres", Range(20,400)) = 140
-        _WaveSpeed ("Wave speed", Range(0,3)) = 0.65
+        _WaveAmplitude ("Wave height, metres", Range(0,3)) = 1.2
+        _WaveLength ("Wave length, metres", Range(20,400)) = 100
+        _WaveSpeed ("Wave speed", Range(0,3)) = 1.3
+        _RippleSize ("Surface ripple size, metres", Range(2,80)) = 18
+        _RippleStrength ("Moving ripple normals", Range(0,0.5)) = 0.16
+        _FlowSpeed ("Surface drift, metres per second", Range(0,8)) = 1.8
+        _RippleHighlights ("Moving surface highlights", Range(0,1)) = 0.25
         _SurfaceLift ("Surface offset, metres", Range(0.01,0.5)) = 0.2
         _DepthColorDistance ("Deep color depth, metres", Range(1,100)) = 22
-        _FoamDepth ("Foam depth, metres", Range(0.1,10)) = 2
-        _FoamStrength ("Foam strength", Range(0,1)) = 0.65
+        _FoamDepth ("Foam depth, metres", Range(0.1,10)) = 0.7
+        _FoamStrength ("Foam strength", Range(0,1)) = 0.35
         _GlintStrength ("Sun glints", Range(0,2)) = 0.55
         _ShallowOpacity ("Shallow opacity", Range(0,1)) = 0.12
         _DeepOpacity ("Deep opacity", Range(0,1)) = 0.88
@@ -49,6 +53,7 @@ Shader "TacticalMaps/LowPolyWater"
             CBUFFER_START(UnityPerMaterial)
                 half4 _ShallowColor, _DeepColor, _SkyColor, _FoamColor;
                 float _WaveAmplitude, _WaveLength, _WaveSpeed, _SurfaceLift;
+                float _RippleSize, _RippleStrength, _FlowSpeed, _RippleHighlights;
                 float _DepthColorDistance, _FoamDepth, _FoamStrength, _GlintStrength;
                 float _ShallowOpacity, _DeepOpacity, _AbsorptionDepth;
                 float4 _MapCenter, _MapSize0, _MapSize1, _MapSize2;
@@ -106,6 +111,14 @@ Shader "TacticalMaps/LowPolyWater"
                 clip(depth-0.02);
                 half3 normal = normalize(cross(ddy(input.positionWS),ddx(input.positionWS)));
                 normal *= normal.y < 0 ? -1 : 1;
+                float2 surface = input.positionWS.xz-_MapCenter.xz;
+                float2 flow = surface-float2(0.8,0.6)*_Time.y*_FlowSpeed;
+                float rippleK=6.2831853/max(1,_RippleSize);
+                float warp=FoamNoise(flow*0.035)*6;
+                float r0=dot(flow,float2(0.8,0.6))*rippleK+warp;
+                float r1=dot(flow,float2(-0.45,0.89))*rippleK*1.41-warp;
+                float2 perturb=(cos(r0)*float2(0.8,0.6)+cos(r1)*float2(-0.45,0.89)*0.55)*_RippleStrength;
+                normal=normalize(normal+float3(perturb.x,0,perturb.y)*saturate(depth/2));
                 half3 view = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 Light light = GetMainLight();
                 half diffuse = saturate(dot(normal,light.direction));
@@ -113,6 +126,9 @@ Shader "TacticalMaps/LowPolyWater"
                 color *= 0.65 + diffuse * 0.35;
                 color *= 0.96 + input.crest * 0.10;
                 color += _SkyColor.rgb * smoothstep(0.65,0.95,input.crest) * 0.035;
+                half movingCrests = smoothstep(0.82,0.99,sin(r0))
+                    * smoothstep(0.45,0.75,FoamNoise(flow*float2(0.16,0.13)+float2(91,17)));
+                color += _SkyColor.rgb * movingCrests * _RippleHighlights * saturate(depth/2);
                 half fresnel = 1-saturate(dot(normal,view)); fresnel *= fresnel; fresnel *= fresnel;
                 color = lerp(color,_SkyColor.rgb,fresnel*0.55);
                 half sun = saturate(dot(reflect(-light.direction,normal),view));

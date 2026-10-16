@@ -42,6 +42,7 @@ namespace TacticalMaps.Editor
             scaler.referenceResolution = new Vector2(1920, 1080); scaler.matchWidthOrHeight = 0.5f;
             var w = canvasGO.AddComponent<MapWorkbench>();
             var generator = new GameObject("MapGenerator").AddComponent<MapGenerator>();
+            SurfaceLibrarySetup.Configure(generator);
             Undo.RegisterCreatedObjectUndo(generator.gameObject, "Create map generator");
             SetReference(generator, "heightSource", heights); SetReference(generator, "landSource", land);
             SetReference(w, "generator", generator);

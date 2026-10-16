@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace TacticalMaps.Construction
 {
-    // Accepts completed heightmaps only. Does not know about generation or its test controller.
+    // Applies completed heightmaps and surface weights, without invoking generation or the test controller.
     internal sealed class TerrainGenerator : MonoBehaviour
     {
         [SerializeField, LayerIndex] private int terrainLayer;
@@ -14,7 +14,7 @@ namespace TacticalMaps.Construction
         [SerializeField, Range(1, 200)] private float mainPixelError = 1;
         [SerializeField, Range(1, 200)] private float backgroundPixelError = 5;
         [SerializeField] private Material terrainMaterial;
-        [SerializeField] private TerrainAppearance appearance = new TerrainAppearance();
+        [SerializeField, Min(100)] private float detailedSurfaceDistance = 6000;
 
         internal void Generate(MapData map, Transform parent, Vector3 center)
         {
@@ -37,7 +37,7 @@ namespace TacticalMaps.Construction
                 data.size = new Vector3(sizes[level].x, heightMeters, sizes[level].y);
                 var heights = CreateHeights(heightmaps, sizes, level, resolution);
                 data.SetHeights(0, 0, heights);
-                appearance.Apply(data, map, level, center);
+                ApplySurface(data, map, level);
                 if (level > 0) CutInterior(data, sizes[level], sizes[level - 1]);
                 go.layer = terrainLayer;
                 go.transform.localPosition = center + new Vector3(-sizes[level].x * 0.5f, -level * overlapDepth, -sizes[level].y * 0.5f);
@@ -45,11 +45,37 @@ namespace TacticalMaps.Construction
                 terrain.allowAutoConnect = false;
                 terrain.heightmapPixelError = level == 0 ? mainPixelError : backgroundPixelError;
                 terrain.drawInstanced = true;
+                terrain.basemapDistance = detailedSurfaceDistance;
                 if (terrainMaterial != null) terrain.materialTemplate = terrainMaterial;
                 // Background rings contribute visuals, not gameplay collision.
                 go.GetComponent<TerrainCollider>().enabled = level == 0;
                 terrain.Flush();
             }
+        }
+
+        private static void ApplySurface(TerrainData data, MapData map, int level)
+        {
+            if (map.Surface == null) return; // Height-only data is also accepted by the construction facade.
+            var surface = map.Surface;
+            var weights = surface.Weights[level];
+            if (weights.GetLength(0) != weights.GetLength(1) || weights.GetLength(2) != surface.Layers.Count)
+                throw new ArgumentException("Surface weights must be square and match the layer library.");
+            foreach (var layer in surface.Layers)
+                if (layer == null || layer.tileSize.x <= 0 || layer.tileSize.y <= 0)
+                    throw new ArgumentException("Surface layers need positive tile dimensions.");
+            data.alphamapResolution = weights.GetLength(0);
+            data.baseMapResolution = 1024;
+            var layers = new TerrainLayer[surface.Layers.Count];
+            for (int i = 0; i < layers.Length; i++)
+            {
+                layers[i] = Instantiate(surface.Layers[i]);
+                layers[i].name = "Surface_" + level + "_" + i;
+                // A common texture phase at every terrain boundary, regardless of its dimensions.
+                var size = layers[i].tileSize;
+                layers[i].tileOffset = new Vector2(Mathf.Repeat(surface.TextureOrigin.x - map.Sizes[level].x * 0.5f, size.x), Mathf.Repeat(surface.TextureOrigin.y - map.Sizes[level].y * 0.5f, size.y));
+            }
+            data.terrainLayers = layers;
+            data.SetAlphamaps(0, 0, weights);
         }
 
         private float[,] CreateHeights(Texture2D[] maps, Vector2[] sizes, int level, int resolution)

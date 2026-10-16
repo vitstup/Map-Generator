@@ -48,7 +48,8 @@ namespace TacticalMaps.Construction
                 foreach (var layer in terrain.terrainData.terrainLayers)
                 {
                     if (layer == null) continue;
-                    resources.Add(layer); resources.Add(layer.diffuseTexture);
+                    // Layer instances are owned; their textures are borrowed from the surface library.
+                    resources.Add(layer);
                 }
             }
             foreach (var mesh in root.GetComponentsInChildren<MeshFilter>(true)) resources.Add(mesh.sharedMesh);

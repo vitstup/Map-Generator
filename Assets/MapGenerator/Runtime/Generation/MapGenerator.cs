@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace TacticalMaps.Generation
 {
-    [RequireComponent(typeof(HeightmapGenerator))]
+    [RequireComponent(typeof(HeightmapGenerator), typeof(BiomeGenerator))]
     [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
     public sealed class MapGenerator : MonoBehaviour
     {
@@ -13,6 +13,7 @@ namespace TacticalMaps.Generation
         [SerializeField] private Texture2D landSource;
         [SerializeField] private MapSettings settings = new MapSettings();
         [SerializeField] private HeightmapGenerator heightmapGenerator;
+        [SerializeField] private BiomeGenerator biomeGenerator;
         private CancellationTokenSource activeGeneration;
 
         internal Texture2D HeightSource => heightSource;
@@ -45,7 +46,7 @@ namespace TacticalMaps.Generation
             try
             {
                 var output = await ResolveHeightmapGenerator().GenerateAsync(heightSource, landSource, point, snapshot, operation.Token);
-                var result = Complete(point, snapshot, output.Textures, output.Compression);
+                var result = await CompleteAsync(point, snapshot, output.Textures, output.Compression, operation.Token);
                 if (operation.IsCancellationRequested) { result.Release(); operation.Token.ThrowIfCancellationRequested(); }
                 return result;
             }
@@ -59,11 +60,38 @@ namespace TacticalMaps.Generation
         internal bool TryReadSource(int x, int y, out float height, out bool land)
             => ResolveHeightmapGenerator().TryReadSource(heightSource, landSource, x, y, out height, out land);
 
-        private static MapData Complete(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression)
+        private MapData Complete(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression)
         {
-            var sizes = new Vector2[3];
-            for (int i = 0; i < 3; i++) sizes[i] = snapshot.Levels[i].Size;
-            return new MapData(textures, sizes, snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, snapshot.GlobalMaxHeightMeters, point, compression);
+            var map = CreateResult(point, snapshot, textures, compression);
+            try
+            {
+                var surface = ResolveBiomeGenerator().Generate(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, CancellationToken.None);
+                return CreateResult(point, snapshot, textures, compression, surface);
+            }
+            catch { map.Release(); throw; }
+        }
+        private async Task<MapData> CompleteAsync(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression, CancellationToken cancellation)
+        {
+            var map = CreateResult(point, snapshot, textures, compression);
+            try
+            {
+                var surface = await ResolveBiomeGenerator().GenerateAsync(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, cancellation);
+                return CreateResult(point, snapshot, textures, compression, surface);
+            }
+            catch { map.Release(); throw; }
+        }
+        private static Vector2[] ToSizes(MapSettings snapshot)
+        {
+            var sizes = new Vector2[3]; for (int i = 0; i < 3; i++) sizes[i] = snapshot.Levels[i].Size; return sizes;
+        }
+        private static MapData CreateResult(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression, SurfaceData surface = null)
+            => new MapData(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, snapshot.GlobalMaxHeightMeters, point, compression, surface);
+        private BiomeGenerator ResolveBiomeGenerator()
+        {
+            if (biomeGenerator == null) biomeGenerator = GetComponent<BiomeGenerator>();
+            if (biomeGenerator == null || biomeGenerator.gameObject != gameObject)
+                throw new InvalidOperationException("BiomeGenerator must be on the MapGenerator object.");
+            return biomeGenerator;
         }
         private HeightmapGenerator ResolveHeightmapGenerator()
         {

@@ -40,16 +40,20 @@ Material:
     - _AbsorptionDepth: 18
     - _DeepOpacity: 0.88
     - _DepthColorDistance: 22
-    - _FoamDepth: 2
-    - _FoamStrength: 0.65
+    - _FlowSpeed: 1.8
+    - _FoamDepth: 0.7
+    - _FoamStrength: 0.35
     - _GlintStrength: 0.55
     - _HeightRange: 4000
+    - _RippleHighlights: 0.25
+    - _RippleSize: 18
+    - _RippleStrength: 0.16
     - _ShallowOpacity: 0.12
     - _SurfaceLift: 0.2
     - _WaterLevel: 0
-    - _WaveAmplitude: 0.55
-    - _WaveLength: 140
-    - _WaveSpeed: 0.65
+    - _WaveAmplitude: 1.2
+    - _WaveLength: 100
+    - _WaveSpeed: 1.3
     m_Colors:
     - _DeepColor: {r: 0.025, g: 0.28, b: 0.4, a: 1}
     - _FoamColor: {r: 0.78, g: 0.92, b: 0.87, a: 1}
