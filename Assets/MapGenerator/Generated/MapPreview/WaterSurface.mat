@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: WaterSurface
+  m_Shader: {fileID: 4800000, guid: d8b5f3de1fd95224eb3409252877b505, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Depth0:
+        m_Texture: {fileID: 2800000, guid: 18b6da97c866c5443947503fd56a1993, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Depth1:
+        m_Texture: {fileID: 2800000, guid: dce1225d253f04448908c5a097eee819, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Depth2:
+        m_Texture: {fileID: 2800000, guid: 3551868b8f8c4fe4e80b6fc31882b0eb, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _DepthColorDistance: 22
+    - _FoamDepth: 2
+    - _FoamStrength: 0.65
+    - _GlintStrength: 0.55
+    - _HeightRange: 4000
+    - _SurfaceLift: 0.06
+    - _WaterLevel: 0
+    - _WaveAmplitude: 0.55
+    - _WaveLength: 140
+    - _WaveSpeed: 0.65
+    m_Colors:
+    - _DeepColor: {r: 0.018, g: 0.11999995, b: 0.21999997, a: 1}
+    - _FoamColor: {r: 0.78, g: 0.92, b: 0.87, a: 1}
+    - _MapCenter: {r: 0, g: 0, b: 0, a: 0}
+    - _MapSize0: {r: 2048, g: 2048, b: 0.00048828125, a: 0.00048828125}
+    - _MapSize1: {r: 8096, g: 8096, b: 0.00012351779, a: 0.00012351779}
+    - _MapSize2: {r: 20000, g: 20000, b: 0.00005, a: 0.00005}
+    - _ShallowColor: {r: 0.09999997, g: 0.41999996, b: 0.45999992, a: 1}
+    - _SkyColor: {r: 0.47999996, g: 0.72, b: 0.8, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

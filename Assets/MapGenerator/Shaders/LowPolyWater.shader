@@ -1,0 +1,114 @@
+Shader "TacticalMaps/LowPolyWater"
+{
+    Properties
+    {
+        _ShallowColor ("Shallow water", Color) = (0.10,0.42,0.46,1)
+        _DeepColor ("Deep water", Color) = (0.018,0.12,0.22,1)
+        _SkyColor ("Sky reflection tint", Color) = (0.48,0.72,0.80,1)
+        _FoamColor ("Shore foam", Color) = (0.78,0.92,0.87,1)
+        _WaveAmplitude ("Wave height, metres", Range(0,3)) = 0.55
+        _WaveLength ("Wave length, metres", Range(20,400)) = 140
+        _WaveSpeed ("Wave speed", Range(0,3)) = 0.65
+        _SurfaceLift ("Surface offset, metres", Range(0.01,0.5)) = 0.06
+        _DepthColorDistance ("Deep color depth, metres", Range(1,100)) = 22
+        _FoamDepth ("Foam depth, metres", Range(0.1,10)) = 2
+        _FoamStrength ("Foam strength", Range(0,1)) = 0.65
+        _GlintStrength ("Sun glints", Range(0,2)) = 0.55
+        [HideInInspector] _Depth0 ("Main seabed", 2D) = "black" {}
+        [HideInInspector] _Depth1 ("Middle seabed", 2D) = "black" {}
+        [HideInInspector] _Depth2 ("Outer seabed", 2D) = "black" {}
+        [HideInInspector] _MapCenter ("Map center", Vector) = (0,0,0,0)
+        [HideInInspector] _MapSize0 ("Main size", Vector) = (2048,2048,0.00048828125,0.00048828125)
+        [HideInInspector] _MapSize1 ("Middle size", Vector) = (8096,8096,0.0001235,0.0001235)
+        [HideInInspector] _MapSize2 ("Outer size", Vector) = (20000,20000,0.00005,0.00005)
+        [HideInInspector] _HeightRange ("Height range", Float) = 4000
+        [HideInInspector] _WaterLevel ("Sea level", Float) = 0
+    }
+    SubShader
+    {
+        Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" "Queue"="Geometry+10" }
+        Pass
+        {
+            Name "WaterForward"
+            Tags { "LightMode"="UniversalForward" }
+            Cull Back ZWrite On ZTest LEqual
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex Vert
+            #pragma fragment Frag
+            #pragma multi_compile_fog
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            TEXTURE2D(_Depth0); SAMPLER(sampler_Depth0);
+            TEXTURE2D(_Depth1); SAMPLER(sampler_Depth1);
+            TEXTURE2D(_Depth2); SAMPLER(sampler_Depth2);
+            CBUFFER_START(UnityPerMaterial)
+                half4 _ShallowColor, _DeepColor, _SkyColor, _FoamColor;
+                float _WaveAmplitude, _WaveLength, _WaveSpeed, _SurfaceLift;
+                float _DepthColorDistance, _FoamDepth, _FoamStrength, _GlintStrength;
+                float4 _MapCenter, _MapSize0, _MapSize1, _MapSize2;
+                float _HeightRange, _WaterLevel;
+            CBUFFER_END
+            struct Attributes { float4 positionOS : POSITION; };
+            struct Varyings { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; half fog : TEXCOORD1; half crest : TEXCOORD2; };
+            float Ground(float2 position)
+            {
+                float2 p = position - _MapCenter.xz;
+                float h;
+                [branch] if (all(abs(p) <= _MapSize0.xy * 0.5))
+                    h = SAMPLE_TEXTURE2D_LOD(_Depth0,sampler_Depth0,p*_MapSize0.zw+0.5,0).r;
+                else if (all(abs(p) <= _MapSize1.xy * 0.5))
+                    h = SAMPLE_TEXTURE2D_LOD(_Depth1,sampler_Depth1,p*_MapSize1.zw+0.5,0).r;
+                else h = SAMPLE_TEXTURE2D_LOD(_Depth2,sampler_Depth2,p*_MapSize2.zw+0.5,0).r;
+                return _MapCenter.y + h * _HeightRange;
+            }
+            Varyings Vert(Attributes input)
+            {
+                Varyings o;
+                float3 p = TransformObjectToWorld(input.positionOS.xyz);
+                float2 q = p.xz - _MapCenter.xz;
+                float phase = _Time.y * _WaveSpeed;
+                float k = 6.2831853 / max(1,_WaveLength);
+                float wave = sin(dot(q,float2(0.8,0.6))*k+phase)*0.65
+                           + sin(dot(q,float2(-0.6,0.8))*k*1.73-phase*1.17)*0.35;
+                float ground = Ground(p.xz);
+                float depth = max(0,_WaterLevel-ground);
+                // A small positive crest remains visible even when the configured seabed and sea coincide.
+                float amplitude = _WaveAmplitude * lerp(0.35,1,saturate(depth/4));
+                p.y = max(_WaterLevel+_SurfaceLift+wave*amplitude,min(ground,_WaterLevel)+_SurfaceLift);
+                o.positionWS = p;
+                o.positionCS = TransformWorldToHClip(p);
+                o.fog = ComputeFogFactor(o.positionCS.z);
+                o.crest = wave;
+                return o;
+            }
+            half4 Frag(Varyings input) : SV_Target
+            {
+                float ground = Ground(input.positionWS.xz);
+                // Terrain depth testing handles geometry; this clips uphill water triangles at the shore.
+                clip(_WaterLevel + 0.08 - ground);
+                float depth = max(0,_WaterLevel-ground);
+                half3 normal = normalize(cross(ddy(input.positionWS),ddx(input.positionWS)));
+                normal *= normal.y < 0 ? -1 : 1;
+                half3 view = GetWorldSpaceNormalizeViewDir(input.positionWS);
+                Light light = GetMainLight();
+                half diffuse = saturate(dot(normal,light.direction));
+                half3 color = lerp(_ShallowColor.rgb,_DeepColor.rgb,saturate(depth/max(0.1,_DepthColorDistance)));
+                color *= 0.65 + diffuse * 0.35;
+                color *= 0.96 + input.crest * 0.10;
+                color += _SkyColor.rgb * smoothstep(0.65,0.95,input.crest) * 0.035;
+                half fresnel = 1-saturate(dot(normal,view)); fresnel *= fresnel; fresnel *= fresnel;
+                color = lerp(color,_SkyColor.rgb,fresnel*0.55);
+                half sun = saturate(dot(reflect(-light.direction,normal),view));
+                color += light.color * smoothstep(0.96,0.998,sun) * _GlintStrength;
+                float phase = dot(input.positionWS.xz,float2(0.17,0.13))-_Time.y*0.9;
+                half shore = (1-smoothstep(0,max(0.1,_FoamDepth),depth))*step(0.03,depth);
+                half foam = shore * (0.55+0.45*sin(phase)) * _FoamStrength;
+                color = lerp(color,_FoamColor.rgb,foam);
+                return half4(MixFog(color,input.fog),1);
+            }
+            ENDHLSL
+        }
+    }
+    FallBack Off
+}

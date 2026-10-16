@@ -79,9 +79,9 @@ namespace TacticalMaps.Editor
             const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly;
             foreach (var type in new[] { typeof(MapGenerator), typeof(HeightmapGenerator), typeof(MapData), typeof(HeightField), typeof(MapSettings), typeof(MapLevel), typeof(MapWorkbench), typeof(MapSelectionGraphic) })
             {
-                Check(!type.IsPublic, type.Name + " is internal");
+                Check(type.IsPublic == (type == typeof(MapGenerator) || type == typeof(MapData)), type.Name + " facade visibility");
                 foreach (var member in type.GetMembers(flags | System.Reflection.BindingFlags.Public))
-                    if (!(member is System.Reflection.ConstructorInfo)) Check(false, type.Name + " has no declared public API: " + member.Name);
+                    if (!(member is System.Reflection.ConstructorInfo) && !(type == typeof(MapGenerator) && member.Name == "GenerateAsync")) Check(false, type.Name + " has no declared public API: " + member.Name);
                 foreach (var field in type.GetFields(flags | System.Reflection.BindingFlags.NonPublic))
                     if (Attribute.IsDefined(field, typeof(SerializeField))) Check(field.IsPrivate, field.Name + " is private serialized");
             }

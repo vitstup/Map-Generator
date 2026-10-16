@@ -13,7 +13,7 @@ namespace TacticalMaps.Testing
     internal sealed class MapWorkbench : MonoBehaviour
     {
         [SerializeField] private MapGenerator generator;
-        [SerializeField] private TerrainBuilder terrainBuilder;
+        [SerializeField, UnityEngine.Serialization.FormerlySerializedAs("terrainBuilder")] private MapBuilder mapBuilder;
         [SerializeField] private UnityEngine.UI.Button buildTerrainButton;
         [SerializeField] private UnityEngine.UI.RawImage globalOverlay, cropImage;
         [SerializeField] private UnityEngine.UI.RawImage[] results;
@@ -151,9 +151,9 @@ namespace TacticalMaps.Testing
             try
             {
                 if (currentMap == null) { buildPending = true; Generate(); return; }
-                terrainBuilder.Build(currentMap);
+                mapBuilder.Build(currentMap);
                 buildPending = false; hasBuiltTerrain = true;
-                status.text = "Построены 3 Terrain · осмотр в Scene · коллайдер у основного уровня";
+                status.text = "Карта построена: 3 Terrain и вода · осмотр в Scene";
             }
             catch (Exception e) { buildPending = false; status.text = "Ошибка построения: " + e.Message; Debug.LogException(e); }
         }

@@ -6,19 +6,17 @@ using UnityEngine;
 namespace TacticalMaps.Construction
 {
     // Accepts completed heightmaps only. Does not know about generation or its test controller.
-    public sealed class TerrainBuilder : MonoBehaviour
+    internal sealed class TerrainGenerator : MonoBehaviour
     {
-        [SerializeField] private Vector3 center;
+        [SerializeField, LayerIndex] private int terrainLayer;
         [SerializeField, Min(0)] private float seamBlendMeters = 100;
         [SerializeField, Min(0.01f)] private float overlapDepth = 0.25f;
         [SerializeField, Range(1, 200)] private float mainPixelError = 1;
         [SerializeField, Range(1, 200)] private float backgroundPixelError = 5;
         [SerializeField] private Material terrainMaterial;
         [SerializeField] private TerrainLayer surfaceLayer;
-        [SerializeField, HideInInspector] private Transform builtRoot;
-        [SerializeField, HideInInspector] private TerrainData[] builtData;
 
-        public void Build(MapData map)
+        internal void Generate(MapData map, Transform parent, Vector3 center)
         {
             if (map == null) throw new ArgumentNullException(nameof(map));
             var heightmaps = new Texture2D[map.Heightmaps.Count]; var sizes = new Vector2[map.Sizes.Count];
@@ -26,49 +24,32 @@ namespace TacticalMaps.Construction
             for (int i = 0; i < sizes.Length; i++) sizes[i] = map.Sizes[i];
             float heightMeters = map.TerrainHeightMeters;
             Validate(heightmaps, sizes, heightMeters);
-            var nextRoot = new GameObject("GeneratedTerrains");
-            nextRoot.transform.SetParent(transform, false);
-            nextRoot.SetActive(false);
-            var nextData = new TerrainData[3];
-            try
+            for (int level = 0; level < 3; level++)
             {
-                for (int level = 0; level < 3; level++)
-                {
-                    var texture = heightmaps[level];
-                    int resolution = Mathf.Clamp(Mathf.NextPowerOfTwo(Mathf.Max(texture.width, texture.height) - 1) + 1, 33, 4097);
-                    var data = new TerrainData { name = "TerrainData_" + (level + 1), heightmapResolution = resolution };
-                    nextData[level] = data;
-                    data.size = new Vector3(sizes[level].x, heightMeters, sizes[level].y);
-                    if (surfaceLayer != null) data.terrainLayers = new[] { surfaceLayer };
-                    var heights = CreateHeights(heightmaps, sizes, level, resolution);
-                    data.SetHeights(0, 0, heights);
-                    if (level > 0) CutInterior(data, sizes[level], sizes[level - 1]);
-                    var go = Terrain.CreateTerrainGameObject(data);
-                    go.name = level == 0 ? "Terrain_Main" : level == 1 ? "Terrain_Surroundings" : "Terrain_Horizon";
-                    go.transform.SetParent(nextRoot.transform, false);
-                    go.transform.localPosition = center + new Vector3(-sizes[level].x * 0.5f, -level * overlapDepth, -sizes[level].y * 0.5f);
-                    var terrain = go.GetComponent<Terrain>();
-                    terrain.allowAutoConnect = false;
-                    terrain.heightmapPixelError = level == 0 ? mainPixelError : backgroundPixelError;
-                    terrain.drawInstanced = true;
-                    if (terrainMaterial != null) terrain.materialTemplate = terrainMaterial;
-                    // Background rings contribute visuals, not gameplay collision.
-                    go.GetComponent<TerrainCollider>().enabled = level == 0;
-                    terrain.Flush();
-                }
+                var texture = heightmaps[level];
+                int resolution = Mathf.Clamp(Mathf.NextPowerOfTwo(Mathf.Max(texture.width, texture.height) - 1) + 1, 33, 4097);
+                var data = new TerrainData { name = "TerrainData_" + (level + 1), heightmapResolution = resolution };
+
+                var go = new GameObject(level == 0 ? "Terrain_Main" : level == 1 ? "Terrain_Surroundings" : "Terrain_Horizon");
+                go.transform.SetParent(parent, false);
+                var terrain = go.AddComponent<Terrain>(); terrain.terrainData = data;
+                var collider = go.AddComponent<TerrainCollider>(); collider.terrainData = data;
+                data.size = new Vector3(sizes[level].x, heightMeters, sizes[level].y);
+                if (surfaceLayer != null) data.terrainLayers = new[] { surfaceLayer };
+                var heights = CreateHeights(heightmaps, sizes, level, resolution);
+                data.SetHeights(0, 0, heights);
+                if (level > 0) CutInterior(data, sizes[level], sizes[level - 1]);
+                go.layer = terrainLayer;
+                go.transform.localPosition = center + new Vector3(-sizes[level].x * 0.5f, -level * overlapDepth, -sizes[level].y * 0.5f);
+
+                terrain.allowAutoConnect = false;
+                terrain.heightmapPixelError = level == 0 ? mainPixelError : backgroundPixelError;
+                terrain.drawInstanced = true;
+                if (terrainMaterial != null) terrain.materialTemplate = terrainMaterial;
+                // Background rings contribute visuals, not gameplay collision.
+                go.GetComponent<TerrainCollider>().enabled = level == 0;
+                terrain.Flush();
             }
-            catch
-            {
-                Release(nextRoot, nextData);
-                throw;
-            }
-            var previousRoot = builtRoot;
-            var previousData = builtData;
-            builtRoot = nextRoot.transform;
-            builtData = nextData;
-            if (previousRoot != null) previousRoot.gameObject.SetActive(false);
-            nextRoot.SetActive(true);
-            Release(previousRoot != null ? previousRoot.gameObject : null, previousData);
         }
 
         private float[,] CreateHeights(Texture2D[] maps, Vector2[] sizes, int level, int resolution)
@@ -129,6 +110,7 @@ namespace TacticalMaps.Construction
         {
             if (maps == null || sizes == null || maps.Length != 3 || sizes.Length != 3)
                 throw new ArgumentException("TerrainBuilder requires three heightmaps and three sizes.");
+            if (terrainLayer < 0 || terrainLayer > 31) throw new ArgumentException("Terrain layer must be 0–31.");
             if (!Finite(heightMeters) || heightMeters <= 0 || !Finite(overlapDepth) || overlapDepth <= 0 || !Finite(seamBlendMeters) || seamBlendMeters < 0)
                 throw new ArgumentException("Invalid terrain height or seam parameters.");
             for (int i = 0; i < 3; i++)
@@ -142,18 +124,5 @@ namespace TacticalMaps.Construction
         }
 
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
-        private static void Release(GameObject root, TerrainData[] data)
-        {
-            if (root != null) Dispose(root);
-            if (data != null) foreach (var item in data) if (item != null) Dispose(item);
-        }
-        private static void Dispose(UnityEngine.Object value)
-        {
-#if UNITY_EDITOR
-            if (UnityEditor.EditorUtility.IsPersistent(value)) return;
-#endif
-            if (Application.isPlaying) Destroy(value); else DestroyImmediate(value);
-        }
-        private void OnDestroy() => Release(builtRoot != null ? builtRoot.gameObject : null, builtData);
     }
 }
