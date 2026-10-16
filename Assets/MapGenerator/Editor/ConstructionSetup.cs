@@ -29,17 +29,26 @@ namespace TacticalMaps.Editor
             water.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        internal static void SavePreviewResources(MapBuilder builder, string folder)
+        internal static void SavePreviewResources(MapBuilder builder, string folder, bool replace = false)
         {
             var serialized = new SerializedObject(builder);
             var resources = serialized.FindProperty("builtResources");
+            var ordered = new System.Collections.Generic.List<UnityEngine.Object>();
             for (int i = 0; i < resources.arraySize; i++)
+                ordered.Add(resources.GetArrayElementAtIndex(i).objectReferenceValue);
+            // Save dependencies first: importing a native asset drops references to unsaved objects.
+            ordered.Sort((a, b) => Priority(a).CompareTo(Priority(b)));
+            int depth = 0;
+            foreach (var asset in ordered)
             {
-                var asset = resources.GetArrayElementAtIndex(i).objectReferenceValue;
                 if (asset == null || AssetDatabase.Contains(asset)) continue;
                 string extension = asset is Material ? ".mat" : ".asset";
-                AssetDatabase.CreateAsset(asset, AssetDatabase.GenerateUniqueAssetPath(folder + "/" + asset.name + extension));
+                string name = asset.name == "WaterDepth" ? asset.name + depth++ : asset.name;
+                string path = folder + "/" + name + extension;
+                if (replace && AssetDatabase.LoadMainAssetAtPath(path) != null) AssetDatabase.DeleteAsset(path);
+                AssetDatabase.CreateAsset(asset, replace ? path : AssetDatabase.GenerateUniqueAssetPath(path));
             }
         }
+        private static int Priority(UnityEngine.Object asset) => asset is Texture ? 0 : asset is TerrainLayer ? 1 : asset is Material ? 2 : 3;
     }
 }

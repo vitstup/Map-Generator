@@ -27,6 +27,7 @@ namespace TacticalMaps.Generation
         [SerializeField, Min(1), UnityEngine.Serialization.FormerlySerializedAs("heightMeters")] private float terrainHeightMeters = 4000;
         [SerializeField, Min(0)] private float seaLevelMeters;
         [SerializeField, Range(0.25f, 12)] private float coastPixels = 2;
+        [SerializeField, Range(0.25f, 32), Tooltip("Distance into water, in source pixels, before the seabed reaches zero.")] private float seabedPixels = 4;
         [SerializeField, Range(0.25f, 16)] private float smoothingPixels = 3;
         [SerializeField, Range(1, 40)] private float maxSlope = 12;
         [SerializeField, Range(10, 5000)] private float transitionMeters = 1500;
@@ -37,6 +38,7 @@ namespace TacticalMaps.Generation
         internal float TerrainHeightMeters { get => terrainHeightMeters; set => terrainHeightMeters = value; }
         internal float SeaLevelMeters { get => seaLevelMeters; set => seaLevelMeters = value; }
         internal float CoastPixels { get => coastPixels; set => coastPixels = value; }
+        internal float SeabedPixels { get => seabedPixels; set => seabedPixels = value; }
         internal float SmoothingPixels { get => smoothingPixels; set => smoothingPixels = value; }
         internal float MaxSlope { get => maxSlope; set => maxSlope = value; }
         internal float TransitionMeters { get => transitionMeters; set => transitionMeters = value; }
@@ -51,8 +53,8 @@ namespace TacticalMaps.Generation
             if (!Finite(globalMaxHeightMeters) || globalMaxHeightMeters <= 0 || !Finite(terrainHeightMeters) || terrainHeightMeters <= 0 || !Finite(seaLevelMeters) || seaLevelMeters < 0 || !Finite(coastPixels) || coastPixels <= 0 ||
                 !Finite(smoothingPixels) || smoothingPixels <= 0 || !Finite(maxSlope) || maxSlope <= 0 || maxSlope >= 89 ||
                 !Finite(transitionMeters) || transitionMeters <= 0) throw new ArgumentException("Invalid smoothing or height settings.");
-            if (seaLevelMeters + globalMaxHeightMeters > terrainHeightMeters)
-                throw new ArgumentException("Высота Terrain должна вмещать уровень моря и максимальную высоту глобальной карты.");
+            if (seaLevelMeters >= terrainHeightMeters || !Finite(seabedPixels) || seabedPixels <= 0)
+                throw new ArgumentException("Уровень моря должен быть ниже высоты Terrain; ширина дна должна быть положительной.");
             for (int i = 0; i < 3; i++)
             {
                 var l = levels[i];

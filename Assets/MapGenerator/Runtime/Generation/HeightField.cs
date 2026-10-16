@@ -31,9 +31,13 @@ namespace TacticalMaps.Generation
                     if (sx < 0 || sy < 0 || sx >= width || sy >= height) continue;
                     int src = sy * width + sx;
                     mask[p] = land[src] >= 128;
-                    original[p] = mask[p] ? sourceHeights[src] * settings.GlobalMaxHeightMeters / settings.TerrainHeightMeters : 0;
+                    // Source values encode a fraction of the land range above sea level.
+                    original[p] = mask[p] ? Mathf.Clamp01(sourceHeights[src]) * (1 - settings.SeaLevelMeters / settings.TerrainHeightMeters) : 0;
                 }
             float[] shoreDistance = DistanceToWater(mask, side);
+            var inverseMask = new bool[mask.Length];
+            for (int i = 0; i < mask.Length; i++) inverseMask[i] = !mask[i];
+            float[] waterDistance = DistanceToWater(inverseMask, side);
             playable = Blur(original, side, settings.SmoothingPixels);
             seaBaseline = new float[original.Length];
             Vector2 outer = settings.Levels[2].Size;
@@ -42,14 +46,17 @@ namespace TacticalMaps.Generation
             float sea = settings.SeaLevelMeters / settings.TerrainHeightMeters;
             float slopeLimit = Mathf.Tan(settings.MaxSlope * Mathf.Deg2Rad);
             // A sufficiently wide coastal baseline leaves slope budget for the land relief.
-            float playableCoast = Mathf.Max(settings.CoastPixels, 4 * settings.SeaLevelMeters / (slopeLimit * Mathf.Min(dx, dy)));
+            float playableCoast = settings.CoastPixels;
+            float seabedWidth = Mathf.Max(settings.SeabedPixels, 4 * settings.SeaLevelMeters / (slopeLimit * Mathf.Min(dx, dy)));
             for (int i = 0; i < original.Length; i++)
             {
                 float coast = Smooth(Mathf.Clamp01((shoreDistance[i] - 0.5f) / settings.CoastPixels));
-                original[i] = (original[i] + (mask[i] ? sea : 0)) * coast;
+                float waterDepth = mask[i] ? 0 : Smooth(Mathf.Clamp01((waterDistance[i] - 0.5f) / seabedWidth));
+                // The same seabed reference is used by all levels, including their transition.
+                seaBaseline[i] = sea * (1 - waterDepth);
+                original[i] = original[i] * coast + seaBaseline[i];
                 float playableWeight = Smooth(Mathf.Clamp01((shoreDistance[i] - 0.5f) / playableCoast));
                 playable[i] *= playableWeight;
-                seaBaseline[i] = sea * playableWeight;
             }
             float maxGradient = 0, maxSeaGradient = 0;
             // Bilinear interpolation has bounded derivatives in each source cell.
@@ -129,7 +136,7 @@ namespace TacticalMaps.Generation
         private static float[] DistanceToWater(bool[] mask, int n)
         {
             var d = new float[mask.Length];
-            for (int i = 0; i < d.Length; i++) d[i] = mask[i] ? n * 2 : 0;
+            for (int i = 0; i < d.Length; i++) d[i] = mask[i] ? 1000000 : 0;
             const float diagonal = 1.41421356f;
             for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
             {

@@ -2,18 +2,21 @@ Shader "TacticalMaps/LowPolyWater"
 {
     Properties
     {
-        _ShallowColor ("Shallow water", Color) = (0.10,0.42,0.46,1)
-        _DeepColor ("Deep water", Color) = (0.018,0.12,0.22,1)
+        _ShallowColor ("Shallow water", Color) = (0.10,0.55,0.62,1)
+        _DeepColor ("Deep water", Color) = (0.025,0.28,0.40,1)
         _SkyColor ("Sky reflection tint", Color) = (0.48,0.72,0.80,1)
         _FoamColor ("Shore foam", Color) = (0.78,0.92,0.87,1)
         _WaveAmplitude ("Wave height, metres", Range(0,3)) = 0.55
         _WaveLength ("Wave length, metres", Range(20,400)) = 140
         _WaveSpeed ("Wave speed", Range(0,3)) = 0.65
-        _SurfaceLift ("Surface offset, metres", Range(0.01,0.5)) = 0.06
+        _SurfaceLift ("Surface offset, metres", Range(0.01,0.5)) = 0.2
         _DepthColorDistance ("Deep color depth, metres", Range(1,100)) = 22
         _FoamDepth ("Foam depth, metres", Range(0.1,10)) = 2
         _FoamStrength ("Foam strength", Range(0,1)) = 0.65
         _GlintStrength ("Sun glints", Range(0,2)) = 0.55
+        _ShallowOpacity ("Shallow opacity", Range(0,1)) = 0.12
+        _DeepOpacity ("Deep opacity", Range(0,1)) = 0.88
+        _AbsorptionDepth ("Opacity depth, metres", Range(1,100)) = 18
         [HideInInspector] _Depth0 ("Main seabed", 2D) = "black" {}
         [HideInInspector] _Depth1 ("Middle seabed", 2D) = "black" {}
         [HideInInspector] _Depth2 ("Outer seabed", 2D) = "black" {}
@@ -26,12 +29,13 @@ Shader "TacticalMaps/LowPolyWater"
     }
     SubShader
     {
-        Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" "Queue"="Geometry+10" }
+        Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Transparent" "Queue"="Transparent" }
         Pass
         {
             Name "WaterForward"
             Tags { "LightMode"="UniversalForward" }
-            Cull Back ZWrite On ZTest LEqual
+            Cull Back ZWrite Off ZTest LEqual
+            Blend SrcAlpha OneMinusSrcAlpha
             HLSLPROGRAM
             #pragma target 3.5
             #pragma vertex Vert
@@ -46,11 +50,23 @@ Shader "TacticalMaps/LowPolyWater"
                 half4 _ShallowColor, _DeepColor, _SkyColor, _FoamColor;
                 float _WaveAmplitude, _WaveLength, _WaveSpeed, _SurfaceLift;
                 float _DepthColorDistance, _FoamDepth, _FoamStrength, _GlintStrength;
+                float _ShallowOpacity, _DeepOpacity, _AbsorptionDepth;
                 float4 _MapCenter, _MapSize0, _MapSize1, _MapSize2;
                 float _HeightRange, _WaterLevel;
             CBUFFER_END
             struct Attributes { float4 positionOS : POSITION; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; half fog : TEXCOORD1; half crest : TEXCOORD2; };
+            float Hash(float2 p)
+            {
+                float3 q = frac(float3(p.xyx) * 0.1031);
+                q += dot(q,q.yzx+33.33);
+                return frac((q.x+q.y)*q.z);
+            }
+            float FoamNoise(float2 p)
+            {
+                float2 i=floor(p), f=frac(p); f=f*f*(3-2*f);
+                return lerp(lerp(Hash(i),Hash(i+float2(1,0)),f.x),lerp(Hash(i+float2(0,1)),Hash(i+1),f.x),f.y);
+            }
             float Ground(float2 position)
             {
                 float2 p = position - _MapCenter.xz;
@@ -73,9 +89,9 @@ Shader "TacticalMaps/LowPolyWater"
                            + sin(dot(q,float2(-0.6,0.8))*k*1.73-phase*1.17)*0.35;
                 float ground = Ground(p.xz);
                 float depth = max(0,_WaterLevel-ground);
-                // A small positive crest remains visible even when the configured seabed and sea coincide.
-                float amplitude = _WaveAmplitude * lerp(0.35,1,saturate(depth/4));
-                p.y = max(_WaterLevel+_SurfaceLift+wave*amplitude,min(ground,_WaterLevel)+_SurfaceLift);
+                // Waves disappear at the shore instead of being clamped onto nearly coincident ground.
+                float amplitude = min(_WaveAmplitude * saturate(depth/4),depth*0.3);
+                p.y = _WaterLevel+_SurfaceLift+wave*amplitude;
                 o.positionWS = p;
                 o.positionCS = TransformWorldToHClip(p);
                 o.fog = ComputeFogFactor(o.positionCS.z);
@@ -86,8 +102,8 @@ Shader "TacticalMaps/LowPolyWater"
             {
                 float ground = Ground(input.positionWS.xz);
                 // Terrain depth testing handles geometry; this clips uphill water triangles at the shore.
-                clip(_WaterLevel + 0.08 - ground);
                 float depth = max(0,_WaterLevel-ground);
+                clip(depth-0.02);
                 half3 normal = normalize(cross(ddy(input.positionWS),ddx(input.positionWS)));
                 normal *= normal.y < 0 ? -1 : 1;
                 half3 view = GetWorldSpaceNormalizeViewDir(input.positionWS);
@@ -101,11 +117,14 @@ Shader "TacticalMaps/LowPolyWater"
                 color = lerp(color,_SkyColor.rgb,fresnel*0.55);
                 half sun = saturate(dot(reflect(-light.direction,normal),view));
                 color += light.color * smoothstep(0.96,0.998,sun) * _GlintStrength;
-                float phase = dot(input.positionWS.xz,float2(0.17,0.13))-_Time.y*0.9;
-                half shore = (1-smoothstep(0,max(0.1,_FoamDepth),depth))*step(0.03,depth);
-                half foam = shore * (0.55+0.45*sin(phase)) * _FoamStrength;
+                half shore = (1-smoothstep(0,max(0.1,_FoamDepth),depth))*smoothstep(0.02,0.4,depth);
+                half foam = 0;
+                [branch] if (shore > 0.001)
+                    foam = shore * smoothstep(0.4,0.75,FoamNoise((input.positionWS.xz-_MapCenter.xz)*0.08+_Time.y*float2(0.08,0.035))) * _FoamStrength;
                 color = lerp(color,_FoamColor.rgb,foam);
-                return half4(MixFog(color,input.fog),1);
+                half opacity = lerp(_ShallowOpacity,_DeepOpacity,1-exp2(-depth/max(0.1,_AbsorptionDepth)));
+                opacity = lerp(opacity,1,foam);
+                return half4(MixFog(color,input.fog),opacity);
             }
             ENDHLSL
         }

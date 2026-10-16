@@ -14,7 +14,7 @@ namespace TacticalMaps.Construction
         [SerializeField, Range(1, 200)] private float mainPixelError = 1;
         [SerializeField, Range(1, 200)] private float backgroundPixelError = 5;
         [SerializeField] private Material terrainMaterial;
-        [SerializeField] private TerrainLayer surfaceLayer;
+        [SerializeField] private TerrainAppearance appearance = new TerrainAppearance();
 
         internal void Generate(MapData map, Transform parent, Vector3 center)
         {
@@ -35,9 +35,9 @@ namespace TacticalMaps.Construction
                 var terrain = go.AddComponent<Terrain>(); terrain.terrainData = data;
                 var collider = go.AddComponent<TerrainCollider>(); collider.terrainData = data;
                 data.size = new Vector3(sizes[level].x, heightMeters, sizes[level].y);
-                if (surfaceLayer != null) data.terrainLayers = new[] { surfaceLayer };
                 var heights = CreateHeights(heightmaps, sizes, level, resolution);
                 data.SetHeights(0, 0, heights);
+                appearance.Apply(data, map, level, center);
                 if (level > 0) CutInterior(data, sizes[level], sizes[level - 1]);
                 go.layer = terrainLayer;
                 go.transform.localPosition = center + new Vector3(-sizes[level].x * 0.5f, -level * overlapDepth, -sizes[level].y * 0.5f);

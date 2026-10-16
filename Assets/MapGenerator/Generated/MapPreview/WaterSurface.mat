@@ -37,24 +37,27 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AbsorptionDepth: 18
+    - _DeepOpacity: 0.88
     - _DepthColorDistance: 22
     - _FoamDepth: 2
     - _FoamStrength: 0.65
     - _GlintStrength: 0.55
-    - _HeightRange: 4000
-    - _SurfaceLift: 0.06
-    - _WaterLevel: 0
+    - _HeightRange: 1000
+    - _ShallowOpacity: 0.12
+    - _SurfaceLift: 0.2
+    - _WaterLevel: 50
     - _WaveAmplitude: 0.55
     - _WaveLength: 140
     - _WaveSpeed: 0.65
     m_Colors:
-    - _DeepColor: {r: 0.018, g: 0.11999995, b: 0.21999997, a: 1}
+    - _DeepColor: {r: 0.025, g: 0.28, b: 0.4, a: 1}
     - _FoamColor: {r: 0.78, g: 0.92, b: 0.87, a: 1}
     - _MapCenter: {r: 0, g: 0, b: 0, a: 0}
     - _MapSize0: {r: 2048, g: 2048, b: 0.00048828125, a: 0.00048828125}
     - _MapSize1: {r: 8096, g: 8096, b: 0.00012351779, a: 0.00012351779}
     - _MapSize2: {r: 20000, g: 20000, b: 0.00005, a: 0.00005}
-    - _ShallowColor: {r: 0.09999997, g: 0.41999996, b: 0.45999992, a: 1}
+    - _ShallowColor: {r: 0.1, g: 0.55, b: 0.62, a: 1}
     - _SkyColor: {r: 0.47999996, g: 0.72, b: 0.8, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

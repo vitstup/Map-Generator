@@ -23,7 +23,9 @@ namespace TacticalMaps.Editor
                 var builder = root.AddComponent<MapBuilder>();
                 ConstructionSetup.Configure(builder);
                 var terrainConfig = new SerializedObject(root.GetComponent<TerrainGenerator>());
-                terrainConfig.FindProperty("terrainLayer").intValue = 3; terrainConfig.ApplyModifiedPropertiesWithoutUndo();
+                terrainConfig.FindProperty("terrainLayer").intValue = 3;
+                terrainConfig.FindProperty("appearance.mainResolution").intValue = 128;
+                terrainConfig.FindProperty("appearance.backgroundResolution").intValue = 128; terrainConfig.ApplyModifiedPropertiesWithoutUndo();
                 var waterConfig = new SerializedObject(root.GetComponent<WaterGenerator>());
                 waterConfig.FindProperty("waterLayer").intValue = 4; waterConfig.ApplyModifiedPropertiesWithoutUndo();
                 var sizes = new[] { new Vector2(256, 128), new Vector2(1024, 512), new Vector2(4096, 2048) };
@@ -72,6 +74,13 @@ namespace TacticalMaps.Editor
                 var depth = material.GetTexture("_Depth0");
                 Check(depth != maps[0] && depth != null, "Water owns independent seabed snapshots");
                 Check(!water.GetComponent<MeshRenderer>().shadowCastingMode.Equals(UnityEngine.Rendering.ShadowCastingMode.On), "Water has no shadow pass");
+                Check(material.renderQueue == 3000 && material.GetTag("RenderType", false) == "Transparent", "Water uses transparent render queue");
+                Check(material.GetFloat("_ShallowOpacity") < material.GetFloat("_DeepOpacity") && material.GetFloat("_DeepOpacity") < 1, "Depth-dependent transparency");
+                var oldSurface = terrains[0].terrainData.terrainLayers[0];
+                var oldColors = oldSurface.diffuseTexture;
+                Check(oldColors.wrapMode == TextureWrapMode.Clamp && oldSurface.tileSize == sizes[0] && oldSurface.smoothness == 0, "Unique matte terrain color map");
+                var colors = oldColors.GetPixels32();
+                Check(colors.Any(c => !c.Equals(colors[0])), "Terrain surface has spatial color variation");
                 var oldData = terrains.Select(t => t.terrainData).ToArray();
                 var invalid = (Texture2D[])maps.Clone(); invalid[1] = null; bool rejected = false;
                 try { builder.Build(new MapData(invalid, sizes, 4000, 0, 4000, Vector2Int.zero)); } catch (ArgumentException) { rejected = true; }
@@ -84,6 +93,7 @@ namespace TacticalMaps.Editor
                 waterConfig.FindProperty("waterMaterial").objectReferenceValue = savedMaterial; waterConfig.ApplyModifiedPropertiesWithoutUndo();
                 Check(waterRejected && mesh != null && root.GetComponentsInChildren<Terrain>().Length == 3 && Resources.FindObjectsOfTypeAll<TerrainData>().Length == dataCount, "Failed water stage rolls back terrain resources");
                 builder.Build(new MapData(maps, sizes, 4000, 0, 4000, Vector2Int.zero));
+                Check(oldSurface == null && oldColors == null, "Old terrain colors and layers released");
                 Check(mesh == null && material == null && depth == null, "Old water resources released on rebuild");
                 Check(root.GetComponentsInChildren<Terrain>().Length == 3 && oldData.All(t => t == null), "Rebuild replaces objects and disposes owned data");
                 var finalDepth = (Texture2D)root.GetComponentInChildren<MeshRenderer>().sharedMaterial.GetTexture("_Depth0");

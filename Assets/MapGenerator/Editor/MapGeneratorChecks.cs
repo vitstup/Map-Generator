@@ -47,7 +47,8 @@ namespace TacticalMaps.Editor
             Check(maximum <= limit + 0.001f, "Main terrain slope bound");
             var seaSettings = s.Copy(); seaSettings.SeaLevelMeters = 200; seaSettings.TerrainHeightMeters = 4500;
             var seaField = new HeightField(heights, mask, n, n, new Vector2Int(64, 64), seaSettings);
-            Check(seaField.Sample(-800, 0) == 0, "Nonzero sea level preserves zero seabed");
+            Check(seaField.Sample(-9000, 0) == 0, "Deep water reaches zero seabed");
+            Check(seaField.Sample(-100, 0) > seaField.Sample(-800, 0), "Seabed deepens away from shore");
             for (int y = -500; y <= 500; y += 40) for (int x = -900; x <= 900; x += 40)
             {
                 float gx = (seaField.Sample(x + 0.5f, y) - seaField.Sample(x - 0.5f, y)) * seaSettings.TerrainHeightMeters;
@@ -69,8 +70,18 @@ namespace TacticalMaps.Editor
             var canceled = new CancellationTokenSource(); canceled.Cancel(); bool stopped = false;
             try { field.Render(0, canceled.Token); } catch (OperationCanceledException) { stopped = true; }
             Check(stopped, "Canceled generation stops"); canceled.Dispose();
+            var flatHeights = new float[n * n]; var flatMask = new byte[n * n];
+            for (int i = 0; i < flatHeights.Length; i++) { flatHeights[i] = 0.7f; flatMask[i] = 255; }
+            var compactSettings = s.Copy(); compactSettings.TerrainHeightMeters = 1000; compactSettings.GlobalMaxHeightMeters = 4000;
+            var compactField = new HeightField(flatHeights, flatMask, n, n, new Vector2Int(64, 64), compactSettings);
+            Check(Mathf.Abs(compactField.Sample(0, 0) * 1000 - 700) < 0.01f, "0.7 becomes 700 metres independently of global reference");
+            compactSettings.SeaLevelMeters = 50;
+            compactField = new HeightField(flatHeights, flatMask, n, n, new Vector2Int(64, 64), compactSettings);
+            Check(Mathf.Abs(compactField.Sample(0, 0) * 1000 - 715) < 0.01f, "Sea-relative proportional land range");
+            var deepOcean = new HeightField(flatHeights, new byte[n * n], n, n, new Vector2Int(64, 64), compactSettings);
+            Check(deepOcean.Sample(0, 0) == 0, "All-water crop reaches bottom with positive sea level");
             CheckStandaloneGenerator();
-            string result = $"PASS: 101px shared crop; rectangular outputs; shared center; water override; slope {Mathf.Atan(maximum) * Mathf.Rad2Deg:F3} <= {s.MaxSlope} degrees; continuous seam; all-water; edge crop; cancellation; standalone generator without UI; private serialized configuration; no public API; defensive settings copy; point request; independent MapData results; private result setters; shared physical height and sea reference.";
+            string result = $"PASS: 101px shared crop; rectangular outputs; shared center; water override; slope {Mathf.Atan(maximum) * Mathf.Rad2Deg:F3} <= {s.MaxSlope} degrees; continuous seam; all-water; edge crop; cancellation; standalone generator without UI; private serialized configuration; public facades; defensive settings copy; point request; independent MapData results; private result setters; proportional height below global reference; sea-relative land range; smooth seabed.";
             System.IO.File.WriteAllText("Temp/map-generator-checks.txt", result);
             Debug.Log(result);
         }
@@ -150,16 +161,25 @@ namespace TacticalMaps.Editor
                 {
                     var raw = map.Heightmaps[i].GetPixelData<ushort>(0);
                     float actual = raw[raw.Length / 2] / 65535f * map.TerrainHeightMeters;
-                    Check(Mathf.Abs(actual - (200 + 32768f / 65535 * 2000)) < 0.2f, "Global reference converted to physical metres");
+                    Check(Mathf.Abs(actual - (200 + 32768f / 65535 * 3800)) < 0.2f, "Source scaled into land range above sea");
                 }
                 settings.TerrainHeightMeters = 8000; generator.Configure(settings);
                 var taller = generator.Generate(new Vector2Int(16, 16));
                 try
                 {
                     var raw = taller.Heightmaps[0].GetPixelData<ushort>(0);
-                    Check(Mathf.Abs(raw[raw.Length / 2] / 65535f * 8000 - 1200) < 0.3f, "Changing terrain range preserves reference elevation");
+                    Check(Mathf.Abs(raw[raw.Length / 2] / 65535f * 8000 - 4100) < 0.3f, "Changing terrain range proportionally scales land elevation");
                 }
                 finally { taller.Release(); }
+                settings.TerrainHeightMeters = 1000; settings.GlobalMaxHeightMeters = 4000; settings.SeaLevelMeters = 50;
+                generator.Configure(settings);
+                var compact = generator.Generate(new Vector2Int(16, 16));
+                try
+                {
+                    var raw = compact.Heightmaps[0].GetPixelData<ushort>(0);
+                    Check(Mathf.Abs(raw[raw.Length / 2] / 65535f * 1000 - 525) < 0.1f, "Terrain range smaller than global reference and positive sea");
+                }
+                finally { compact.Release(); }
             }
             finally { map.Release(); UnityEngine.Object.DestroyImmediate(flat); }
         }

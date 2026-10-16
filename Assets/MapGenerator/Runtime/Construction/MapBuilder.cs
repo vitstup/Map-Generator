@@ -41,7 +41,16 @@ namespace TacticalMaps.Construction
         private static UnityEngine.Object[] CollectResources(GameObject root)
         {
             var resources = new HashSet<UnityEngine.Object>();
-            foreach (var terrain in root.GetComponentsInChildren<Terrain>(true)) resources.Add(terrain.terrainData);
+            foreach (var terrain in root.GetComponentsInChildren<Terrain>(true))
+            {
+                if (terrain.terrainData == null) continue;
+                resources.Add(terrain.terrainData);
+                foreach (var layer in terrain.terrainData.terrainLayers)
+                {
+                    if (layer == null) continue;
+                    resources.Add(layer); resources.Add(layer.diffuseTexture);
+                }
+            }
             foreach (var mesh in root.GetComponentsInChildren<MeshFilter>(true)) resources.Add(mesh.sharedMesh);
             foreach (var renderer in root.GetComponentsInChildren<MeshRenderer>(true))
             {

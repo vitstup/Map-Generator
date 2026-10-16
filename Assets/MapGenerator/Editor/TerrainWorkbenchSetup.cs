@@ -46,15 +46,6 @@ namespace TacticalMaps.Editor
                 view.SendMessage("BuildTerrains", SendMessageOptions.RequireReceiver);
                 var terrains = builder.GetComponentsInChildren<Terrain>();
                 if (terrains.Length != 3) throw new InvalidOperationException("Expected three built terrains.");
-                foreach (var terrain in terrains)
-                {
-                    string path = Root + "/" + terrain.name + ".asset";
-                    if (!AssetDatabase.Contains(terrain.terrainData))
-                    {
-                        if (File.Exists(path)) path = AssetDatabase.GenerateUniqueAssetPath(path);
-                        AssetDatabase.CreateAsset(terrain.terrainData, path);
-                    }
-                }
                 ConstructionSetup.SavePreviewResources(builder, Root);
                 EditorUtility.SetDirty(builder); EditorUtility.SetDirty(view);
                 AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene);
@@ -66,20 +57,6 @@ namespace TacticalMaps.Editor
 
         private static void ConfigureSurface(MapBuilder builder)
         {
-            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(Root + "/SurfaceColor.asset");
-            if (texture == null)
-            {
-                texture = new Texture2D(2, 2) { name = "TerrainSurfaceColor" };
-                var color = new Color(0.36f, 0.43f, 0.28f);
-                texture.SetPixels(new[] { color, color, color, color }); texture.Apply();
-                AssetDatabase.CreateAsset(texture, Root + "/SurfaceColor.asset");
-            }
-            var layer = AssetDatabase.LoadAssetAtPath<TerrainLayer>(Root + "/Surface.terrainlayer");
-            if (layer == null)
-            {
-                layer = new TerrainLayer { name = "TerrainSurface", diffuseTexture = texture, tileSize = new Vector2(10, 10) };
-                AssetDatabase.CreateAsset(layer, Root + "/Surface.terrainlayer");
-            }
             var material = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Terrain.mat");
             if (material == null)
             {
@@ -88,7 +65,6 @@ namespace TacticalMaps.Editor
                 AssetDatabase.CreateAsset(material, Root + "/Terrain.mat");
             }
             var serialized = new SerializedObject(builder.GetComponent<TerrainGenerator>());
-            serialized.FindProperty("surfaceLayer").objectReferenceValue = layer;
             serialized.FindProperty("terrainMaterial").objectReferenceValue = material;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
