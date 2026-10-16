@@ -1,0 +1,274 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-7924444967263408298
+MonoBehaviour:
+  m_ObjectHideFlags: 11
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 639247ca83abc874e893eb93af2b5e44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  version: 0
+--- !u!114 &-3777532563294345693
+MonoBehaviour:
+  m_ObjectHideFlags: 11
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  version: 10
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Maple_Red_01
+  m_Shader: {fileID: -6465566751694194690, guid: 9b98a126c8d4d7a4baeb81b16e4f7b97, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - _ALPHATEST_ON
+  - _BUILTIN_ALPHATEST_ON
+  - _BUILTIN_AlphaClip
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses:
+  - MOTIONVECTORS
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Emissive_2_Mask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Emissive_Mask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Emissive_Pulse_Map:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Leaf_Ambient_Occlusion:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Leaf_Normal:
+        m_Texture: {fileID: 2800000, guid: e9b608fbb80206e42ab1b43029af61fc, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Leaf_Texture:
+        m_Texture: {fileID: 2800000, guid: e01aed9ee2d7f154d990318a04a8068f, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Trunk_Ambient_Occlusion:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Trunk_Emissive_Mask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Trunk_Normal:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Trunk_Texture:
+        m_Texture: {fileID: 2800000, guid: 726bf38a4353b7e46bb9ddf15d9cc18e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AlphaClip: 1
+    - _AlphaToMask: 1
+    - _Alpha_Clip_Threshold: 0.25
+    - _BUILTIN_AlphaClip: 1
+    - _BUILTIN_Blend: 0
+    - _BUILTIN_CullMode: 0
+    - _BUILTIN_DstBlend: 0
+    - _BUILTIN_QueueControl: 0
+    - _BUILTIN_QueueOffset: 0
+    - _BUILTIN_SrcBlend: 1
+    - _BUILTIN_Surface: 0
+    - _BUILTIN_ZTest: 4
+    - _BUILTIN_ZWrite: 1
+    - _BUILTIN_ZWriteControl: 0
+    - _Blend: 0
+    - _BlendModePreserveSpecular: 1
+    - _BreezeStrength: 0.5
+    - _Breeze_Strength: 0.8
+    - _BumpScale: 1
+    - _CastShadows: 1
+    - _ColorNoiseLargeFreq: 4
+    - _ColorNoiseLargeScale: 2.9
+    - _ColorNoiseSmallFreq: 4
+    - _ColorNoiseSmallScale: 10.61
+    - _Color_Noise_Large_Freq: 0.68
+    - _Color_Noise_Small_Freq: 0.78
+    - _Cull: 0
+    - _Cutoff: 0.5
+    - _DetailNormalMapScale: 1
+    - _DstBlend: 0
+    - _EmissiveAmount: 0
+    - _Emissive_Amount: 0
+    - _EnableBreeze: 1
+    - _EnableFrosting: 1
+    - _EnableLeafNormal: 1
+    - _EnableLightWind: 1
+    - _EnableTrunkNormal: 0
+    - _EnableWindSway: 1
+    - _EnableWindTwist: 1
+    - _Enable_Breeze: 1
+    - _Enable_Emission: 0
+    - _Enable_Frosting: 1
+    - _Enable_Leaf_Normal: 1
+    - _Enable_Light_Wind: 1
+    - _Enable_Pulse: 0
+    - _Enable_Strong_Wind: 1
+    - _Enable_Trunk_Normal: 0
+    - _Enable_Wind_Twist: 1
+    - _FrostingFalloff: 0.6
+    - _FrostingHeight: -0.34
+    - _FrostingUseWorldNormals: 0
+    - _Frosting_Falloff: 0.6
+    - _Frosting_Height: -0.34
+    - _Frosting_Use_World_Normals: 0
+    - _GaleBend: 1
+    - _Gale_Bend: 1
+    - _GlossMapScale: 1
+    - _Glossiness: 0.5
+    - _GlossyReflections: 1
+    - _LeafAmbientOcclusionIntensity: 0.5
+    - _LeafFlatColor: 0
+    - _LeafFlatColorSwitch: 0
+    - _LeafMetallic: 0
+    - _LeafNormalStrength: 0.15
+    - _LeafSmoothness: 0.1
+    - _Leaf_Ambient_Occlusion_Intensity: 0.5
+    - _Leaf_Flat_Color: 0
+    - _Leaf_Metallic: 0
+    - _Leaf_Normal_Strength: 0.15
+    - _Leaf_Smoothness: 0.2
+    - _LightWindStrength: 0.5
+    - _LightWindUseLeafFade: 1
+    - _LightWindYOffset: 0
+    - _LightWindYStrength: 1
+    - _Light_Wind_Strength: 0.5
+    - _Light_Wind_Use_Leaf_Fade: 1
+    - _Light_Wind_Y_Offset: 0
+    - _Light_Wind_Y_Strength: 1
+    - _Metallic: 0
+    - _Mode: 0
+    - _OcclusionStrength: 1
+    - _Parallax: 0.02
+    - _PulseSpeed: 0
+    - _PulseTiling: 0.03
+    - _Pulse_Speed: 0
+    - _Pulse_Tiling: 0.03
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _ReceiveShadows: 1
+    - _SmoothnessTextureChannel: 0
+    - _SpecularHighlights: 1
+    - _SrcBlend: 1
+    - _StrongWindFrequency: 0.5
+    - _StrongWindStrength: 0.1
+    - _Strong_Wind_Frequency: 0.5
+    - _Strong_Wind_Strength: 0.255
+    - _Surface: 0
+    - _Tiling: 0.5
+    - _TrunkAmbientOcclusionIntensity: 0.5
+    - _TrunkFlatColorSwitch: 0
+    - _TrunkMetallic: 0
+    - _TrunkNormalStrength: 0.5
+    - _TrunkSmoothness: 0.2
+    - _Trunk_Ambient_Occlusion_Intensity: 0.5
+    - _Trunk_Flat_Color_Switch: 0
+    - _Trunk_Metallic: 0
+    - _Trunk_Normal_Strength: 0.5
+    - _Trunk_Smoothness: 0.2
+    - _UVSec: 0
+    - _UseColorNoise: 1
+    - _UseVertexColorHeight: 1
+    - _Use_Color_Noise: 1
+    - _Use_Global_Weather_Controller: 0
+    - _Use_Vertex_Color_Wind: 1
+    - _WindTwistStrength: 0.15
+    - _Wind_Twist_Strength: 0.15
+    - _WorkflowMode: 1
+    - _ZTest: 4
+    - _ZWrite: 1
+    - _ZWriteControl: 0
+    - _fadeContrast: 0
+    - _fadeValue: 0.52
+    m_Colors:
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Emissive2Color: {r: 0, g: 0, b: 0, a: 0}
+    - _EmissiveColor: {r: 1, g: 0.6399782, b: 0, a: 0}
+    - _Emissive_2_Color: {r: 0, g: 0, b: 0, a: 0}
+    - _Emissive_Color: {r: 0, g: 0, b: 0, a: 0}
+    - _Emissive_Mask_2_Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Emissive_Mask_2_Tiling: {r: 1, g: 1, b: 0, a: 0}
+    - _Emissive_Mask_Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Emissive_Mask_Tiling: {r: 1, g: 1, b: 0, a: 0}
+    - _FrostingColor: {r: 0.22745098, g: 0, b: 0.15970771, a: 0}
+    - _Frosting_Color: {r: 0.23137257, g: 0, b: 0.15686275, a: 0}
+    - _LeafBaseColor: {r: 0.5803922, g: 0, b: 0.50092685, a: 0}
+    - _LeafNoiseColor: {r: 1, g: 0, b: 0.4770894, a: 0}
+    - _LeafNoiseLargeColor: {r: 1, g: 0, b: 0.10920906, a: 0}
+    - _LeafNormalOffset: {r: 0, g: 0, b: 0, a: 0}
+    - _LeafNormalTiling: {r: 1, g: 1, b: 0, a: 0}
+    - _LeafOffset: {r: 0, g: 0, b: 0, a: 0}
+    - _LeafTiling: {r: 1, g: 1, b: 0, a: 0}
+    - _Leaf_Base_Color: {r: 1, g: 0, b: 0.4784314, a: 0}
+    - _Leaf_Noise_Color: {r: 0.5921569, g: 0, b: 0.4901961, a: 0}
+    - _Leaf_Noise_Large_Color: {r: 1, g: 0, b: 0.16470589, a: 0}
+    - _Leaf_Normal_Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Leaf_Normal_Tiling: {r: 1, g: 1, b: 0, a: 0}
+    - _Leaf_Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Leaf_Tiling: {r: 1, g: 1, b: 0, a: 0}
+    - _TrunkBaseColor: {r: 1, g: 1, b: 1, a: 0}
+    - _TrunkEmissiveColor: {r: 0, g: 0, b: 0, a: 0}
+    - _TrunkNoiseColor: {r: 1, g: 1, b: 1, a: 0}
+    - _TrunkNormalOffset: {r: 0, g: 0, b: 0, a: 0}
+    - _TrunkNormalTiling: {r: 1, g: 1, b: 0, a: 0}
+    - _TrunkOffset: {r: 0, g: 0, b: 0, a: 0}
+    - _TrunkTiling: {r: 1, g: 1, b: 0, a: 0}
+    - _Trunk_Base_Color: {r: 1, g: 1, b: 1, a: 0}
+    - _Trunk_Emissive_Color: {r: 0, g: 0, b: 0, a: 0}
+    - _Trunk_Noise_Color: {r: 1, g: 1, b: 1, a: 0}
+    - _Trunk_Normal_Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Trunk_Normal_Tiling: {r: 1, g: 1, b: 0, a: 0}
+    - _Trunk_Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Trunk_Tiling: {r: 1, g: 1, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
