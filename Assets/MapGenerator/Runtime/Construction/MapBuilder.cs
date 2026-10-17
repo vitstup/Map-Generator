@@ -6,11 +6,13 @@ using UnityEngine;
 namespace TacticalMaps.Construction
 {
     [RequireComponent(typeof(TerrainGenerator), typeof(WaterGenerator))]
+    [RequireComponent(typeof(RockBuilder))]
     public sealed class MapBuilder : MonoBehaviour
     {
         [SerializeField] private Vector3 center;
         [SerializeField] private TerrainGenerator terrainGenerator;
         [SerializeField] private WaterGenerator waterGenerator;
+        [SerializeField] private RockBuilder rockBuilder;
         [SerializeField, HideInInspector] private Transform builtRoot;
         [SerializeField, HideInInspector] private UnityEngine.Object[] builtResources;
 
@@ -19,7 +21,8 @@ namespace TacticalMaps.Construction
             if (data == null) throw new ArgumentNullException(nameof(data));
             if (terrainGenerator == null) terrainGenerator = GetComponent<TerrainGenerator>();
             if (waterGenerator == null) waterGenerator = GetComponent<WaterGenerator>();
-            if (terrainGenerator == null || waterGenerator == null || terrainGenerator.gameObject != gameObject || waterGenerator.gameObject != gameObject)
+            if (rockBuilder == null) rockBuilder = GetComponent<RockBuilder>();
+            if (terrainGenerator == null || waterGenerator == null || rockBuilder == null || terrainGenerator.gameObject != gameObject || waterGenerator.gameObject != gameObject || rockBuilder.gameObject != gameObject)
                 throw new InvalidOperationException("Construction components must be on the MapBuilder object.");
             var next = new GameObject("GeneratedMap");
             next.transform.SetParent(transform, false); next.SetActive(false);
@@ -27,6 +30,7 @@ namespace TacticalMaps.Construction
             {
                 terrainGenerator.Generate(data, next.transform, center);
                 waterGenerator.Generate(data, next.transform, center);
+                rockBuilder.Generate(data, next.transform, center);
             }
             catch { Release(next); throw; }
             var previous = builtRoot;
@@ -54,13 +58,17 @@ namespace TacticalMaps.Construction
                     resources.Add(layer);
                 }
             }
-            foreach (var mesh in root.GetComponentsInChildren<MeshFilter>(true)) resources.Add(mesh.sharedMesh);
-            foreach (var renderer in root.GetComponentsInChildren<MeshRenderer>(true))
+            // Only the direct water object owns its mesh/material. Rock instances borrow prefab assets.
+            var water = root.transform.Find("Water");
+            if (water != null && water.TryGetComponent<MeshFilter>(out var waterMesh)) resources.Add(waterMesh.sharedMesh);
+            if (water != null && water.TryGetComponent<MeshRenderer>(out var renderer))
             {
                 var material = renderer.sharedMaterial;
-                if (material == null) continue;
-                resources.Add(material);
-                for (int i = 0; i < 3; i++) resources.Add(material.GetTexture("_Depth" + i));
+                if (material != null)
+                {
+                    resources.Add(material);
+                    for (int i = 0; i < 3; i++) resources.Add(material.GetTexture("_Depth" + i));
+                }
             }
             var array = new UnityEngine.Object[resources.Count]; resources.CopyTo(array); return array;
         }

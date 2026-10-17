@@ -6,6 +6,7 @@ using UnityEngine;
 namespace TacticalMaps.Generation
 {
     [RequireComponent(typeof(HeightmapGenerator), typeof(BiomeGenerator))]
+    [RequireComponent(typeof(RockPlacementGenerator))]
     [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
     public sealed class MapGenerator : MonoBehaviour
     {
@@ -14,6 +15,7 @@ namespace TacticalMaps.Generation
         [SerializeField] private MapSettings settings = new MapSettings();
         [SerializeField] private HeightmapGenerator heightmapGenerator;
         [SerializeField] private BiomeGenerator biomeGenerator;
+        [SerializeField] private RockPlacementGenerator rockPlacementGenerator;
         private CancellationTokenSource activeGeneration;
 
         internal Texture2D HeightSource => heightSource;
@@ -66,7 +68,8 @@ namespace TacticalMaps.Generation
             try
             {
                 var surface = ResolveBiomeGenerator().Generate(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, CancellationToken.None);
-                return CreateResult(point, snapshot, textures, compression, surface);
+                var rocks = ResolveRockGenerator().Generate(map, CancellationToken.None);
+                return CreateResult(point, snapshot, textures, compression, surface, rocks);
             }
             catch { map.Release(); throw; }
         }
@@ -76,7 +79,8 @@ namespace TacticalMaps.Generation
             try
             {
                 var surface = await ResolveBiomeGenerator().GenerateAsync(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, cancellation);
-                return CreateResult(point, snapshot, textures, compression, surface);
+                var rocks = await ResolveRockGenerator().GenerateAsync(map, cancellation);
+                return CreateResult(point, snapshot, textures, compression, surface, rocks);
             }
             catch { map.Release(); throw; }
         }
@@ -84,8 +88,15 @@ namespace TacticalMaps.Generation
         {
             var sizes = new Vector2[3]; for (int i = 0; i < 3; i++) sizes[i] = snapshot.Levels[i].Size; return sizes;
         }
-        private static MapData CreateResult(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression, SurfaceData surface = null)
-            => new MapData(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, snapshot.GlobalMaxHeightMeters, point, compression, surface);
+        private static MapData CreateResult(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression, SurfaceData surface = null, RockData rocks = null)
+            => new MapData(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, snapshot.GlobalMaxHeightMeters, point, compression, surface, rocks);
+        private RockPlacementGenerator ResolveRockGenerator()
+        {
+            if (rockPlacementGenerator == null) rockPlacementGenerator = GetComponent<RockPlacementGenerator>();
+            if (rockPlacementGenerator == null || rockPlacementGenerator.gameObject != gameObject)
+                throw new InvalidOperationException("RockPlacementGenerator must be on the MapGenerator object.");
+            return rockPlacementGenerator;
+        }
         private BiomeGenerator ResolveBiomeGenerator()
         {
             if (biomeGenerator == null) biomeGenerator = GetComponent<BiomeGenerator>();

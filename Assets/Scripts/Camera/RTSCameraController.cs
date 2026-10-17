@@ -41,8 +41,8 @@ public class RTSCameraController : MonoBehaviour
     [SerializeField] private float heightSmoothTime = 0.1f;
     [SerializeField] private float fallbackHeight = 0f;        // used if raycast hits nothing (e.g. off-map)
 
-    private const float RaycastHeight = 500f;       // ray starts this high above the target
-    private const float MaxRaycastDistance = 1000f;
+    private const float RaycastHeight = 5000f;       // ray starts this high above the target
+    private const float MaxRaycastDistance = 10000f;
 
     // internal state
     private Vector3 _currentVelocity;
@@ -51,7 +51,7 @@ public class RTSCameraController : MonoBehaviour
     private float _targetHeight;
     private bool _heightInitialized;
 
-    private void OnEnable()
+    private void OnEnable() 
     {
         moveAction.action.Enable();
         rotateAction.action.Enable();

@@ -1980,6 +1980,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 232312916}
   m_CullTransparentMesh: 1
+--- !u!1 &233303375
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 233303376}
+  m_Layer: 0
+  m_Name: Rocks
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &233303376
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 233303375}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1762455601}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &270093515
 GameObject:
   m_ObjectHideFlags: 0
@@ -7322,6 +7353,7 @@ GameObject:
   - component: {fileID: 1113947856}
   - component: {fileID: 1113947858}
   - component: {fileID: 1113947859}
+  - component: {fileID: 1113947860}
   m_Layer: 0
   m_Name: MapGenerator
   m_TagString: Untagged
@@ -7362,6 +7394,7 @@ MonoBehaviour:
     transitionMeters: 1500
   heightmapGenerator: {fileID: 1113947858}
   biomeGenerator: {fileID: 1113947859}
+  rockPlacementGenerator: {fileID: 1113947860}
 --- !u!4 &1113947857
 Transform:
   m_ObjectHideFlags: 0
@@ -7424,6 +7457,38 @@ MonoBehaviour:
     beachHeight: 2.5
     siltDepth: 5
     seed: 137
+--- !u!114 &1113947860
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113947855}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc314a25b87cfd14982043e69363dfad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Generation.RockPlacementGenerator
+  generateRocks: 1
+  cliffPrefabs:
+  - {fileID: 816034753412596181, guid: 8a905ebea784a2e42a45731ffcb1e7b2, type: 3}
+  - {fileID: 6252872225402067591, guid: dc78e7bcf8238b14dbc82f06f713422b, type: 3}
+  - {fileID: 8330036251138395260, guid: ba81da98703740646acd9523575d8c16, type: 3}
+  - {fileID: 1295392706871817211, guid: ed62172dd5145e741ba3aae801bb6129, type: 3}
+  - {fileID: 3447653716404712027, guid: 3f53a0734fe397748a74f0b58dd9125e, type: 3}
+  - {fileID: 8215873743317022903, guid: 66bbfd2469824e749b65f0e9b1ef7737, type: 3}
+  minimumSlope: 20
+  minimumRelief: 80
+  analysisSpacing: 32
+  minimumSectionWidth: 180
+  minimumEscarpmentLength: 350
+  maximumSlopeRun: 1000
+  slopeEndAngle: 7
+  sectionOverlap: 0.42
+  seamClearance: 120
+  burial: 0.25
+  maximumSectionsPerLevel: 180
+  seed: 173
 --- !u!1 &1128516261
 GameObject:
   m_ObjectHideFlags: 0
@@ -12130,6 +12195,7 @@ Transform:
   - {fileID: 2080109958}
   - {fileID: 1193274182}
   - {fileID: 1588874199}
+  - {fileID: 233303376}
   m_Father: {fileID: 1968958946}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1776944154
@@ -14536,6 +14602,7 @@ GameObject:
   - component: {fileID: 1968958947}
   - component: {fileID: 1968958945}
   - component: {fileID: 1968958948}
+  - component: {fileID: 1968958949}
   m_Layer: 0
   m_Name: MapBuilder
   m_TagString: Untagged
@@ -14594,6 +14661,7 @@ MonoBehaviour:
   center: {x: 0, y: 0, z: 0}
   terrainGenerator: {fileID: 1968958945}
   waterGenerator: {fileID: 1968958948}
+  rockBuilder: {fileID: 1968958949}
   builtRoot: {fileID: 1762455601}
   builtResources:
   - {fileID: 15600000, guid: f56c9c3647628444996e2642cf44b8fd, type: 2}
@@ -14639,6 +14707,19 @@ MonoBehaviour:
   innerSegments: 96
   middleBandSegments: 24
   outerBandSegments: 16
+--- !u!114 &1968958949
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1968958944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8023d8ca250a3844595b7cb750cf69c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.RockBuilder
+  rockLayer: 0
 --- !u!1 &1969434199
 GameObject:
   m_ObjectHideFlags: 0
