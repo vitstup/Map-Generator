@@ -49,6 +49,7 @@ namespace TacticalMaps.Editor
             var mapBuilder = new GameObject("MapBuilder").AddComponent<MapBuilder>();
             Undo.RegisterCreatedObjectUndo(mapBuilder.gameObject, "Create map builder");
             ConstructionSetup.Configure(mapBuilder);
+            TreeSetup.Configure(generator, mapBuilder);
             SetReference(w, "mapBuilder", mapBuilder);
             UnityEngine.UI.RawImage globalOverlay;
             UnityEngine.UI.RawImage cropImage;

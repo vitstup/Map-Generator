@@ -84,6 +84,16 @@ Water now combines GPU vertex waves, drifting fine ripple normals, moving crest 
 
 Generated albedos use the built-in image_gen tool. The prompt set is saved in `Textures/Surfaces/GenerationPrompts.md`.
 
+## Tree groves
+
+`TreePlacementGenerator` on MapGenerator computes forest zones and tree points for the main terrain. Its Inspector exposes Maximum Coverage (default 0.30), Zone Cell Size (12 m), grove radii (65–180 m), Minimum Grove Area (2000 m²), Tree Spacing (10 m, minimum trunk distance 7 m), Maximum Slope (28°), Shore Clearance (12 m), height above water, scale range, tree count limit and seed. Coverage is the union of selected equal-area mask cells divided by the entire main terrain rectangle, including water. Unsuitable land and small-zone removal can reduce actual coverage below the limit. Density is independent of the area limit.
+
+Irregular elliptical groves with perturbed edges form the forest field. A ranked mask enforces the area budget; small disconnected zones are removed. Jittered candidates, spatial distance rejection and local density variation create the points. Actual tree components with fewer than three neighbors-connected members are removed, so every retained tree has another tree within 2.2 times Tree Spacing. Seed and source selection determine the result. Water, steep slopes, terrain edges and conservative cliff bounds exclude planting. Generation snapshots assets on the main thread and computes masks/points on a cancellable worker; `MapData.Trees` stores immutable placements, group IDs and the forest mask separately from construction.
+
+`TreeBuilder` uploads `TreePrototype` / `TreeInstance` arrays to the main Terrain, matching Unity's Paint Trees workflow. It snaps roots to the final resampled Terrain, uses rotation and scale variation, and leaves the two background terrains empty. The Samurai prefabs use their mesh LODs throughout Tree Distance (default 6000 m); unsupported Terrain billboards are bypassed. No custom GPU instancing renderer is added. TerrainData owns instances; source prefabs and their meshes/materials remain shared. A rebuild replaces the previous trees as part of the existing transactional map build.
+
+`Tools > Tactical Maps > Configure And Rebuild Trees` assigns six Samurai tree prefabs from `Assets/Synty/PolygonSamuraiEmpire/Prefabs/Environment` when the library is empty, updates trees on the existing terrain without regenerating height/water/rocks, and saves the scene. Existing preview rock bounds are respected. Subsequent workbench generations/builds include trees automatically. `Verify Tree Placement` checks deterministic sync/async results, cancellation, rectangular area budgets, spacing/groups, water, slopes, rock exclusions, native Terrain coordinates/height, mesh LOD settings, rebuild replacement and prefab lifetime. Reports go to `Temp/tree-checks.txt` and `Temp/tree-preview-result.txt`.
+
 ## Matte terrain and stochastic texturing
 
 `Materials/MatteTerrain.mat` is the source material used by TerrainGenerator. It uses `TacticalMaps/Terrain/MatteStochastic`, with custom additive and distant matte shaders. Lighting is diffuse-only: no specular, Fresnel or environment-reflection term, regardless of TerrainLayer smoothness or texture alpha. Detail normals, directional/additional lights, shadows, fog and ambient lighting remain.

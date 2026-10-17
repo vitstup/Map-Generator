@@ -21,6 +21,7 @@ namespace TacticalMaps.Editor
                 var view = UnityEngine.Object.FindAnyObjectByType<MapWorkbench>();
                 var builder = UnityEngine.Object.FindAnyObjectByType<MapBuilder>();
                 if (view == null || builder == null) throw new InvalidOperationException("Map workbench and builder are required.");
+                TreeSetup.Configure(view.Generator, builder);
                 var map = view.Generator.Generate(view.SelectedPoint);
                 try { builder.Build(map); }
                 catch { map.Release(); throw; }

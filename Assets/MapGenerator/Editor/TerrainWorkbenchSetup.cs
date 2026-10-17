@@ -32,6 +32,7 @@ namespace TacticalMaps.Editor
                 Directory.CreateDirectory(Root); AssetDatabase.Refresh();
                 ConfigureSurface(builder);
                 ConstructionSetup.Configure(builder);
+                TreeSetup.Configure(view.Generator, builder);
                 var serialized = new SerializedObject(view);
                 serialized.FindProperty("mapBuilder").objectReferenceValue = builder;
                 if (serialized.FindProperty("buildTerrainButton").objectReferenceValue == null)

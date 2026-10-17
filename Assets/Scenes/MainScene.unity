@@ -2753,10 +2753,10 @@ Terrain:
   m_Enabled: 1
   serializedVersion: 6
   m_TerrainData: {fileID: 15600000, guid: f56c9c3647628444996e2642cf44b8fd, type: 2}
-  m_TreeDistance: 5000
-  m_TreeBillboardDistance: 50
-  m_TreeCrossFadeLength: 5
-  m_TreeMaximumFullLODCount: 50
+  m_TreeDistance: 6000
+  m_TreeBillboardDistance: 6000
+  m_TreeCrossFadeLength: 30
+  m_TreeMaximumFullLODCount: 8023
   m_DetailObjectDistance: 80
   m_DetailObjectDensity: 1
   m_HeightmapPixelError: 1
@@ -7354,6 +7354,7 @@ GameObject:
   - component: {fileID: 1113947858}
   - component: {fileID: 1113947859}
   - component: {fileID: 1113947860}
+  - component: {fileID: 1113947861}
   m_Layer: 0
   m_Name: MapGenerator
   m_TagString: Untagged
@@ -7395,6 +7396,7 @@ MonoBehaviour:
   heightmapGenerator: {fileID: 1113947858}
   biomeGenerator: {fileID: 1113947859}
   rockPlacementGenerator: {fileID: 1113947860}
+  treePlacementGenerator: {fileID: 1113947861}
 --- !u!4 &1113947857
 Transform:
   m_ObjectHideFlags: 0
@@ -7489,6 +7491,39 @@ MonoBehaviour:
   burial: 0.25
   maximumSectionsPerLevel: 180
   seed: 173
+--- !u!114 &1113947861
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113947855}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed8ed41b5ceb06c4ab2a8fbc569e602c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Generation.TreePlacementGenerator
+  generateTrees: 1
+  treePrefabs:
+  - {fileID: 3425031849882270963, guid: d03c5ab14673e2446b05e3071cfeb56a, type: 3}
+  - {fileID: 2337450482053155267, guid: a5c99a9c68df73e4fbf562654eae9953, type: 3}
+  - {fileID: 2640615806114228349, guid: ef2bd8cf5004c664696f70e3e694b4fa, type: 3}
+  - {fileID: 7728709216723660740, guid: b7a3a4877a4f190409fbca8fe4bcfa67, type: 3}
+  - {fileID: 4467678524264583855, guid: 474f447736efd014e9c1eba2a68e2b95, type: 3}
+  - {fileID: 2174982424311862829, guid: 8fdefb0f141e5424db392a3c1e982881, type: 3}
+  maximumCoverage: 0.3
+  zoneCellSize: 12
+  minimumGroveRadius: 65
+  maximumGroveRadius: 180
+  minimumGroveArea: 2000
+  treeSpacing: 10
+  minimumSpacingRatio: 0.7
+  maximumSlope: 28
+  shoreClearance: 12
+  minimumHeightAboveWater: 2
+  scaleRange: {x: 0.85, y: 1.25}
+  maximumTrees: 25000
+  seed: 5843
 --- !u!1 &1128516261
 GameObject:
   m_ObjectHideFlags: 0
@@ -14603,6 +14638,7 @@ GameObject:
   - component: {fileID: 1968958945}
   - component: {fileID: 1968958948}
   - component: {fileID: 1968958949}
+  - component: {fileID: 1968958950}
   m_Layer: 0
   m_Name: MapBuilder
   m_TagString: Untagged
@@ -14662,6 +14698,7 @@ MonoBehaviour:
   terrainGenerator: {fileID: 1968958945}
   waterGenerator: {fileID: 1968958948}
   rockBuilder: {fileID: 1968958949}
+  treeBuilder: {fileID: 1968958950}
   builtRoot: {fileID: 1762455601}
   builtResources:
   - {fileID: 15600000, guid: f56c9c3647628444996e2642cf44b8fd, type: 2}
@@ -14720,6 +14757,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.RockBuilder
   rockLayer: 0
+--- !u!114 &1968958950
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1968958944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 613853c035fe75347b1f516407b47e9e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.TreeBuilder
+  treeDistance: 6000
+  crossFadeLength: 30
 --- !u!1 &1969434199
 GameObject:
   m_ObjectHideFlags: 0

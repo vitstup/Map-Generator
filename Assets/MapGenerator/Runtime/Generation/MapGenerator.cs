@@ -6,7 +6,7 @@ using UnityEngine;
 namespace TacticalMaps.Generation
 {
     [RequireComponent(typeof(HeightmapGenerator), typeof(BiomeGenerator))]
-    [RequireComponent(typeof(RockPlacementGenerator))]
+    [RequireComponent(typeof(RockPlacementGenerator), typeof(TreePlacementGenerator))]
     [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
     public sealed class MapGenerator : MonoBehaviour
     {
@@ -16,6 +16,7 @@ namespace TacticalMaps.Generation
         [SerializeField] private HeightmapGenerator heightmapGenerator;
         [SerializeField] private BiomeGenerator biomeGenerator;
         [SerializeField] private RockPlacementGenerator rockPlacementGenerator;
+        [SerializeField] private TreePlacementGenerator treePlacementGenerator;
         private CancellationTokenSource activeGeneration;
 
         internal Texture2D HeightSource => heightSource;
@@ -69,7 +70,9 @@ namespace TacticalMaps.Generation
             {
                 var surface = ResolveBiomeGenerator().Generate(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, CancellationToken.None);
                 var rocks = ResolveRockGenerator().Generate(map, CancellationToken.None);
-                return CreateResult(point, snapshot, textures, compression, surface, rocks);
+                var withRocks = CreateResult(point, snapshot, textures, compression, surface, rocks);
+                var trees = ResolveTreeGenerator().Generate(withRocks, CancellationToken.None);
+                return CreateResult(point, snapshot, textures, compression, surface, rocks, trees);
             }
             catch { map.Release(); throw; }
         }
@@ -80,7 +83,9 @@ namespace TacticalMaps.Generation
             {
                 var surface = await ResolveBiomeGenerator().GenerateAsync(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, cancellation);
                 var rocks = await ResolveRockGenerator().GenerateAsync(map, cancellation);
-                return CreateResult(point, snapshot, textures, compression, surface, rocks);
+                var withRocks = CreateResult(point, snapshot, textures, compression, surface, rocks);
+                var trees = await ResolveTreeGenerator().GenerateAsync(withRocks, cancellation);
+                return CreateResult(point, snapshot, textures, compression, surface, rocks, trees);
             }
             catch { map.Release(); throw; }
         }
@@ -88,8 +93,15 @@ namespace TacticalMaps.Generation
         {
             var sizes = new Vector2[3]; for (int i = 0; i < 3; i++) sizes[i] = snapshot.Levels[i].Size; return sizes;
         }
-        private static MapData CreateResult(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression, SurfaceData surface = null, RockData rocks = null)
-            => new MapData(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, snapshot.GlobalMaxHeightMeters, point, compression, surface, rocks);
+        private static MapData CreateResult(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression, SurfaceData surface = null, RockData rocks = null, TreeData trees = null)
+            => new MapData(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, snapshot.GlobalMaxHeightMeters, point, compression, surface, rocks, trees);
+        private TreePlacementGenerator ResolveTreeGenerator()
+        {
+            if (treePlacementGenerator == null) treePlacementGenerator = GetComponent<TreePlacementGenerator>();
+            if (treePlacementGenerator == null) treePlacementGenerator = gameObject.AddComponent<TreePlacementGenerator>();
+            if (treePlacementGenerator.gameObject != gameObject) throw new InvalidOperationException("TreePlacementGenerator must be on the MapGenerator object.");
+            return treePlacementGenerator;
+        }
         private RockPlacementGenerator ResolveRockGenerator()
         {
             if (rockPlacementGenerator == null) rockPlacementGenerator = GetComponent<RockPlacementGenerator>();

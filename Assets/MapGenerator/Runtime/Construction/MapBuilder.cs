@@ -6,13 +6,14 @@ using UnityEngine;
 namespace TacticalMaps.Construction
 {
     [RequireComponent(typeof(TerrainGenerator), typeof(WaterGenerator))]
-    [RequireComponent(typeof(RockBuilder))]
+    [RequireComponent(typeof(RockBuilder), typeof(TreeBuilder))]
     public sealed class MapBuilder : MonoBehaviour
     {
         [SerializeField] private Vector3 center;
         [SerializeField] private TerrainGenerator terrainGenerator;
         [SerializeField] private WaterGenerator waterGenerator;
         [SerializeField] private RockBuilder rockBuilder;
+        [SerializeField] private TreeBuilder treeBuilder;
         [SerializeField, HideInInspector] private Transform builtRoot;
         [SerializeField, HideInInspector] private UnityEngine.Object[] builtResources;
 
@@ -22,7 +23,9 @@ namespace TacticalMaps.Construction
             if (terrainGenerator == null) terrainGenerator = GetComponent<TerrainGenerator>();
             if (waterGenerator == null) waterGenerator = GetComponent<WaterGenerator>();
             if (rockBuilder == null) rockBuilder = GetComponent<RockBuilder>();
-            if (terrainGenerator == null || waterGenerator == null || rockBuilder == null || terrainGenerator.gameObject != gameObject || waterGenerator.gameObject != gameObject || rockBuilder.gameObject != gameObject)
+            if (treeBuilder == null) treeBuilder = GetComponent<TreeBuilder>();
+            if (treeBuilder == null) treeBuilder = gameObject.AddComponent<TreeBuilder>();
+            if (terrainGenerator == null || waterGenerator == null || rockBuilder == null || terrainGenerator.gameObject != gameObject || waterGenerator.gameObject != gameObject || rockBuilder.gameObject != gameObject || treeBuilder.gameObject != gameObject)
                 throw new InvalidOperationException("Construction components must be on the MapBuilder object.");
             var next = new GameObject("GeneratedMap");
             next.transform.SetParent(transform, false); next.SetActive(false);
@@ -31,6 +34,7 @@ namespace TacticalMaps.Construction
                 terrainGenerator.Generate(data, next.transform, center);
                 waterGenerator.Generate(data, next.transform, center);
                 rockBuilder.Generate(data, next.transform, center);
+                treeBuilder.Generate(data, next.transform);
             }
             catch { Release(next); throw; }
             var previous = builtRoot;
