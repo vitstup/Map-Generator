@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TacticalMaps.Generation;
 using UnityEngine;
 
@@ -7,38 +8,57 @@ namespace TacticalMaps.Construction
     [DisallowMultipleComponent]
     internal sealed class TreeBuilder : MonoBehaviour
     {
-        [SerializeField, Min(0)] private float treeDistance = 6000;
-        [SerializeField, Min(0)] private float crossFadeLength = 30;
+        [SerializeField] private TreeRenderLibrary renderLibrary;
+        [SerializeField, Min(1)] private float treeDistance = 6000;
+        [SerializeField, Min(16)] private float cullingCellSize = 128;
+        [SerializeField, Min(0)] private float shadowDistance = 100;
 
         internal void Generate(MapData map, Transform parent)
         {
             if (map.Trees == null) return;
-            var terrainObject = parent.Find("Terrain_Main");
-            if (terrainObject == null) throw new InvalidOperationException("Build the main terrain before placing trees.");
-            var terrain = terrainObject.GetComponent<Terrain>(); var data = terrain.terrainData;
+            if (map.Trees.Placements.Count > 0 && renderLibrary == null)
+                throw new InvalidOperationException("Assign a tree instancing library on TreeBuilder.");
             var trees = map.Trees;
-            var prototypes = new TreePrototype[trees.Prefabs.Count];
-            for (int i = 0; i < prototypes.Length; i++) prototypes[i] = new TreePrototype { prefab = trees.Prefabs[i], bendFactor = 0 };
-            data.treePrototypes = prototypes;
-            var instances = new TreeInstance[trees.Placements.Count];
-            for (int i = 0; i < instances.Length; i++)
+            var terrains = new Terrain[3];
+            var names = new[] { "Terrain_Main", "Terrain_Surroundings", "Terrain_Horizon" };
+            var instances = new List<TreeInstance>[3];
+            for (int level = 0; level < terrains.Length; level++)
             {
-                var p = trees.Placements[i];
+                var terrainObject = parent.Find(names[level]);
+                if (terrainObject == null) throw new InvalidOperationException("Build all terrains before placing trees.");
+                terrains[level] = terrainObject.GetComponent<Terrain>(); instances[level] = new List<TreeInstance>();
+            }
+            foreach (var p in trees.Placements)
+            {
+                if (p.Level < 0 || p.Level >= 3) throw new InvalidOperationException("Invalid tree terrain level.");
+                var data = terrains[p.Level].terrainData;
                 float u = p.Position.x / data.size.x + 0.5f, v = p.Position.z / data.size.z + 0.5f;
-                instances[i] = new TreeInstance
+                instances[p.Level].Add(new TreeInstance
                 {
                     position = new Vector3(u, data.GetInterpolatedHeight(u, v) / data.size.y, v),
                     prototypeIndex = p.Prefab, rotation = p.Rotation,
                     widthScale = p.WidthScale, heightScale = p.HeightScale, color = Color.white, lightmapColor = Color.white
-                };
+                });
             }
-            data.SetTreeInstances(instances, false);
-            terrain.drawTreesAndFoliage = true;
-            // Samurai prefabs have mesh LODs, without Terrain-compatible billboard assets.
-            // Keep them in the mesh path for the whole draw distance and use their own LODGroups.
-            terrain.treeDistance = treeDistance; terrain.treeBillboardDistance = treeDistance;
-            terrain.treeCrossFadeLength = crossFadeLength; terrain.treeMaximumFullLODCount = instances.Length;
-            terrain.Flush();
+            for (int level = 0; level < terrains.Length; level++)
+            {
+                var prototypes = new TreePrototype[trees.Prefabs.Count];
+                for (int i = 0; i < prototypes.Length; i++) prototypes[i] = new TreePrototype { prefab = trees.Prefabs[i], bendFactor = 0 };
+                var terrain = terrains[level]; var data = terrain.terrainData;
+                data.treePrototypes = prototypes; data.SetTreeInstances(instances[level].ToArray(), false);
+                // Keep only the serialized placement data. The instanced renderer submits all tree draws.
+                terrain.drawTreesAndFoliage = false; terrain.treeDistance = treeDistance;
+                terrain.treeBillboardDistance = treeDistance; terrain.treeMaximumFullLODCount = instances[level].Count;
+                terrain.Flush();
+            }
+            if (trees.Placements.Count == 0) return;
+            var root = new GameObject("Trees"); root.transform.SetParent(parent, false);
+            try { root.AddComponent<InstancedTreeRenderer>().Configure(terrains, renderLibrary, treeDistance, cullingCellSize, shadowDistance); }
+            catch
+            {
+                if (Application.isPlaying) Destroy(root); else DestroyImmediate(root);
+                throw;
+            }
         }
     }
 }

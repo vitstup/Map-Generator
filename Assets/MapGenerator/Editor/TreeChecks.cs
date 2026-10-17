@@ -34,11 +34,25 @@ namespace TacticalMaps.Editor
                 }
                 map = new MapData(textures, sizes, 400, 20, 4000, new Vector2Int(42, 71));
                 var stage = root.GetComponent<TreePlacementGenerator>();
-                var first = stage.Generate(map, CancellationToken.None); var second = stage.Generate(map, CancellationToken.None);
+                var all = stage.Generate(map, CancellationToken.None); var second = stage.Generate(map, CancellationToken.None);
+                var first = new TreeData(all.Prefabs.ToArray(), all.Placements.Where(p => p.Level == 0).ToArray(), all.Zones.ToArray());
                 Check(first.Placements.Count > 200, "Flat rectangular main terrain receives groves");
                 Check(first.Coverage > 0.20f && first.Coverage <= 0.300001f, "Forest union area stays within 30% of full main terrain");
-                Same(first, second);
-                Same(first, await stage.GenerateAsync(map, CancellationToken.None));
+                Same(all, second);
+                Same(all, await stage.GenerateAsync(map, CancellationToken.None));
+                var counts = new int[3];
+                foreach (var p in all.Placements)
+                {
+                    counts[p.Level]++;
+                    if (p.Level > 0) Check(Mathf.Abs(p.Position.x) > sizes[p.Level - 1].x * 0.5f || Mathf.Abs(p.Position.z) > sizes[p.Level - 1].y * 0.5f, "No duplicate trees in hidden terrain interiors");
+                }
+                Check(counts.All(c => c > 0), "All three terrain zones receive trees");
+                Check(all.Placements.GroupBy(p => (p.Level, p.Group)).All(g => g.Count() >= 3), "Background trees also remain in groups");
+                for (int level = 1; level < 3; level++)
+                {
+                    float ringFraction = 1 - sizes[level - 1].x * sizes[level - 1].y / (sizes[level].x * sizes[level].y);
+                    Check(all.Zones[level].Coverage <= 0.300001f * ringFraction, "Background forest mask respects the ring area budget");
+                }
                 var groups = first.Placements.GroupBy(p => p.Group).ToArray();
                 Check(groups.All(g => g.Count() >= 3), "No singleton or two-tree groups");
                 foreach (var p in first.Placements)
@@ -69,13 +83,32 @@ namespace TacticalMaps.Editor
                 Check(blocked.Placements.All(p => !blocker.Contains(p.Position)), "Cliff blockers exclude trees before group filtering");
 
                 // Verify integration, normalization, actual Terrain height, replacement and asset ownership.
-                var complete = new MapData(textures, sizes, 400, 20, 4000, map.SourcePoint, trees: first);
+                var complete = new MapData(textures, sizes, 400, 20, 4000, map.SourcePoint, trees: all);
                 var config = new SerializedObject(builder); config.FindProperty("center").vector3Value = new Vector3(137, 53, -219); config.ApplyModifiedPropertiesWithoutUndo();
                 builder.Build(complete);
                 var terrains = builder.GetComponentsInChildren<Terrain>(); var main = terrains.First(t => t.name == "Terrain_Main");
                 Check(main.terrainData.treeInstanceCount == first.Placements.Count && main.terrainData.treePrototypes.Length == first.Prefabs.Count, "Native Terrain instances and prototypes");
-                Check(main.treeBillboardDistance >= main.treeDistance && main.treeMaximumFullLODCount >= first.Placements.Count, "Mesh-only prefabs never disappear into unsupported billboards");
-                Check(terrains.Where(t => t != main).All(t => t.terrainData.treeInstanceCount == 0), "Trees only on main terrain");
+                Check(terrains.All(t => !t.drawTreesAndFoliage), "No duplicate native Terrain tree draws");
+                Check(terrains.All(t => t.terrainData.treeInstanceCount > 0), "All levels retain their placement data");
+                Check(builder.GetComponentInChildren<InstancedTreeRenderer>().TreeCount == all.Placements.Count, "GPU renderer owns all three terrain zones");
+                var library = AssetDatabase.LoadAssetAtPath<TreeRenderLibrary>(TreeInstancingSetup.Folder + "/TreeRenderLibrary.asset");
+                Check(library.SpeciesList.All(s => s.levels.Length == s.source.GetComponentInChildren<LODGroup>().lodCount), "Every original LOD is preserved");
+                foreach (var species in library.SpeciesList)
+                {
+                    var original = species.source.GetComponentInChildren<LODGroup>().GetLODs();
+                    for (int i = 0; i < original.Length; i++)
+                    {
+                        Check(species.levels[i].screenHeight == original[i].screenRelativeTransitionHeight, "Original LOD thresholds preserved");
+                        Check(species.levels[i].prefab.GetComponentsInChildren<MeshFilter>().Select(f => f.sharedMesh).SequenceEqual(
+                            original[i].renderers.Select(r => r.GetComponent<MeshFilter>().sharedMesh)), "All LOD meshes, including separate branch renderers, preserved");
+                    }
+                }
+                foreach (var species in library.SpeciesList) foreach (var level in species.levels)
+                    Check(level.prefab.GetComponentsInChildren<MeshRenderer>().All(r => r.sharedMaterials.All(m => m.enableInstancing)), "All split LOD materials enable instancing");
+                Check(InstancedTreeRenderer.SelectLod(new[] { 0.5f, 0.2f, 0.01f }, 0.6f) == 0 &&
+                    InstancedTreeRenderer.SelectLod(new[] { 0.5f, 0.2f, 0.01f }, 0.3f) == 1 &&
+                    InstancedTreeRenderer.SelectLod(new[] { 0.5f, 0.2f, 0.01f }, 0.05f) == 2 &&
+                    InstancedTreeRenderer.SelectLod(new[] { 0.5f, 0.2f, 0.01f }, 0.001f) == -1, "Screen-size LOD0/1/2 selection and small-object culling");
                 var instances = main.terrainData.treeInstances;
                 for (int i = 0; i < instances.Length; i++)
                 {
@@ -103,7 +136,7 @@ namespace TacticalMaps.Editor
                         raw[z * 129 + x] = (ushort)Mathf.RoundToInt((h == 0 ? 0 : 30 + x * 5) / 1000f * 65535);
                     textures[0].SetPixelData(raw, 0); textures[0].Apply();
                     var excluded = new MapData(textures, sizes, 1000, 20, 4000, map.SourcePoint);
-                    Check(stage.Generate(excluded, CancellationToken.None).Placements.Count == 0, h == 0 ? "No underwater trees" : "No trees on steep slopes");
+                    Check(stage.Generate(excluded, CancellationToken.None).Placements.All(p => p.Level != 0), h == 0 ? "No underwater trees" : "No trees on steep slopes");
                 }
                 var source = UnityEngine.Object.FindObjectsByType<MapGenerator>(FindObjectsSortMode.None).FirstOrDefault(g => g != generator && g.gameObject.scene != scene);
                 if (source != null)
@@ -118,11 +151,11 @@ namespace TacticalMaps.Editor
                     {
                         Check(generated.Trees != null && generated.Trees.Coverage <= 0.300001f, "Full asynchronous generation facade includes forest data");
                         builder.Build(generated);
-                        Check(builder.GetComponentsInChildren<Terrain>().First(t => t.name == "Terrain_Main").terrainData.treeInstanceCount == generated.Trees.Placements.Count, "Real source map constructs its generated trees");
+                        Check(builder.GetComponentsInChildren<Terrain>().Sum(t => t.terrainData.treeInstanceCount) == generated.Trees.Placements.Count, "Real source map constructs trees on every level");
                     }
                     finally { generated.Release(); }
                 }
-                File.WriteAllText(report, $"PASS: {first.Placements.Count} trees, {groups.Length} groups, {first.Coverage:P3} forest area. Determinism, async, cancellation, area budgets, spacing, groups, water, slopes, rock blockers, Terrain construction, offsets, mesh LOD, rebuild lifetime and full source-map generation.\n");
+                File.WriteAllText(report, $"PASS: trees by level {string.Join(",", counts)}; main {groups.Length} groups, {first.Coverage:P3} forest area. Determinism, async, cancellation, ring exclusion/area budgets, spacing, groups, water, slopes, rock blockers, GPU renderer construction, all original LODs, instancing materials, offsets, rebuild lifetime and full source-map generation.\n");
                 Debug.Log("Tree placement checks passed.");
             }
             catch (Exception e) { File.WriteAllText(report, e.ToString()); Debug.LogException(e); }
@@ -130,11 +163,11 @@ namespace TacticalMaps.Editor
         }
         private static void Same(TreeData a, TreeData b)
         {
-            Check(a.Placements.Count == b.Placements.Count && a.ForestMask.SequenceEqual(b.ForestMask), "Deterministic mask and count");
+            Check(a.Placements.Count == b.Placements.Count && a.Zones.Zip(b.Zones, (x, y) => x.Mask.SequenceEqual(y.Mask)).All(same => same), "Deterministic masks and count");
             for (int i = 0; i < a.Placements.Count; i++)
             {
                 var p = a.Placements[i]; var q = b.Placements[i];
-                Check(p.Position == q.Position && p.Prefab == q.Prefab && p.Group == q.Group && p.Rotation == q.Rotation && p.WidthScale == q.WidthScale && p.HeightScale == q.HeightScale, "Deterministic point attributes");
+                Check(p.Position == q.Position && p.Level == q.Level && p.Prefab == q.Prefab && p.Group == q.Group && p.Rotation == q.Rotation && p.WidthScale == q.WidthScale && p.HeightScale == q.HeightScale, "Deterministic point attributes");
             }
         }
         private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }

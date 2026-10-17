@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bea82b4abb8567048a26e17ab73bac4d, type: 3}
+  m_Name: TreeRenderLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.TreeRenderLibrary
+  species:
+  - source: {fileID: 3425031849882270963, guid: d03c5ab14673e2446b05e3071cfeb56a, type: 3}
+    referencePoint: {x: 0.8263941, y: 2.9972134, z: 0.46662664}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 8.544
+    levels:
+    - prefab: {fileID: 8238106940000772309, guid: 8386b65b265e4024583a95b2d438cee1, type: 3}
+      screenHeight: 0.49575078
+    - prefab: {fileID: 4519657965162894315, guid: d0bd93e92b38006488f8b666bca32e94, type: 3}
+      screenHeight: 0.14503941
+    - prefab: {fileID: 1682668385243345472, guid: 858cffc795764534383a31b1b489de1e, type: 3}
+      screenHeight: 0.01
+  - source: {fileID: 2337450482053155267, guid: a5c99a9c68df73e4fbf562654eae9953, type: 3}
+    referencePoint: {x: -0.28699958, y: 2.525555, z: 0.032077312}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 6.52556
+    levels:
+    - prefab: {fileID: 7677222866630166412, guid: 7b678ea3bf1b3e8459f72b68f1029b7b, type: 3}
+      screenHeight: 0.49850515
+    - prefab: {fileID: 708467678374447205, guid: 00d4825fa926cd443946cce0b7fc78f1, type: 3}
+      screenHeight: 0.20222147
+    - prefab: {fileID: 8917379319040261329, guid: 34daf046f164798478cccfdb7a6024b6, type: 3}
+      screenHeight: 0.01
+  - source: {fileID: 2640615806114228349, guid: ef2bd8cf5004c664696f70e3e694b4fa, type: 3}
+    referencePoint: {x: 0.19064808, y: 1.1331928, z: 0.030980945}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 3.422751
+    levels:
+    - prefab: {fileID: 8864568817393714173, guid: 3cdb8f9ba89f81344a616e410aa7e5ee, type: 3}
+      screenHeight: 0.35026646
+    - prefab: {fileID: 5258351548145074276, guid: 89fd153b0acea70458f2990ce0de2a2e, type: 3}
+      screenHeight: 0.13812728
+    - prefab: {fileID: 4612852897079855901, guid: 287a2988b3094014c945724fa2049885, type: 3}
+      screenHeight: 0.01
+  - source: {fileID: 7728709216723660740, guid: b7a3a4877a4f190409fbca8fe4bcfa67, type: 3}
+    referencePoint: {x: 0.6169338, y: 7.376214, z: -2.4723291}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 23.251957
+    levels:
+    - prefab: {fileID: 2611440624327472212, guid: ae6fea23c01344e44b0303bfd772cfbd, type: 3}
+      screenHeight: 0.25
+    - prefab: {fileID: 3684809937713980663, guid: d246ada4fa013b84c922700f46fa1613, type: 3}
+      screenHeight: 0.125
+    - prefab: {fileID: 3866920143822587103, guid: 57708386b1aa40f4ba4b68f9cd59a5a6, type: 3}
+      screenHeight: 0.01
+  - source: {fileID: 4467678524264583855, guid: 474f447736efd014e9c1eba2a68e2b95, type: 3}
+    referencePoint: {x: 0.16808975, y: 1.3565534, z: 0.063402176}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 3.4593668
+    levels:
+    - prefab: {fileID: 738477023570498908, guid: 2a2aa137d838dd6488cfdb5d4299e546, type: 3}
+      screenHeight: 0.25
+    - prefab: {fileID: 774128371081088881, guid: 1066ade2eaf34df46941d55ec2ae08d1, type: 3}
+      screenHeight: 0.01
+  - source: {fileID: 2174982424311862829, guid: 8fdefb0f141e5424db392a3c1e982881, type: 3}
+    referencePoint: {x: 0.03949821, y: 6.2359962, z: -0.12961912}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 13.089996
+    levels:
+    - prefab: {fileID: 2185369735101239291, guid: 1df6be77c46247d42916677cffe51b5f, type: 3}
+      screenHeight: 0.25
+    - prefab: {fileID: 253111109871305931, guid: 96ea45b648bac7144a48fa5391b58e49, type: 3}
+      screenHeight: 0.01

@@ -2548,6 +2548,58 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 350952107}
   m_CullTransparentMesh: 1
+--- !u!1 &351152402
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 351152403}
+  - component: {fileID: 351152404}
+  m_Layer: 0
+  m_Name: Trees
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &351152403
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 351152402}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1762455601}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &351152404
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 351152402}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09ff322f2ae888d469a8fef543c50c3f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.InstancedTreeRenderer
+  terrains:
+  - {fileID: 362472369}
+  - {fileID: 2080109960}
+  - {fileID: 1193274184}
+  library: {fileID: 11400000, guid: 7a4838eb3aeaccc469da9f13b532a413, type: 2}
+  drawDistance: 6000
+  cellSize: 128
+  shadowDistance: 100
 --- !u!1 &360809423
 GameObject:
   m_ObjectHideFlags: 0
@@ -2756,7 +2808,7 @@ Terrain:
   m_TreeDistance: 6000
   m_TreeBillboardDistance: 6000
   m_TreeCrossFadeLength: 30
-  m_TreeMaximumFullLODCount: 8023
+  m_TreeMaximumFullLODCount: 8048
   m_DetailObjectDistance: 80
   m_DetailObjectDensity: 1
   m_HeightmapPixelError: 1
@@ -2766,7 +2818,7 @@ Terrain:
   m_ShadowCastingMode: 2
   m_DrawHeightmap: 1
   m_DrawInstanced: 1
-  m_DrawTreesAndFoliage: 1
+  m_DrawTreesAndFoliage: 0
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1
@@ -7523,6 +7575,11 @@ MonoBehaviour:
   minimumHeightAboveWater: 2
   scaleRange: {x: 0.85, y: 1.25}
   maximumTrees: 25000
+  generateBackgroundTrees: 1
+  backgroundSpacing: {x: 1.6, y: 2.4}
+  backgroundGroveScale: {x: 2, y: 4}
+  backgroundTreeLimits: {x: 60000, y: 120000}
+  seamClearance: 120
   seed: 5843
 --- !u!1 &1128516261
 GameObject:
@@ -8366,10 +8423,10 @@ Terrain:
   m_Enabled: 1
   serializedVersion: 6
   m_TerrainData: {fileID: 15600000, guid: 418594e3a848036478e2cb23cdba4b02, type: 2}
-  m_TreeDistance: 5000
-  m_TreeBillboardDistance: 50
+  m_TreeDistance: 6000
+  m_TreeBillboardDistance: 6000
   m_TreeCrossFadeLength: 5
-  m_TreeMaximumFullLODCount: 50
+  m_TreeMaximumFullLODCount: 111096
   m_DetailObjectDistance: 80
   m_DetailObjectDensity: 1
   m_HeightmapPixelError: 5
@@ -8379,7 +8436,7 @@ Terrain:
   m_ShadowCastingMode: 2
   m_DrawHeightmap: 1
   m_DrawInstanced: 1
-  m_DrawTreesAndFoliage: 1
+  m_DrawTreesAndFoliage: 0
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1
@@ -12231,6 +12288,7 @@ Transform:
   - {fileID: 1193274182}
   - {fileID: 1588874199}
   - {fileID: 233303376}
+  - {fileID: 351152403}
   m_Father: {fileID: 1968958946}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1776944154
@@ -14769,8 +14827,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 613853c035fe75347b1f516407b47e9e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.TreeBuilder
+  renderLibrary: {fileID: 11400000, guid: 7a4838eb3aeaccc469da9f13b532a413, type: 2}
   treeDistance: 6000
-  crossFadeLength: 30
+  cullingCellSize: 128
+  shadowDistance: 100
 --- !u!1 &1969434199
 GameObject:
   m_ObjectHideFlags: 0
@@ -16228,10 +16288,10 @@ Terrain:
   m_Enabled: 1
   serializedVersion: 6
   m_TerrainData: {fileID: 15600000, guid: 0cf2bdf554dfb8244abe82dcffe56bd6, type: 2}
-  m_TreeDistance: 5000
-  m_TreeBillboardDistance: 50
+  m_TreeDistance: 6000
+  m_TreeBillboardDistance: 6000
   m_TreeCrossFadeLength: 5
-  m_TreeMaximumFullLODCount: 50
+  m_TreeMaximumFullLODCount: 46096
   m_DetailObjectDistance: 80
   m_DetailObjectDensity: 1
   m_HeightmapPixelError: 5
@@ -16241,7 +16301,7 @@ Terrain:
   m_ShadowCastingMode: 2
   m_DrawHeightmap: 1
   m_DrawInstanced: 1
-  m_DrawTreesAndFoliage: 1
+  m_DrawTreesAndFoliage: 0
   m_StaticShadowCaster: 0
   m_IgnoreQualitySettings: 0
   m_ReflectionProbeUsage: 1

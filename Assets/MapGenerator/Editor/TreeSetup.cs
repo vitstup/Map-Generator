@@ -29,51 +29,96 @@ namespace TacticalMaps.Editor
                 }
             }
             settings.ApplyModifiedProperties();
+            var sources = new GameObject[prefabs.arraySize];
+            for (int i = 0; i < sources.Length; i++) sources[i] = (GameObject)prefabs.GetArrayElementAtIndex(i).objectReferenceValue;
+            var render = new SerializedObject(treeBuilder);
+            render.FindProperty("renderLibrary").objectReferenceValue = TreeInstancingSetup.EnsureLibrary(sources);
+            render.ApplyModifiedProperties();
             var g = new SerializedObject(generator); g.FindProperty("treePlacementGenerator").objectReferenceValue = trees; g.ApplyModifiedProperties();
             var b = new SerializedObject(builder); b.FindProperty("treeBuilder").objectReferenceValue = treeBuilder; b.ApplyModifiedProperties();
         }
 
+        private static bool rebuilding;
+
         [MenuItem("Tools/Tactical Maps/Configure And Rebuild Trees")]
-        private static void Rebuild()
+        private static async void Rebuild()
         {
-            if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play mode first.");
-            var generator = UnityEngine.Object.FindAnyObjectByType<MapGenerator>();
-            var builder = UnityEngine.Object.FindAnyObjectByType<MapBuilder>();
-            if (generator == null || builder == null) throw new InvalidOperationException("MapGenerator and MapBuilder are required.");
-            Configure(generator, builder);
-            var built = new SerializedObject(builder).FindProperty("builtRoot").objectReferenceValue as Transform;
-            if (built == null || built.Find("Terrain_Main") == null) throw new InvalidOperationException("Build terrain first.");
-            var terrain = built.Find("Terrain_Main").GetComponent<Terrain>(); var data = terrain.terrainData;
-            int n = data.heightmapResolution; var heights = data.GetHeights(0, 0, n, n); var raw = new ushort[n * n];
-            for (int z = 0; z < n; z++) for (int x = 0; x < n; x++) raw[z * n + x] = (ushort)Mathf.RoundToInt(heights[z, x] * 65535);
-            var texture = new Texture2D(n, n, TextureFormat.R16, false, true);
-            texture.SetPixelData(raw, 0); texture.Apply();
+            if (rebuilding) return;
+            rebuilding = true;
+            const string report = "Temp/tree-preview-result.txt";
+            System.IO.File.WriteAllText(report, "Running...\n");
+            MapData map = null;
+            var textures = new Texture2D[3];
             try
             {
-                var textures = new[] { texture, texture, texture };
-                var sizes = new[] { new Vector2(data.size.x, data.size.z), new Vector2(data.size.x * 4, data.size.z * 4), new Vector2(data.size.x * 10, data.size.z * 10) };
+                if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play mode first.");
+                var generator = UnityEngine.Object.FindAnyObjectByType<MapGenerator>();
+                var builder = UnityEngine.Object.FindAnyObjectByType<MapBuilder>();
+                if (generator == null || builder == null) throw new InvalidOperationException("MapGenerator and MapBuilder are required.");
+                Configure(generator, builder);
+                var built = new SerializedObject(builder).FindProperty("builtRoot").objectReferenceValue as Transform;
+                if (built == null) throw new InvalidOperationException("Build terrain first.");
+                var names = new[] { "Terrain_Main", "Terrain_Surroundings", "Terrain_Horizon" };
+                var terrains = new Terrain[3]; var sizes = new Vector2[3]; float height = 0;
+                for (int level = 0; level < 3; level++)
+                {
+                    terrains[level] = built.Find(names[level]).GetComponent<Terrain>(); var data = terrains[level].terrainData;
+                    height = data.size.y; sizes[level] = new Vector2(data.size.x, data.size.z);
+                    int sourceResolution = data.heightmapResolution, n = Mathf.Min(1025, sourceResolution);
+                    var heights = data.GetHeights(0, 0, sourceResolution, sourceResolution); var raw = new ushort[n * n];
+                    for (int z = 0; z < n; z++) for (int x = 0; x < n; x++)
+                        raw[z * n + x] = (ushort)Mathf.RoundToInt(heights[z * (sourceResolution - 1) / (n - 1), x * (sourceResolution - 1) / (n - 1)] * 65535);
+                    textures[level] = new Texture2D(n, n, TextureFormat.R16, false, true);
+                    textures[level].SetPixelData(raw, 0); textures[level].Apply();
+                }
                 var workbench = UnityEngine.Object.FindAnyObjectByType<TacticalMaps.Testing.MapWorkbench>();
                 var point = workbench != null ? workbench.SelectedPoint : Vector2Int.zero;
-                var map = new MapData(textures, sizes, data.size.y, generator.Settings.SeaLevelMeters, generator.Settings.GlobalMaxHeightMeters, point);
-                // Use actual saved rock bounds, including any manually edited preview transforms.
-                var rocks = built.Find("Rocks");
-                var blockers = new System.Collections.Generic.List<Bounds>();
+                map = new MapData(textures, sizes, height, generator.Settings.SeaLevelMeters, generator.Settings.GlobalMaxHeightMeters, point);
+                var origin = terrains[0].transform.localPosition + new Vector3(sizes[0].x * 0.5f, 0, sizes[0].y * 0.5f);
+                var blockers = new System.Collections.Generic.List<Bounds>(); var rocks = built.Find("Rocks");
                 if (rocks != null) foreach (var renderer in rocks.GetComponentsInChildren<Renderer>(true))
                 {
-                    var world = renderer.bounds;
-                    var local = new Bounds(world.center - terrain.transform.position - new Vector3(data.size.x * 0.5f, 0, data.size.z * 0.5f), world.size);
+                    var world = renderer.bounds; var local = new Bounds(built.InverseTransformPoint(world.center) - origin, Vector3.zero);
+                    for (int corner = 0; corner < 8; corner++)
+                    {
+                        var p = world.center + Vector3.Scale(world.extents, new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
+                        local.Encapsulate(built.InverseTransformPoint(p) - origin);
+                    }
                     local.Expand(4); blockers.Add(local);
                 }
-                var trees = generator.GetComponent<TreePlacementGenerator>().Generate(map, CancellationToken.None, blockers.ToArray());
-                Undo.RecordObject(data, "Rebuild Terrain trees"); Undo.RecordObject(terrain, "Configure Terrain trees");
-                builder.GetComponent<TreeBuilder>().Generate(new MapData(textures, sizes, data.size.y, map.SeaLevelMeters, map.GlobalMaxHeightMeters, point, trees: trees), built);
-                EditorUtility.SetDirty(data); EditorUtility.SetDirty(terrain); EditorUtility.SetDirty(generator); EditorUtility.SetDirty(builder);
+                var trees = await generator.GetComponent<TreePlacementGenerator>().GenerateAsync(map, CancellationToken.None, blockers.ToArray());
+                var previous = built.Find("Trees");
+                var previousInstances = new TreeInstance[3][]; var previousPrototypes = new TreePrototype[3][]; var previousFlags = new bool[3];
+                for (int i = 0; i < 3; i++)
+                {
+                    var data = terrains[i].terrainData;
+                    previousInstances[i] = data.treeInstances; previousPrototypes[i] = data.treePrototypes; previousFlags[i] = terrains[i].drawTreesAndFoliage;
+                    Undo.RecordObject(data, "Rebuild instanced trees"); Undo.RecordObject(terrains[i], "Disable native tree drawing");
+                }
+                try { builder.GetComponent<TreeBuilder>().Generate(new MapData(textures, sizes, height, map.SeaLevelMeters, map.GlobalMaxHeightMeters, point, trees: trees), built); }
+                catch
+                {
+                    for (int i = 0; i < 3; i++)
+                    {
+                        terrains[i].terrainData.treePrototypes = previousPrototypes[i]; terrains[i].terrainData.SetTreeInstances(previousInstances[i], false); terrains[i].drawTreesAndFoliage = previousFlags[i];
+                    }
+                    throw;
+                }
+                if (previous != null) Undo.DestroyObjectImmediate(previous.gameObject);
+                var next = built.Find("Trees"); if (next != null) Undo.RegisterCreatedObjectUndo(next.gameObject, "Create instanced trees");
+                for (int i = 0; i < 3; i++) { EditorUtility.SetDirty(terrains[i].terrainData); EditorUtility.SetDirty(terrains[i]); }
+                EditorUtility.SetDirty(generator); EditorUtility.SetDirty(builder);
                 AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(builder.gameObject.scene); EditorSceneManager.SaveScene(builder.gameObject.scene);
-                System.IO.File.WriteAllText("Temp/tree-preview-result.txt", $"PASS: {trees.Placements.Count} Terrain trees; forest zones {trees.Coverage:P2} of main terrain.");
-                Debug.Log($"Trees rebuilt: {trees.Placements.Count}; forest area {trees.Coverage:P2}.");
+                var counts = new int[3]; foreach (var p in trees.Placements) counts[p.Level]++;
+                string message = $"PASS: GPU-instanced trees by level: {string.Join(", ", counts)}; main forest zones {trees.Coverage:P2}.";
+                System.IO.File.WriteAllText(report, message); Debug.Log(message);
             }
-            finally { UnityEngine.Object.DestroyImmediate(texture); }
+            catch (Exception e) { System.IO.File.WriteAllText(report, e.ToString()); Debug.LogException(e); }
+            finally
+            {
+                if (map != null) map.Release(); else foreach (var texture in textures) if (texture != null) UnityEngine.Object.DestroyImmediate(texture);
+                rebuilding = false;
+            }
         }
     }
 }
-

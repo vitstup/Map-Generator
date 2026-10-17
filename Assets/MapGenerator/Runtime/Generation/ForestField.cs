@@ -10,8 +10,9 @@ namespace TacticalMaps.Generation
     {
         internal GameObject[] Prefabs = Array.Empty<GameObject>();
         internal ushort[] Pixels;
-        internal int Width, Height, Seed, Limit;
-        internal Vector2 Size, ScaleRange;
+        internal int Width, Height, Seed, Limit, Level;
+        internal Vector2 Size, ScaleRange, InnerSize;
+        internal float SeamClearance;
         internal float VerticalSize, Sea, Coverage, CellSize, MinimumRadius, MaximumRadius, MinimumArea,
             Spacing, SpacingRatio, Slope, Shore, WaterHeight;
         internal readonly List<Bounds> Rocks = new List<Bounds>();
@@ -27,10 +28,14 @@ namespace TacticalMaps.Generation
             float meanRadius = (MinimumRadius + MaximumRadius) * 0.5f;
             float groveStep = meanRadius * 2.1f;
             var groves = new List<Vector4>();
-            for (float z = -Size.y * 0.5f; z < Size.y * 0.5f; z += groveStep)
-                for (float x = -Size.x * 0.5f; x < Size.x * 0.5f; x += groveStep)
+            int groveColumns = Mathf.CeilToInt(Size.x / groveStep), groveRows = Mathf.CeilToInt(Size.y / groveStep);
+            for (int gz = 0; gz < groveRows; gz++)
+                for (int gx = 0; gx < groveColumns; gx++)
+                {
+                    float x = gx * groveStep - Size.x * 0.5f, z = gz * groveStep - Size.y * 0.5f;
                     groves.Add(new Vector4(x + Next(random) * groveStep, z + Next(random) * groveStep,
                         Mathf.Lerp(MinimumRadius, MaximumRadius, Next(random)), Next(random) * Mathf.PI * 2));
+                }
 
             // Ranking an irregular grove field gives an explicit union-area budget, including overlaps.
             var ranked = new List<Cell>();
@@ -43,8 +48,12 @@ namespace TacticalMaps.Generation
                     float wx = (x + 0.5f) * dx - Size.x * 0.5f, wz = (z + 0.5f) * dz - Size.y * 0.5f;
                     if (!Suitable(wx, wz, Mathf.Max(dx, dz) * 0.71f)) continue;
                     float score = float.NegativeInfinity;
-                    foreach (var grove in groves)
+                    int groveX = (int)((wx + Size.x * 0.5f) / groveStep), groveZ = (int)((wz + Size.y * 0.5f) / groveStep);
+                    int reach = Mathf.CeilToInt(MaximumRadius * 1.65f / groveStep);
+                    for (int gz = Mathf.Max(0, groveZ - reach); gz <= Mathf.Min(groveRows - 1, groveZ + reach); gz++)
+                    for (int gx = Mathf.Max(0, groveX - reach); gx <= Mathf.Min(groveColumns - 1, groveX + reach); gx++)
                     {
+                        var grove = groves[gz * groveColumns + gx];
                         float rx = wx - grove.x, rz = wz - grove.y;
                         if (Mathf.Abs(rx) > grove.z * 1.65f || Mathf.Abs(rz) > grove.z * 1.65f) continue;
                         float c = Mathf.Cos(grove.w), s = Mathf.Sin(grove.w);
@@ -56,7 +65,8 @@ namespace TacticalMaps.Generation
                 }
             }
             ranked.Sort((a, b) => { int order = b.Score.CompareTo(a.Score); return order != 0 ? order : a.Index.CompareTo(b.Index); });
-            int budget = Math.Min(ranked.Count, (int)Math.Floor((double)Coverage * mask.Length));
+            double ringArea = Size.x * (double)Size.y - InnerSize.x * (double)InnerSize.y;
+            int budget = Math.Min(ranked.Count, (int)Math.Floor(Coverage * ringArea / (dx * (double)dz)));
             for (int i = 0; i < budget; i++) mask[ranked[i].Index] = true;
             RemoveSmallZones(mask, nx, nz, Mathf.Max(1, Mathf.CeilToInt(MinimumArea / (dx * dz))), token);
 
@@ -117,7 +127,7 @@ namespace TacticalMaps.Generation
                 {
                     float scale = Mathf.Lerp(ScaleRange.x, ScaleRange.y, Next(random));
                     output.Add(new TreePlacement(points[member], Next(random) < 0.8f ? dominant : random.Next(Prefabs.Length), group,
-                        Next(random) * Mathf.PI * 2, scale * Mathf.Lerp(0.9f, 1.1f, Next(random)), scale));
+                        Next(random) * Mathf.PI * 2, scale * Mathf.Lerp(0.9f, 1.1f, Next(random)), scale, Level));
                 }
                 group++;
             }
@@ -127,6 +137,8 @@ namespace TacticalMaps.Generation
         private bool Suitable(float x, float z, float cellMargin)
         {
             float edge = Mathf.Max(Shore, cellMargin);
+            if (InnerSize.x > 0 && Mathf.Abs(x) < InnerSize.x * 0.5f + SeamClearance + cellMargin &&
+                Mathf.Abs(z) < InnerSize.y * 0.5f + SeamClearance + cellMargin) return false;
             if (Mathf.Abs(x) + edge >= Size.x * 0.5f || Mathf.Abs(z) + edge >= Size.y * 0.5f) return false;
             float h = Sample(x, z);
             if (h <= Sea + WaterHeight) return false;
