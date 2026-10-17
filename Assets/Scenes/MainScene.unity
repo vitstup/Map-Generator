@@ -2600,6 +2600,8 @@ MonoBehaviour:
   drawDistance: 6000
   cellSize: 128
   shadowDistance: 100
+  meshScreenHeight: 0.2
+  minimumImpostorPixels: 1.5
 --- !u!1 &360809423
 GameObject:
   m_ObjectHideFlags: 0
@@ -14831,6 +14833,8 @@ MonoBehaviour:
   treeDistance: 6000
   cullingCellSize: 128
   shadowDistance: 100
+  meshScreenHeight: 0.2
+  minimumImpostorPixels: 1.5
 --- !u!1 &1969434199
 GameObject:
   m_ObjectHideFlags: 0

@@ -12,6 +12,8 @@ namespace TacticalMaps.Construction
         [SerializeField, Min(1)] private float treeDistance = 6000;
         [SerializeField, Min(16)] private float cullingCellSize = 128;
         [SerializeField, Min(0)] private float shadowDistance = 100;
+        [SerializeField, Range(0.02f, 0.3f), Tooltip("Use full meshes only above this fraction of screen height.")] private float meshScreenHeight = 0.2f;
+        [SerializeField, Range(0.5f, 4)] private float minimumImpostorPixels = 1.5f;
 
         internal void Generate(MapData map, Transform parent)
         {
@@ -53,7 +55,7 @@ namespace TacticalMaps.Construction
             }
             if (trees.Placements.Count == 0) return;
             var root = new GameObject("Trees"); root.transform.SetParent(parent, false);
-            try { root.AddComponent<InstancedTreeRenderer>().Configure(terrains, renderLibrary, treeDistance, cullingCellSize, shadowDistance); }
+            try { root.AddComponent<InstancedTreeRenderer>().Configure(terrains, renderLibrary, treeDistance, cullingCellSize, shadowDistance, meshScreenHeight, minimumImpostorPixels); }
             catch
             {
                 if (Application.isPlaying) Destroy(root); else DestroyImmediate(root);

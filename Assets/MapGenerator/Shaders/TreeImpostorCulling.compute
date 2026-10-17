@@ -1,0 +1,25 @@
+#pragma kernel CullTrees
+
+struct Tree { float4x4 objectToWorld; float4 sphere; };
+StructuredBuffer<Tree> _Trees;
+AppendStructuredBuffer<uint> _Visible;
+float4 _Planes[6];
+float4 _Eye;
+float _ProjectionScale, _NearScreenHeight, _MinScreenHeight, _DrawDistance;
+uint _Count, _Orthographic;
+
+[numthreads(128, 1, 1)]
+void CullTrees(uint id : SV_DispatchThreadID)
+{
+    if (id >= _Count) return;
+    float4 sphere = _Trees[id].sphere;
+    float radius = sphere.w * 0.75 + 2;
+    float distance = length(sphere.xyz - _Eye.xyz);
+    if (distance > _DrawDistance + radius) return;
+    float height = sphere.w * _ProjectionScale / (_Orthographic ? 1 : max(distance, 0.01));
+    if (height >= _NearScreenHeight || height < _MinScreenHeight) return;
+    [unroll] for (uint p = 0; p < 6; p++)
+        if (dot(_Planes[p].xyz, sphere.xyz) + _Planes[p].w < -radius) return;
+    _Visible.Append(id);
+}
+

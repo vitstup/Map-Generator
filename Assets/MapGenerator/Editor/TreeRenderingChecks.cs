@@ -34,8 +34,9 @@ namespace TacticalMaps.Editor
                     cameraObject = MapVisualChecks.CameraAt(point, 90, new Vector3(0, 120, -140), -1);
                     var camera = cameraObject.GetComponent<Camera>(); camera.nearClipPlane = 0.2f; camera.farClipPlane = 12000;
                     var on = MapVisualChecks.Capture(camera, $"Temp/trees-instanced-level-{level}.png", 1000, 700);
-                    Check(renderer.VisibleTrees > 0 && renderer.SubmittedDraws > 0, "Instanced draw submission at level " + level);
-                    int visible = renderer.VisibleTrees, draws = renderer.SubmittedDraws;
+                    uint impostors = renderer.ReadImpostorCountForChecks(camera);
+                    Check(renderer.VisibleTrees + impostors > 0 && renderer.SubmittedDraws > 0, "Instanced draw submission at level " + level);
+                    int visible = renderer.VisibleTrees + (int)impostors, draws = renderer.SubmittedDraws;
                     var lods = (int[])renderer.VisibleLods.Clone();
                     Check(draws < Math.Max(30, visible / 2), "Trees are submitted in batches, not one draw per tree");
                     double submit = renderer.SubmitMilliseconds, cull = renderer.CullMilliseconds;
@@ -64,13 +65,13 @@ namespace TacticalMaps.Editor
                     for (int i = 0; i < empty.Length; i++)
                         if (Math.Abs(off[i].r - empty[i].r) + Math.Abs(off[i].g - empty[i].g) + Math.Abs(off[i].b - empty[i].b) > 10) changed++;
                     Check(changed > 200, "Instanced geometry reaches the image, level " + level);
-                    output.AppendLine($"level {level}: total={data.treeInstanceCount}, visible={visible}, instance draw submissions={draws}, LOD counts={string.Join(",", lods)}, cull/rebuild={cull:F3}ms, submit={submit:F3}ms, synchronized render/readback native={nativeMs:F2}ms vs instanced={instancedMs:F2}ms, changed pixels={changed}.");
+                    output.AppendLine($"level {level}: total={data.treeInstanceCount}, visible={visible}, impostors={impostors}, instance draw submissions={draws}, LOD counts={string.Join(",", lods)}, cull/rebuild={cull:F3}ms, submit={submit:F3}ms, synchronized render/readback native={nativeMs:F2}ms vs instanced={instancedMs:F2}ms, changed pixels={changed}.");
                     UnityEngine.Object.DestroyImmediate(cameraObject); cameraObject = null;
                 }
                 cameraObject = MapVisualChecks.CameraAt(new Vector3(80000, 10000, 80000), 100, Vector3.forward * 200, -1);
                 var far = cameraObject.GetComponent<Camera>(); far.transform.rotation = Quaternion.identity;
                 MapVisualChecks.Capture(far, null, 160, 100);
-                Check(renderer.VisibleTrees == 0 && renderer.SubmittedDraws == 0, "No draws when the forest is outside the view/distance");
+                Check(renderer.VisibleTrees == 0 && renderer.SubmittedDraws == 0 && renderer.ReadImpostorCountForChecks(far) == 0, "No draws when the forest is outside the view/distance");
                 output.AppendLine("PASS: rendered pixels on all terrains, original LOD meshes, GPU instance batches, cached stationary views, native rendering disabled, distant/frustum culling. Timings include CPU, GPU, pipeline overhead and readback; compare them only as this fixed offscreen experiment.");
                 File.WriteAllText(report, output.ToString()); UnityEngine.Debug.Log("Tree rendering checks passed.\n" + output);
             }

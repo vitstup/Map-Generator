@@ -93,6 +93,8 @@ namespace TacticalMaps.Editor
                 Check(builder.GetComponentInChildren<InstancedTreeRenderer>().TreeCount == all.Placements.Count, "GPU renderer owns all three terrain zones");
                 var library = AssetDatabase.LoadAssetAtPath<TreeRenderLibrary>(TreeInstancingSetup.Folder + "/TreeRenderLibrary.asset");
                 Check(library.SpeciesList.All(s => s.levels.Length == s.source.GetComponentInChildren<LODGroup>().lodCount), "Every original LOD is preserved");
+                Check(library.ImpostorMesh.triangles.Length == 6 && library.ImpostorCulling.HasKernel("CullTrees"), "Two-triangle distant mesh and GPU culling kernel");
+                Check(library.SpeciesList.All(s => s.impostorMaterial != null && s.levels.All(l => l.parts != null && l.parts.All(p => p.mesh != null && p.material != null))), "Runtime library uses direct mesh/material records");
                 foreach (var species in library.SpeciesList)
                 {
                     var original = species.source.GetComponentInChildren<LODGroup>().GetLODs();

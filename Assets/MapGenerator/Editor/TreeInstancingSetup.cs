@@ -26,7 +26,17 @@ namespace TacticalMaps.Editor
                         foreach (var material in renderer.sharedMaterials) current &= material != null && material.enableInstancing;
                 }
             }
-            if (current) return library;
+            if (current)
+            {
+                bool baked = library.ImpostorCulling != null && library.ImpostorMesh != null;
+                foreach (var species in library.SpeciesList)
+                {
+                    baked &= species.impostorMaterial != null;
+                    foreach (var level in species.levels) baked &= level.parts != null && level.parts.Length > 0;
+                }
+                if (!baked) TreeImpostorBaker.Bake(library);
+                return library;
+            }
             EnsureFolder(Folder); EnsureFolder(Folder + "/Materials");
             var entries = new TreeRenderLibrary.Species[sources.Count];
             var materials = new Dictionary<Material, Material>();
@@ -85,6 +95,7 @@ namespace TacticalMaps.Editor
             }
             if (library == null) { library = ScriptableObject.CreateInstance<TreeRenderLibrary>(); AssetDatabase.CreateAsset(library, LibraryPath); }
             library.Configure(entries); EditorUtility.SetDirty(library); AssetDatabase.SaveAssets();
+            TreeImpostorBaker.Bake(library);
             return library;
         }
         private static float MaxAbs(Vector3 v) => Mathf.Max(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
