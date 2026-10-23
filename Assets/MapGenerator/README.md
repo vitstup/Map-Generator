@@ -1,5 +1,30 @@
 # Tactical map heightmap workbench
 
+## Low-poly meadow
+
+MainScene has a separate `GrassSystem` object. Disable its component to release GPU buffers and disable the Terrain meadow material. Rocks and trees remain disabled. Implementation is isolated in `Runtime/Grass`; no per-plant GameObjects, colliders or materials are created.
+
+The surface exists independently of geometry. `GrassTurfBaker` renders the actual GPU plants in an isolated preview scene to linear albedo/coverage and normal textures. Directional light is excluded from this bake. The textures have periodic edges, mipmaps and anisotropic filtering, and are integrated into the matte Terrain main/additive/basemap shaders. Two rotated texture scales reduce repetition. Coverage comes from existing biomes; shared world-space fields control freshness, dryness, color groups and wind. No global grass source map is required. The far surface provides coverage and lighting detail, not a silhouette above the horizon.
+
+Two independently bounded geometry pools follow each camera. Near plants use 16 m cells with 64 x 64 candidates, up to 128 resident cells and an 80 m range (fade starts at 45 m). A common 12-blade topology is reshaped on the GPU into low grass, tall stems and broad leaves, with independent roots, widths, curvature and height per blade. Rare five-petal flowers occur in coherent patches. Species randomness is independent of the rank used to thin instances. Near density smoothly varies with camera inclination; broad low leaves preserve the overhead projection.
+
+The medium understorey uses 64 m cells with 32 x 32 candidates, up to 128 cells and a 280 m range. Each shared patch has 32 low leaves spread across its footprint; roots sample the actual built Terrain heights. It is a cheaper layer of meadow mass, rather than a sparse substitute for the near plants. Both layers are opaque/double-sided, receive main-light shadows and cast no shadows. A directional sun is evaluated without per-Renderer distance attenuation, which is not populated for indirect draws. Ambient-probe colors are captured when a view cache is created.
+
+The default GPU reservation is about 22.5 MiB per camera, up to 45 MiB for two active Game/Scene views, plus shared textures. Extra simultaneous cameras retain the Terrain representation until an existing cache becomes idle. CPU frustum rejection precedes GPU instance culling. Stationary views reuse visibility; no normal-loop GPU readback or matrix upload occurs. At most four new cells per layer per rendered frame are prepared; new cells fade in over 0.28 s. Stable world-space dithering is shared by color/depth/normal passes. Each camera submits two indirect draw commands; URP may execute additional depth/normal passes. Increasing range requires a suitable residency budget.
+
+`MapGenerator` packs biome weights into cancellable CPU coverage fields in `MapData.Grass`. `MapBuilder` stages built-map-owned `GrassMap` resources while the replacement root is inactive. Successful activation switches the binding; failed stages preserve the previous map. Built coverage survives `MapData.Release()`. Persistent assets are preserved during cleanup. `GrassSystem.Exclude(Bounds)` suppresses an XZ region at coverage-map resolution, using private texture snapshots and refilling the geometry caches; it is not a fine road-painting tool.
+
+Inspector settings control density, height range, slope/coast restrictions, palette, wind, ranges, residency and diagnostics. Debug View 1 shows coverage, 2 distinguishes near/medium/Terrain and 3 shows logical cells. There is no CPU wind simulation.
+
+Editor tools in `Tools > Tactical Maps`:
+- `Set Up Low Poly Grass`: connect the system to an existing built preview without changing heights or water.
+- `Upgrade Meadow Rendering`: build the current mesh topology, apply meadow defaults, bake its surface and save the scene.
+- `Bake Meadow Surface`: regenerate the shared albedo/normal assets from the actual plants.
+- `Verify And Capture Grass`: deterministic coverage/cancellation, rebuild/rollback/lifetime/exclusion checks, visible GPU counts, separate geometry-versus-surface and surface-versus-bare image comparisons, residency and disable cleanup. Captures close, RTS, top and distant views in `Temp/grass-*.png`; report: `Temp/grass-checks.txt`.
+- `Capture Meadow Camera Flight`: save 240 frames in `Temp/meadow-flight`, covering low/RTS/overhead/far/return views with SMAA. Completion is written to `Temp/meadow-flight-status.txt`.
+
+The benchmark waits for GPU readback after a sequence of offscreen renders. It includes CPU submission, GPU execution and readback overhead; it is not isolated GPU time or gameplay FPS. Static comparisons explicitly use mature streamed cells, while the camera flight retains normal streaming/fade behavior. Profile a player build at target resolution before setting final quality budgets.
+
 Open `Assets/Scenes/MainScene.unity`, select the Game tab and enter Play mode.
 Click or drag on the large map. The selected source pixels and all three heightmaps update automatically.
 `СГЕНЕРИРОВАТЬ` also regenerates the images after editing parameters.

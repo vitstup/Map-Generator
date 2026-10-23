@@ -14,6 +14,13 @@ CBUFFER_START(TacticalTerrainSettings)
     float4 _TacticalTerrainSize;
 CBUFFER_END
 
+#include "GrassCommon.hlsl"
+TEXTURE2D(_GrassCoverage); SAMPLER(sampler_GrassCoverage);
+TEXTURE2D(_GrassTurf); SAMPLER(sampler_GrassTurf);
+TEXTURE2D(_GrassTurfNormal); SAMPLER(sampler_GrassTurfNormal);
+float4 _GrassRect, _GrassMeadow, _GrassDry, _GrassWind, _GrassOptions;
+float _GrassEnabled, _GrassTurfStrength;
+
 #ifndef TERRAIN_SPLAT_BASEPASS
 float3 TerrainHash(float2 cell)
 {
@@ -125,6 +132,38 @@ half4 MatteFragment(Varyings input) : SV_Target
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
     half3 albedo,normal; half coverage;
     MatteSurface(input,albedo,normal,coverage);
+    if (_GrassEnabled > .5)
+    {
+        float2 grassUV = (input.positionWS.xz - _GrassRect.xy) / max(_GrassRect.zw, 1);
+        half4 grass = SAMPLE_TEXTURE2D(_GrassCoverage,sampler_GrassCoverage,grassUV);
+        float patch = GrassPatch(input.positionWS.xz,_GrassWind.z);
+        float slopeNormal=abs(normalize(cross(ddy(input.positionWS),ddx(input.positionWS))).y);
+        float suitable = smoothstep(_GrassOptions.z,_GrassOptions.z+1.2,input.positionWS.y)
+                       * smoothstep(_GrassOptions.w,min(1,_GrassOptions.w+.08),slopeNormal);
+        half amount=saturate(grass.r*1.6)*grass.a*patch*_GrassWind.w*suitable*_GrassTurfStrength;
+        half3 tint=GrassPalette(input.positionWS.xz,grass.g,_GrassWind.z,_GrassMeadow.rgb,_GrassDry.rgb);
+        float2 turfUV=input.positionWS.xz/4;
+        float2 otherUV=float2(-turfUV.y,turfUV.x)*.73+.371;
+        half4 turfA=SAMPLE_TEXTURE2D(_GrassTurf,sampler_GrassTurf,turfUV);
+        half4 turfB=SAMPLE_TEXTURE2D(_GrassTurf,sampler_GrassTurf,otherUV);
+        half4 turf=(turfA+turfB)*.5;
+        half3 nA=SAMPLE_TEXTURE2D(_GrassTurfNormal,sampler_GrassTurfNormal,turfUV).xyz*2-1;
+        half3 nB=SAMPLE_TEXTURE2D(_GrassTurfNormal,sampler_GrassTurfNormal,otherUV).xyz*2-1;
+        nB.xy=float2(nB.y,-nB.x);
+        half3 canopyNormal=normalize(half3((nA.xy+nB.xy)*.5,max(.15,(nA.z+nB.z)*.5)));
+        float normalDetail=lerp(.25,.85,1-smoothstep(120,900,distance(input.positionWS,_WorldSpaceCameraPos)));
+        canopyNormal.xy*=normalDetail;
+        normal=normalize(lerp(normal,canopyNormal,amount*.85));
+        float gust=GrassGust(input.positionWS.xz,_Time.y,_GrassWind.y);
+        // The texture is a neutral albedo/coverage bake of the same plants, not a lighting screenshot.
+        half3 canopy=tint*max(.45,turf.rgb);
+        albedo=lerp(albedo,canopy,amount*saturate(turf.a*2+.25));
+        normal.xy+=float2(.85,.4)*gust*_GrassWind.x*amount*.18;
+        normal=normalize(normal);
+        if (_GrassOptions.y > .5 && _GrassOptions.y < 1.5) albedo=lerp(half3(.4,.06,.03),half3(.1,.7,.1),amount);
+        if (_GrassOptions.y > 1.5 && _GrassOptions.y < 2.5) albedo=lerp(albedo,half3(.1,.25,.65),amount);
+        if (_GrassOptions.y > 2.5) albedo=lerp(albedo,half3(GrassHash(floor(input.positionWS.xz/_GrassOptions.x)),.3,.5),amount);
+    }
     InputData lighting; InitializeInputData(input,normal,lighting); InitializeBakedGIData(input,lighting);
     SurfaceData surface=(SurfaceData)0;
     surface.albedo=albedo; surface.normalTS=normal; surface.occlusion=1; surface.alpha=coverage;

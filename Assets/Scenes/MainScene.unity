@@ -5143,6 +5143,72 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 661431394}
   m_CullTransparentMesh: 1
+--- !u!1 &690129046
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 690129048}
+  - component: {fileID: 690129047}
+  m_Layer: 0
+  m_Name: GrassSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &690129047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 690129046}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d99ae0470575cdb4399ce17a6f604ca7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Grass.GrassSystem
+  library: {fileID: 11400000, guid: 0db28e7111592924e95ce2ccdf85e222, type: 2}
+  currentMap: {fileID: 1762455602}
+  density: 0.9
+  heightRange: {x: 0.22, y: 0.72}
+  maximumSlope: 35
+  shoreClearanceHeight: 0.4
+  seed: 7819
+  meadowColor: {r: 0.32, g: 0.43, b: 0.19, a: 1}
+  dryColor: {r: 0.49, g: 0.45, b: 0.25, a: 1}
+  windStrength: 0.22
+  windSpeed: 1.2
+  chunkSize: 16
+  candidatesPerAxis: 64
+  maximumResidentChunks: 128
+  chunksPreparedPerFrame: 4
+  geometryDistance: 80
+  nearDistance: 45
+  minimumPixels: 0.7
+  middleDensity: 1
+  meadowDistance: 280
+  turfStrength: 1
+  debugView: 0
+--- !u!4 &690129048
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 690129046}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &703774089
 GameObject:
   m_ObjectHideFlags: 0
@@ -12265,6 +12331,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1762455601}
+  - component: {fileID: 1762455602}
   m_Layer: 0
   m_Name: GeneratedMap
   m_TagString: Untagged
@@ -12293,6 +12360,28 @@ Transform:
   - {fileID: 351152403}
   m_Father: {fileID: 1968958946}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1762455602
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1762455600}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cfb4ec6cd603c534f9ddd92e1aefc1a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Grass.GrassMap
+  owner: {fileID: 690129047}
+  terrains:
+  - {fileID: 362472369}
+  - {fileID: 2080109960}
+  - {fileID: 1193274184}
+  coverage:
+  - {fileID: 2800000, guid: 6b7d04b2bee348c4d890f81cd2486c8a, type: 2}
+  - {fileID: 2800000, guid: 2594b373019dc77409f76c3568fc580c, type: 2}
+  - {fileID: 2800000, guid: f766e08c90c98ee4da235cd6420d1b29, type: 2}
+  seaLevel: 50
 --- !u!1 &1776944154
 GameObject:
   m_ObjectHideFlags: 0
@@ -14759,6 +14848,7 @@ MonoBehaviour:
   waterGenerator: {fileID: 1968958948}
   rockBuilder: {fileID: 1968958949}
   treeBuilder: {fileID: 1968958950}
+  grassSystem: {fileID: 690129047}
   builtRoot: {fileID: 1762455601}
   builtResources:
   - {fileID: 15600000, guid: f56c9c3647628444996e2642cf44b8fd, type: 2}
@@ -16477,3 +16567,4 @@ SceneRoots:
   - {fileID: 1323227737}
   - {fileID: 1113947857}
   - {fileID: 1968958946}
+  - {fileID: 690129048}

@@ -28,6 +28,18 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _GrassCoverage:
+        m_Texture: {fileID: 2800000, guid: f766e08c90c98ee4da235cd6420d1b29, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GrassTurf:
+        m_Texture: {fileID: 2800000, guid: c07300977f169b24a9d102c7bb9f8e6a, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GrassTurfNormal:
+        m_Texture: {fileID: 2800000, guid: 497876075cd1cf14a92452978d648b1f, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -91,6 +103,8 @@ Material:
     - _DetailNormalStrength: 0.5
     - _EnableHeightBlend: 0
     - _EnableInstancedPerPixelNormal: 1
+    - _GrassEnabled: 1
+    - _GrassTurfStrength: 1
     - _HeightTransition: 0
     - _Metallic0: 0
     - _Metallic1: 0
@@ -107,6 +121,11 @@ Material:
     - _StochasticStrength: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _GrassDry: {r: 0.49, g: 0.45, b: 0.25, a: 1}
+    - _GrassMeadow: {r: 0.32, g: 0.43, b: 0.19, a: 1}
+    - _GrassOptions: {r: 16, g: 0, b: 50.4, a: 0.81915206}
+    - _GrassRect: {r: -10000, g: -10000, b: 20000, a: 20000}
+    - _GrassWind: {r: 0.22, g: 1.2, b: 7819, a: 0.9}
     - _TacticalTerrainSize: {r: 20000, g: 20000, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

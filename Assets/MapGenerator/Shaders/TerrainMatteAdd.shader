@@ -4,6 +4,16 @@ Shader "Hidden/TacticalMaps/Terrain/MatteAdd"
 {
     Properties
     {
+        [HideInInspector] _GrassEnabled("Grass enabled", Float) = 0
+        [HideInInspector] _GrassTurf("Grass turf albedo", 2D) = "white" {}
+        [HideInInspector] _GrassTurfNormal("Grass turf normal", 2D) = "bump" {}
+        [HideInInspector] _GrassTurfStrength("Grass turf strength", Float) = 1
+        [HideInInspector] _GrassCoverage("Grass coverage", 2D) = "black" {}
+        [HideInInspector] _GrassRect("Grass bounds", Vector) = (0,0,1,1)
+        [HideInInspector] _GrassMeadow("Grass meadow", Color) = (.28,.39,.115,1)
+        [HideInInspector] _GrassDry("Grass dry", Color) = (.49,.43,.22,1)
+        [HideInInspector] _GrassWind("Grass wind", Vector) = (.22,1.2,7819,.9)
+        [HideInInspector] _GrassOptions("Grass options", Vector) = (32,0,0,.8)
         [HideInInspector] [ToggleUI] _EnableHeightBlend("EnableHeightBlend", Float) = 0.0
         _HeightTransition("Height Transition", Range(0, 1.0)) = 0.0
         // Layer count is passed down to guide height-blend enable/disable, due

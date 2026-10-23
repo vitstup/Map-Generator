@@ -72,7 +72,8 @@ namespace TacticalMaps.Generation
                 var rocks = ResolveRockGenerator().Generate(map, CancellationToken.None);
                 var withRocks = CreateResult(point, snapshot, textures, compression, surface, rocks);
                 var trees = ResolveTreeGenerator().Generate(withRocks, CancellationToken.None);
-                return CreateResult(point, snapshot, textures, compression, surface, rocks, trees);
+                var grass = TacticalMaps.Grass.GrassCoverage.Generate(surface, CancellationToken.None);
+                return CreateResult(point, snapshot, textures, compression, surface, rocks, trees, grass);
             }
             catch { map.Release(); throw; }
         }
@@ -85,7 +86,8 @@ namespace TacticalMaps.Generation
                 var rocks = await ResolveRockGenerator().GenerateAsync(map, cancellation);
                 var withRocks = CreateResult(point, snapshot, textures, compression, surface, rocks);
                 var trees = await ResolveTreeGenerator().GenerateAsync(withRocks, cancellation);
-                return CreateResult(point, snapshot, textures, compression, surface, rocks, trees);
+                var grass = await Task.Run(() => TacticalMaps.Grass.GrassCoverage.Generate(surface, cancellation), cancellation);
+                return CreateResult(point, snapshot, textures, compression, surface, rocks, trees, grass);
             }
             catch { map.Release(); throw; }
         }
@@ -93,8 +95,8 @@ namespace TacticalMaps.Generation
         {
             var sizes = new Vector2[3]; for (int i = 0; i < 3; i++) sizes[i] = snapshot.Levels[i].Size; return sizes;
         }
-        private static MapData CreateResult(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression, SurfaceData surface = null, RockData rocks = null, TreeData trees = null)
-            => new MapData(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, snapshot.GlobalMaxHeightMeters, point, compression, surface, rocks, trees);
+        private static MapData CreateResult(Vector2Int point, MapSettings snapshot, Texture2D[] textures, float compression, SurfaceData surface = null, RockData rocks = null, TreeData trees = null, TacticalMaps.Grass.GrassCoverage grass = null)
+            => new MapData(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, snapshot.GlobalMaxHeightMeters, point, compression, surface, rocks, trees, grass);
         private TreePlacementGenerator ResolveTreeGenerator()
         {
             if (treePlacementGenerator == null) treePlacementGenerator = GetComponent<TreePlacementGenerator>();

@@ -14,6 +14,7 @@ namespace TacticalMaps.Construction
         [SerializeField] private WaterGenerator waterGenerator;
         [SerializeField] private RockBuilder rockBuilder;
         [SerializeField] private TreeBuilder treeBuilder;
+        [SerializeField] private TacticalMaps.Grass.GrassSystem grassSystem;
         [SerializeField, HideInInspector] private Transform builtRoot;
         [SerializeField, HideInInspector] private UnityEngine.Object[] builtResources;
 
@@ -35,6 +36,7 @@ namespace TacticalMaps.Construction
                 waterGenerator.Generate(data, next.transform, center);
                 rockBuilder.Generate(data, next.transform, center);
                 treeBuilder.Generate(data, next.transform);
+                if (grassSystem != null) grassSystem.Stage(data, next.transform);
             }
             catch { Release(next); throw; }
             var previous = builtRoot;
