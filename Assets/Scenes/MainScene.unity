@@ -1995,7 +1995,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &233303376
 Transform:
   m_ObjectHideFlags: 0
@@ -2564,7 +2564,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &351152403
 Transform:
   m_ObjectHideFlags: 0
@@ -7525,7 +7525,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc314a25b87cfd14982043e69363dfad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Generation.RockPlacementGenerator
-  generateRocks: 1
+  generateRocks: 0
   cliffPrefabs:
   - {fileID: 816034753412596181, guid: 8a905ebea784a2e42a45731ffcb1e7b2, type: 3}
   - {fileID: 6252872225402067591, guid: dc78e7bcf8238b14dbc82f06f713422b, type: 3}
@@ -7557,7 +7557,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed8ed41b5ceb06c4ab2a8fbc569e602c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Generation.TreePlacementGenerator
-  generateTrees: 1
+  generateTrees: 0
   treePrefabs:
   - {fileID: 3425031849882270963, guid: d03c5ab14673e2446b05e3071cfeb56a, type: 3}
   - {fileID: 2337450482053155267, guid: a5c99a9c68df73e4fbf562654eae9953, type: 3}
