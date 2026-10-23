@@ -60,7 +60,7 @@ namespace TacticalMaps.Editor
                     var draws=system.ReadDrawCountsForChecks(camera);
                     if(view=="rts") Require(draws[1]>0,"Simplified plants are rendered.");
                     if(view=="elevated") Require(draws[1]>0,"Plants remain visible above the old spherical distance cutoff.");
-                    report.AppendLine($"{view}: detailed={draws[0]}, simplified={draws[1]}, understorey={draws[2]}");
+                    report.AppendLine($"{view}: detailed={draws[0]}, simplified={draws[1]}, understorey={draws[2]}, distant groups={draws[3]}");
                     if (view == "close") Require(counts[0] > 0, "Near GPU draw contains visible grass.");
                     if (view == "rts") Require(counts[1] > 0, "Middle GPU draw contains visible grass.");
                     report.AppendLine($"{view}: near={counts[0]}, middle={counts[1]}, residentChunks={system.ResidentChunks}, GPU buffers={system.BufferBytes / 1048576f:F2} MiB, draws={system.SubmittedDraws}");
@@ -105,7 +105,7 @@ namespace TacticalMaps.Editor
                 report.AppendLine("PASS: matching topology handoff.");
                 system.TopologyForChecks=0;system.FreezeWindForChecks=false;system.FocusForChecks=null;
                 camera.transform.position = ground + new Vector3(120,20,-20); camera.transform.LookAt(ground); camera.Render();
-                Require(system.ResidentChunks <= new SerializedObject(system).FindProperty("maximumResidentChunks").intValue+224, "Both residency pools remain bounded.");
+                Require(system.ResidentChunks <= new SerializedObject(system).FindProperty("maximumResidentChunks").intValue+224+320, "All residency pools remain bounded.");
                 system.enabled = false; Require(system.BufferBytes == 0, "Disable releases buffers."); system.enabled = true;
                 report.AppendLine("PASS: coverage, cancellation, shader compilation, near/middle/wide rendering, camera movement, disable cleanup.");
             }
@@ -179,8 +179,8 @@ namespace TacticalMaps.Editor
                 try
                 {
                     for(int i=0;i<32;i++) {camera.Render();UnityEngine.Rendering.AsyncGPUReadback.Request(target,0).WaitForCompletion();}
-                    var counts=grass.ReadCountsForChecks(camera);
-                    Require(counts[0]==0&&counts[1]==0,"Mixed sand excludes both GPU pools.");
+                    var counts=grass.ReadDrawCountsForChecks(camera);
+                    Require(counts[0]==0&&counts[1]==0&&counts[2]==0&&counts[3]==0,"Mixed sand excludes all GPU pools.");
                 }
                 finally {camera.targetTexture=null;UnityEngine.Object.DestroyImmediate(cameraObject);target.Release();UnityEngine.Object.DestroyImmediate(target);}
                 report.AppendLine("PASS: build/rebuild ownership; rollback; independent result lifetime; local exclusion; GPU beach rejection.");

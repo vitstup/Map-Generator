@@ -19,3 +19,7 @@ MonoBehaviour:
   compute: {fileID: 7200000, guid: b5c67cecf2fb336418644361b195fbeb, type: 3}
   turfAlbedo: {fileID: 2800000, guid: c07300977f169b24a9d102c7bb9f8e6a, type: 2}
   turfNormal: {fileID: 2800000, guid: 497876075cd1cf14a92452978d648b1f, type: 2}
+  cardsMesh: {fileID: 4300000, guid: b4ffe2af4208e0248a1ee5e3b587990b, type: 2}
+  cardsMaterial: {fileID: 2100000, guid: 4a8bd398503840641b6cf2ac68744664, type: 2}
+  cardsAlbedo: {fileID: 2800000, guid: 9ca9a35bebdcaee40b2e2aedc87b7193, type: 2}
+  cardsNormal: {fileID: 2800000, guid: 3bc2d3b732d452d4487ca9a0e3c89f27, type: 2}

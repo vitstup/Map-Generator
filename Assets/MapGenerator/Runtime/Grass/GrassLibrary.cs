@@ -11,6 +11,15 @@ namespace TacticalMaps.Grass
         [SerializeField] private ComputeShader compute;
         [SerializeField] private Texture2D turfAlbedo;
         [SerializeField] private Texture2D turfNormal;
+        [SerializeField] private Mesh cardsMesh;
+        [SerializeField] private Material cardsMaterial;
+        [SerializeField] private Texture2D cardsAlbedo;
+        [SerializeField] private Texture2D cardsNormal;
+        internal Mesh CardsMesh => cardsMesh;
+        internal Material CardsMaterial => cardsMaterial;
+        internal Texture2D CardsAlbedo => cardsAlbedo;
+        internal Texture2D CardsNormal => cardsNormal;
+        internal bool CardsValid => cardsMesh != null && cardsMaterial != null && cardsAlbedo != null && cardsNormal != null;
         internal Mesh Mesh(int lod) => lod == 0 ? nearMesh : middleMesh;
         internal Mesh Simplified => simplifiedMesh != null ? simplifiedMesh : nearMesh;
         internal Material Material => material;

@@ -14,6 +14,7 @@ float4 _Rect0, _Rect1, _Rect2, _Vertical0, _Vertical1, _Vertical2;
 float4 _ChunkOrigin, _HeightRange, _PlantRules, _Camera, _Lod, _Projection;
 float4 _Planes[6];
 float4 _Focus;
+float4 _MeadowRange;
 uint _Pool;
 int _TopologyCheck;
 uint _Axis, _PerSlot, _Slot, _ActiveCount;
@@ -64,10 +65,11 @@ void Generate(uint3 dispatch : SV_DispatchThreadID)
         {
             float h = lerp(_HeightRange.x, _HeightRange.y, random) * lerp(.8, 1.2, GrassNoise(world / 7 + _PlantRules.w));
             if (_Pool == 1) h=lerp(.16,.28,random);
+            if (_Pool == 2) h=lerp(.8,1.15,random);
             instance.positionHeight = float4(world.x, height - .035, world.y, h);
             // Root permission is invariant in the interior of a meadow. Classify the entire
             // footprint once at generation time, avoiding texture fetches per vertex per frame.
-            float2 extent=(_Pool==0?.65:2.6)/rect.zw;
+            float2 extent=(_Pool==0?.65:_Pool==1?2.6:3.5)/rect.zw;
             float4 a=CoverageAt(level,uv+float2(extent.x,0));
             float4 b=CoverageAt(level,uv-float2(extent.x,0));
             float4 c=CoverageAt(level,uv+float2(0,extent.y));
@@ -97,6 +99,7 @@ void Cull(uint3 dispatch : SV_DispatchThreadID)
     for (int p = 0; p < 6; p++) if (dot(_Planes[p].xyz, center) + _Planes[p].w < -radius) return;
     float d = distance(_Focus.xz, instance.positionHeight.xz);
     if (d >= _Lod.x) return;
+    if (_Pool==2&&GrassFieldFade(instance.positionHeight.xz,_Focus.xz,_MeadowRange.x,_MeadowRange.y,_MeadowRange.z)>.999) return;
     float viewDepth=max(.1,distance(instance.positionHeight.xyz,_Camera.xyz));
     float pixels = (_Pool==0?height:2.8) * _Projection.x / (_Projection.y > .5 ? 1 : viewDepth);
     if (pixels <= _Lod.z) return;

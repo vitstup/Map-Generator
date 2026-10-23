@@ -34,6 +34,7 @@ namespace TacticalMaps.Grass
         [SerializeField, Range(.2f, 8)] private float minimumPixels = .7f;
         [SerializeField, Range(.1f, 1)] private float middleDensity = 1;
         [SerializeField, Min(100)] private float meadowDistance = 420;
+        [SerializeField, Range(450, 900)] private float distantDistance = 900;
         [SerializeField, Range(0, 1)] private float turfStrength = 1;
         [Header("Diagnostics: 0 normal, 1 density, 2 LOD, 3 chunks")]
         [SerializeField, Range(0, 3)] private int debugView;
@@ -48,6 +49,8 @@ namespace TacticalMaps.Grass
         internal GrassLibrary Library => library;
         internal int BakeMode { get; set; }
         internal bool MatureForChecks { get; set; }
+        internal bool SuppressCardsForChecks { get; set; }
+        internal Vector4 BakeRegion { get; set; }
         internal Vector3? FocusForChecks { get; set; }
         internal int TopologyForChecks { get; set; }
         private bool freezeWind;
@@ -150,7 +153,8 @@ namespace TacticalMaps.Grass
                 Seed = seed, Wind = new Vector2(freezeWind?0:windStrength, windSpeed), Meadow = meadowColor, Dry = dryColor,
                 Distance = geometryDistance, NearDistance = nearDistance, MinPixels = minimumPixels,
                 MiddleDensity = middleDensity, PrepareBudget = chunksPreparedPerFrame, Debug = debugView, Layer = gameObject.layer
-                , MeadowDistance = meadowDistance, BakeMode = BakeMode, Mature = MatureForChecks
+                , MeadowDistance = meadowDistance, DistantDistance = distantDistance, BakeMode = BakeMode, Mature = MatureForChecks,
+                SuppressCards = SuppressCardsForChecks, BakeRegion = BakeRegion
             });
             ResidentChunks = renderer.ResidentCount; SubmittedDraws = renderer.Draws;
             BufferBytes = 0; foreach (var v in views.Values) BufferBytes += v.BufferBytes;
@@ -182,41 +186,52 @@ namespace TacticalMaps.Grass
             return Vector3.Lerp(origin,point,.5f);
         }
         internal uint[] ReadCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(), out var v) ? v.ReadCounts() : new uint[2];
-        internal uint[] ReadDrawCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadDrawCounts():new uint[3];
+        internal uint[] ReadDrawCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadDrawCounts():new uint[4];
         internal Dictionary<uint,int> ReadLodMembershipForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadLodMembershipForChecks():new Dictionary<uint,int>();
         private void ReleaseViews() { foreach (var v in views.Values) v.Dispose(); views.Clear(); ResidentChunks = 0; BufferBytes = 0; SubmittedDraws = 0; }
     }
     internal struct GrassRenderSettings
     {
         internal float Density, Slope, Shore, Distance, NearDistance, MinPixels, MiddleDensity;
-        internal float MeadowDistance;
+        internal float MeadowDistance, DistantDistance;
+        internal Vector4 BakeRegion;
         internal Vector2 Heights, Wind, NearRange;
         internal Vector3 Focus;
         internal Color Meadow, Dry;
         internal int Seed, PrepareBudget, Debug, Layer;
         internal int BakeMode, CheckTopology;
-        internal bool Mature;
+        internal bool Mature, SuppressCards;
     }
 
-    // Independent dense near pool and coarse meadow pool. A larger far radius never expands the dense buffer.
+    // Three bounded pools. Extending distant groups never expands the dense grass buffer.
     internal sealed class GrassView : IDisposable
     {
-        private readonly GrassRenderer near, meadow;
+        private readonly GrassRenderer near, meadow, cards;
         internal int Revision => near.Revision;
         internal float LastUsed => near.LastUsed;
-        internal int ResidentCount => near.ResidentCount + meadow.ResidentCount;
-        internal int Draws => near.Draws + meadow.Draws;
-        internal long BufferBytes => near.BufferBytes + meadow.BufferBytes;
+        internal int ResidentCount => near.ResidentCount + meadow.ResidentCount + (cards?.ResidentCount ?? 0);
+        internal int Draws => near.Draws + meadow.Draws + (cards?.Draws ?? 0);
+        internal long BufferBytes => near.BufferBytes + meadow.BufferBytes + (cards?.BufferBytes ?? 0);
         internal GrassView(GrassLibrary library, GrassMap map, int chunk, int axis, int capacity, int revision)
         {
-            try { near = new GrassRenderer(library,map,chunk,axis,capacity,revision,0); meadow = new GrassRenderer(library,map,64,40,224,revision,1); }
-            catch { near?.Dispose(); meadow?.Dispose(); throw; }
+            try
+            {
+                near = new GrassRenderer(library,map,chunk,axis,capacity,revision,0);
+                meadow = new GrassRenderer(library,map,64,40,224,revision,1);
+                if(library.CardsValid) cards = new GrassRenderer(library,map,128,40,320,revision,2);
+            }
+            catch { near?.Dispose(); meadow?.Dispose(); cards?.Dispose(); throw; }
         }
         internal void Render(Camera camera, GrassRenderSettings settings)
-        { near.Render(camera,settings); var coarse=settings; coarse.Distance=settings.MeadowDistance; coarse.PrepareBudget=Mathf.Max(4,settings.PrepareBudget); meadow.Render(camera,coarse); }
+        {
+            near.Render(camera,settings);
+            var coarse=settings; coarse.Distance=settings.MeadowDistance; coarse.PrepareBudget=Mathf.Max(4,settings.PrepareBudget);
+            meadow.Render(camera,coarse);
+            if(cards!=null) { coarse.Distance=settings.DistantDistance; cards.Render(camera,coarse); }
+        }
         internal Dictionary<uint,int> ReadLodMembershipForChecks() => near.ReadLodMembershipForChecks();
-        internal uint[] ReadDrawCounts() {var n=near.ReadCounts();return new[]{n[0],n[1],meadow.ReadCounts()[1]};}
-        internal uint[] ReadCounts() {var n=ReadDrawCounts();return new[]{n[0]+n[1],n[2]};}
-        public void Dispose() { near.Dispose(); meadow.Dispose(); }
+        internal uint[] ReadDrawCounts() {var n=near.ReadCounts();return new[]{n[0],n[1],meadow.ReadCounts()[1],cards?.ReadCounts()[1] ?? 0};}
+        internal uint[] ReadCounts() {var n=ReadDrawCounts();return new[]{n[0]+n[1],n[2]+n[3]};}
+        public void Dispose() { near.Dispose(); meadow.Dispose(); cards?.Dispose(); }
     }
 }

@@ -16,7 +16,9 @@ namespace TacticalMaps.Editor
         internal static void Transitions() => Start(true);
         [MenuItem("Tools/Tactical Maps/Capture Maximum Zoom Orbit")]
         internal static void MaximumOrbit() => Start(false,true);
-        private static void Start(bool transitions,bool maximum=false)
+        [MenuItem("Tools/Tactical Maps/Capture Distant Grass Orbit")]
+        internal static void DistantOrbit() => Start(false,true,"Temp/grass-card-orbit");
+        private static void Start(bool transitions,bool maximum=false,string destination=null)
         {
             if(tick!=null) throw new InvalidOperationException("A meadow capture is already running.");
             var system=UnityEngine.Object.FindAnyObjectByType<GrassSystem>();
@@ -29,7 +31,7 @@ namespace TacticalMaps.Editor
             extra.antialiasing=AntialiasingMode.SubpixelMorphologicalAntiAliasing;extra.antialiasingQuality=AntialiasingQuality.High;
             var target=new RenderTexture(1280,720,24);target.Create();camera.targetTexture=target;
             var pixels=new Texture2D(1280,720,TextureFormat.RGB24,false);
-            string folder=maximum?"Temp/grass-max-orbit":transitions?"Temp/grass-transitions":"Temp/meadow-flight";Directory.CreateDirectory(folder);
+            string folder=destination??(maximum?"Temp/grass-max-orbit":transitions?"Temp/grass-transitions":"Temp/meadow-flight");Directory.CreateDirectory(folder);
             var keys=new[]{new Vector3(0,2.5f,-8),new Vector3(12,3,-10),new Vector3(0,45,-65),
                 new Vector3(0,70,-.1f),new Vector3(0,270,-400),new Vector3(90,40,-50),new Vector3(12,3,-8)};
             Vector3[] targets=null;

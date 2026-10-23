@@ -27,6 +27,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         float4 _GrassAmbientSky,_GrassAmbientSide,_GrassFocus,_GrassNearRange;
         int _GrassLod,_GrassPool,_GrassTopologyCheck;
         float _GrassBakeMode;
+        float4 _GrassBakeRegion;
         struct Attributes { float3 positionOS:POSITION; float2 uv:TEXCOORD0; float2 meta:TEXCOORD1; uint instanceID:SV_InstanceID; };
         struct Varyings { float4 positionCS:SV_POSITION; float3 world:TEXCOORD0; half3 normal:TEXCOORD1; half3 color:TEXCOORD2; half fog:TEXCOORD3; float4 shadowCoord:TEXCOORD4; half fade:TEXCOORD5; half detail:TEXCOORD6; nointerpolation float2 noiseSeed:TEXCOORD7; };
         float GroundHeight(float2 world)
@@ -144,6 +145,8 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         }
         void Fade(Varyings input)
         {
+            if(_GrassBakeMode>.5&&_GrassBakeRegion.w>0)
+                clip(_GrassBakeRegion.z-max(abs(input.world.x-_GrassBakeRegion.x),abs(input.world.z-_GrassBakeRegion.y)));
             // Pixel coordinates are exact across topologies; interpolated positions amplified
             // subdivision roundoff into different clipping in the range-fade zone. No frame jitter.
             float noise=GrassHash(floor(input.positionCS.xy)+input.noiseSeed);

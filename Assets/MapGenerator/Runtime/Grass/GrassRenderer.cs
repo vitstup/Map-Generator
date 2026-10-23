@@ -43,7 +43,7 @@ namespace TacticalMaps.Grass
         internal GrassRenderer(GrassLibrary assets, GrassMap source, int chunk, int samples, int maximum, int revision, int poolIndex)
         {
             pool = poolIndex;
-            library = assets; map = source; cell = Mathf.Clamp(chunk, 16, 64); axis = Mathf.Clamp(samples, 16, 64);
+            library = assets; map = source; cell = Mathf.Clamp(chunk, 16, 128); axis = Mathf.Clamp(samples, 16, 64);
             capacity = Mathf.Clamp(maximum, 32, 512); perSlot = axis * axis; active = new int[capacity]; Revision = revision;
             minY = float.PositiveInfinity; maxY = float.NegativeInfinity;
             foreach (var t in map.Terrains) { minY = Mathf.Min(minY, t.transform.position.y); maxY = Mathf.Max(maxY, t.transform.position.y + t.terrainData.size.y); }
@@ -66,6 +66,11 @@ namespace TacticalMaps.Grass
                     properties[lod].SetBuffer("_GrassInstances", instances); properties[lod].SetBuffer("_VisibleGrass", visible[lod]);
                     properties[lod].SetInt("_GrassLod", lod);
                     properties[lod].SetInt("_GrassPool", pool);
+                    if(pool==2)
+                    {
+                        properties[lod].SetTexture("_GrassCardsAlbedo",assets.CardsAlbedo);
+                        properties[lod].SetTexture("_GrassCardsNormal",assets.CardsNormal);
+                    }
                     properties[lod].SetBuffer("_GrassBirth",births);properties[lod].SetInt("_GrassPerSlot",perSlot);
                     var directions=new[]{Vector3.up,Vector3.right,Vector3.left,Vector3.forward,Vector3.back};
                     var ambient=new Color[directions.Length]; RenderSettings.ambientProbe.Evaluate(directions,ambient);
@@ -89,6 +94,7 @@ namespace TacticalMaps.Grass
                     {
                         block.SetTexture("_GroundHeight"+i,t.terrainData.heightmapTexture);
                         block.SetTexture("_GroundCoverage"+i,map.Coverage[i]);
+                        block.SetTexture("_GroundHoles"+i,t.terrainData.holesTexture);
                         block.SetVector("_GroundRect"+i,new Vector4(p.x,p.z,size.x,size.z));
                         block.SetVector("_GroundVertical"+i,new Vector4(p.y,size.y,t.terrainData.heightmapResolution,0));
                     }
@@ -111,6 +117,8 @@ namespace TacticalMaps.Grass
         }
         internal void Render(Camera camera, GrassRenderSettings s)
         {
+            Draws = 0;
+            if((pool==2&&(s.SuppressCards||s.BakeMode>0))||(pool==1&&s.BakeMode>0&&s.BakeRegion.w>0)) return;
             LastUsed = Time.realtimeSinceStartup;
             compute.SetVector("_HeightRange", new Vector4(Mathf.Max(.05f, s.Heights.x), Mathf.Max(s.Heights.x, s.Heights.y), 0, 0));
             compute.SetVector("_PlantRules", new Vector4(s.Density, Mathf.Cos(s.Slope * Mathf.Deg2Rad), map.SeaLevel + s.Shore, s.Seed));
@@ -139,6 +147,7 @@ namespace TacticalMaps.Grass
                     compute.SetVector("_Camera", camera.transform.position);
                     compute.SetVector("_Focus", s.Focus);
                     compute.SetInt("_TopologyCheck",s.CheckTopology);
+                    compute.SetVector("_MeadowRange",new Vector4(s.MeadowDistance*.48f,s.MeadowDistance*.82f,s.Seed,0));
                     float pixels = camera.orthographic ? camera.pixelHeight / (2 * camera.orthographicSize) : camera.pixelHeight / (2 * Mathf.Tan(camera.fieldOfView * Mathf.Deg2Rad * .5f));
                     compute.SetVector("_Lod", new Vector4(Mathf.Max(20, s.Distance), Mathf.Max(1, s.NearDistance), s.MinPixels, 0));
                     compute.SetVector("_Projection", new Vector4(pixels, camera.orthographic ? 1 : 0, s.MiddleDensity, s.Wind.x));
@@ -157,6 +166,8 @@ namespace TacticalMaps.Grass
                 entry.SetVector("_GrassWind", new Vector4(s.Wind.x, s.Wind.y, s.Seed, s.Density));
                 entry.SetVector("_GrassOptions", new Vector4(cell, s.Debug, 0, 0));
                 entry.SetFloat("_GrassBakeMode",s.BakeMode);
+                entry.SetVector("_GrassBakeRegion",s.BakeRegion);
+                entry.SetVector("_GrassMeadowRange",new Vector4(s.MeadowDistance*.48f,s.MeadowDistance*.82f,0,0));
                 entry.SetFloat("_GrassClock",Time.realtimeSinceStartup+(s.Mature?1:0));
                 entry.SetVector("_GrassLodDistances", new Vector4(s.Distance,s.NearDistance,s.MinPixels,0));
                 float screenScale = camera.orthographic ? camera.pixelHeight / (2 * camera.orthographicSize) : camera.pixelHeight / (2 * Mathf.Tan(camera.fieldOfView * Mathf.Deg2Rad * .5f));
@@ -166,13 +177,13 @@ namespace TacticalMaps.Grass
             var allBounds = new Bounds(world.transform.position + outer * .5f, outer + Vector3.one * 8);
             for (int i = pool==0?0:1; i < 2; i++)
             {
-                var rp = new RenderParams(library.Material) { camera = camera, layer = s.Layer, worldBounds = allBounds,
+                var rp = new RenderParams(pool==2?library.CardsMaterial:library.Material) { camera = camera, layer = s.Layer, worldBounds = allBounds,
                     matProps = properties[i], shadowCastingMode = ShadowCastingMode.Off, receiveShadows = true,
                     lightProbeUsage = LightProbeUsage.Off, reflectionProbeUsage = ReflectionProbeUsage.Off };
                 Graphics.RenderMeshIndirect(rp, Mesh(i), arguments[i]); Draws++;
             }
         }
-        private Mesh Mesh(int lod) => pool==0&&lod==1?library.Simplified:library.Mesh(lod);
+        private Mesh Mesh(int lod) => pool==2?library.CardsMesh:pool==0&&lod==1?library.Simplified:library.Mesh(lod);
         private bool Prepare(Camera camera, GrassRenderSettings s)
         {
             var center = new Vector2Int(Mathf.FloorToInt(s.Focus.x / cell), Mathf.FloorToInt(s.Focus.z / cell));

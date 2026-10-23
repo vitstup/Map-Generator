@@ -5193,6 +5193,7 @@ MonoBehaviour:
   minimumPixels: 0.7
   middleDensity: 1
   meadowDistance: 420
+  distantDistance: 900
   turfStrength: 1
   debugView: 0
 --- !u!4 &690129048
