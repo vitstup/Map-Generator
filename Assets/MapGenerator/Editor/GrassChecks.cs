@@ -29,7 +29,9 @@ namespace TacticalMaps.Editor
                     foreach (var message in ShaderUtil.GetShaderMessages(Shader.Find(name)))
                         Require(message.severity != UnityEditor.Rendering.ShaderCompilerMessageSeverity.Error, name + ": " + message.message);
                 }
+                System.IO.File.WriteAllText("Temp/grass-checks-progress.txt","Coverage checks");
                 CoverageChecks(report);
+                System.IO.File.WriteAllText("Temp/grass-checks-progress.txt","Lifecycle checks");
                 LifecycleChecks(system,report);
                 var map = system.CurrentMap; var terrain = map.Terrains[0]; var data = terrain.terrainData;
                 var mask = map.Coverage[0]; var colors = mask.GetPixels32(); Vector2 uv = new Vector2(.5f,.5f); float best = -1;
@@ -48,12 +50,17 @@ namespace TacticalMaps.Editor
                 target = new RenderTexture(1280,720,24); target.Create(); camera.targetTexture = target;
                 pixels = new Texture2D(1280,720,TextureFormat.RGB24,false);
                 System.IO.Directory.CreateDirectory("Temp");
-                foreach (var view in new[] { "close", "rts", "top", "wide" })
+                foreach (var view in new[] { "close", "rts", "top", "elevated", "maxLow", "maxTop", "wide" })
                 {
-                    Vector3 offset = view == "close" ? new Vector3(0,2.2f,-6) : view == "rts" ? new Vector3(0,35,-55) : view=="top"?new Vector3(0,45,0):new Vector3(0,260,-380);
+                    System.IO.File.WriteAllText("Temp/grass-checks-progress.txt",view);
+                    Vector3 offset = view == "close" ? new Vector3(0,2.2f,-6) : view == "rts" ? new Vector3(0,35,-55) : view=="top"?new Vector3(0,45,0):view=="elevated"?new Vector3(0,110,0):view=="maxLow"?new Vector3(0,13.073f,-149.429f):view=="maxTop"?new Vector3(0,149.429f,-13.073f):new Vector3(0,260,-380);
                     camera.transform.position = ground + offset; camera.transform.LookAt(ground + (view == "close" ? Vector3.forward * 5 : Vector3.zero));
-                    for (int i = 0; i < 45; i++) camera.Render();
+                    for (int i = 0; i < 64; i++) {camera.Render(); UnityEngine.Rendering.AsyncGPUReadback.Request(target,0).WaitForCompletion();}
                     var counts = system.ReadCountsForChecks(camera);
+                    var draws=system.ReadDrawCountsForChecks(camera);
+                    if(view=="rts") Require(draws[1]>0,"Simplified plants are rendered.");
+                    if(view=="elevated") Require(draws[1]>0,"Plants remain visible above the old spherical distance cutoff.");
+                    report.AppendLine($"{view}: detailed={draws[0]}, simplified={draws[1]}, understorey={draws[2]}");
                     if (view == "close") Require(counts[0] > 0, "Near GPU draw contains visible grass.");
                     if (view == "rts") Require(counts[1] > 0, "Middle GPU draw contains visible grass.");
                     report.AppendLine($"{view}: near={counts[0]}, middle={counts[1]}, residentChunks={system.ResidentChunks}, GPU buffers={system.BufferBytes / 1048576f:F2} MiB, draws={system.SubmittedDraws}");
@@ -70,22 +77,42 @@ namespace TacticalMaps.Editor
                     double turfDifference=Difference(surface,bare);
                     Require(turfDifference>.15,"Meadow surface visibly replaces bare Terrain: "+view);
                     report.AppendLine($"{view}: Terrain meadow image difference={turfDifference:F4}");
-                    if (view == "rts")
+                    if (view == "rts"||view=="maxLow"||view=="maxTop")
                     {
                         double fullTime = Time(camera,8); system.SuppressGeometryForChecks = true; double surfaceTime = Time(camera,8);
                         system.enabled = false; double bareTime = Time(camera,8); system.enabled = true; system.SuppressGeometryForChecks = false;
-                        report.AppendLine($"Offscreen render submission: full={fullTime:F2} ms, surface={surfaceTime:F2} ms, disabled={bareTime:F2} ms. Editor/pipeline overhead included; not isolated GPU time or gameplay FPS.");
+                        report.AppendLine($"{view} offscreen render submission: full={fullTime:F2} ms, surface={surfaceTime:F2} ms, disabled={bareTime:F2} ms. Editor/pipeline overhead included; not isolated GPU time or gameplay FPS.");
                     }
                 }
+                system.FocusForChecks=ground;
+                camera.transform.position=ground+new Vector3(0,130,-70);camera.transform.LookAt(ground);
+                for(int i=0;i<64;i++){camera.Render();UnityEngine.Rendering.AsyncGPUReadback.Request(target,0).WaitForCompletion();}
+                var oblique=system.ReadLodMembershipForChecks(camera);
+                camera.transform.rotation=Quaternion.Euler(90,0,0);camera.Render();
+                var overhead=system.ReadLodMembershipForChecks(camera);int shared=0,mismatch=0;
+                foreach(var plant in oblique) if(overhead.TryGetValue(plant.Key,out var lod)){shared++;if(lod!=plant.Value)mismatch++;}
+                Require(shared>1000&&mismatch==0,"Rotation preserves LOD for shared visible plants.");
+                report.AppendLine($"PASS: fixed-position rotation, {shared} shared plants, {mismatch} LOD changes.");
+                camera.transform.position=ground+new Vector3(0,35,-55);camera.transform.LookAt(ground);
+                system.FreezeWindForChecks=true;system.TopologyForChecks=1;
+                for(int i=0;i<64;i++){camera.Render();UnityEngine.Rendering.AsyncGPUReadback.Request(target,0).WaitForCompletion();}
+                var subdivided=Capture(camera,target,pixels,"Temp/grass-morph-subdivided.png");
+                system.TopologyForChecks=2;
+                var triangle=Capture(camera,target,pixels,"Temp/grass-morph-triangle.png");
+                double morphDifference=Difference(subdivided,triangle);
+                report.AppendLine($"Topology handoff image difference={morphDifference:F4} / 255.");
+                Require(morphDifference<.35,"Flat detailed/simplified topology images agree.");
+                report.AppendLine("PASS: matching topology handoff.");
+                system.TopologyForChecks=0;system.FreezeWindForChecks=false;system.FocusForChecks=null;
                 camera.transform.position = ground + new Vector3(120,20,-20); camera.transform.LookAt(ground); camera.Render();
-                Require(system.ResidentChunks <= new SerializedObject(system).FindProperty("maximumResidentChunks").intValue+160, "Both residency pools remain bounded.");
+                Require(system.ResidentChunks <= new SerializedObject(system).FindProperty("maximumResidentChunks").intValue+224, "Both residency pools remain bounded.");
                 system.enabled = false; Require(system.BufferBytes == 0, "Disable releases buffers."); system.enabled = true;
                 report.AppendLine("PASS: coverage, cancellation, shader compilation, near/middle/wide rendering, camera movement, disable cleanup.");
             }
             catch (Exception e) { report.AppendLine("FAIL: " + e); UnityEngine.Debug.LogException(e); }
             finally
             {
-                if (system != null) { system.SuppressGeometryForChecks = false; system.MatureForChecks=false;system.enabled = wasEnabled; }
+                if (system != null) { system.SuppressGeometryForChecks = false; system.MatureForChecks=false;system.FocusForChecks=null;system.TopologyForChecks=0;system.FreezeWindForChecks=false;system.enabled = wasEnabled; }
                 if (cameraObject != null) UnityEngine.Object.DestroyImmediate(cameraObject);
                 if (target != null) { target.Release(); UnityEngine.Object.DestroyImmediate(target); }
                 if (pixels != null) UnityEngine.Object.DestroyImmediate(pixels);
@@ -101,7 +128,10 @@ namespace TacticalMaps.Editor
             for(int i=0;i<3;i++) for(int p=0;p<16;p++) Require(a.Pixels[i][p].Equals(b.Pixels[i][p]),"Repeatability.");
             Require(a.Pixels[0][0].r==255 && a.Pixels[0][3].r==0,"Meadow allowed, rock excluded.");
             using(var cancel=new CancellationTokenSource()) { cancel.Cancel(); bool caught=false; try { GrassCoverage.Generate(surface,cancel.Token); } catch(OperationCanceledException) { caught=true; } Require(caught,"Cancellation."); }
-            report.AppendLine("PASS: deterministic coverage; meadow/rock rules; cancellation.");
+            for(int i=0;i<3;i++) for(int z=0;z<4;z++) for(int x=0;x<4;x++) {weights[i][z,x,0]=.7f;weights[i][z,x,3]=0;weights[i][z,x,4]=.3f;}
+            var coast=GrassCoverage.Generate(surface,CancellationToken.None);
+            Require(coast.Pixels[0][0].b>=76,"Mixed beach retains the sand exclusion independently of meadow density.");
+            report.AppendLine("PASS: deterministic coverage; meadow/rock rules; mixed beach mask; cancellation.");
         }
         private static void LifecycleChecks(GrassSystem source,StringBuilder report)
         {
@@ -133,7 +163,27 @@ namespace TacticalMaps.Editor
                 map.Release(); Require(stable.Coverage[0]!=null,"Grass survives MapData.Release.");
                 grass.Exclude(new Bounds(new Vector3(0,30,0),new Vector3(40,100,40)));
                 Require(stable.Coverage[0].GetPixel(8,8).a==0,"Local exclusion updates coverage.");
-                report.AppendLine("PASS: build/rebuild ownership; rollback; independent result lifetime; local exclusion.");
+                // A mixed beach must reject geometry even when the meadow probability is high.
+                for(int i=0;i<3;i++)
+                {
+                    var texture=stable.Coverage[i];var coast=new Color32[texture.width*texture.height];
+                    for(int p=0;p<coast.Length;p++) coast[p]=new Color32(255,0,77,255);
+                    texture.SetPixels32(coast);texture.Apply();
+                }
+                gs.Update();gs.FindProperty("library").objectReferenceValue=source.Library;gs.ApplyModifiedPropertiesWithoutUndo();
+                grass.Attach(stable);
+                var cameraObject=new GameObject("BeachGpuCheckCamera");UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(cameraObject,scene);
+                var camera=cameraObject.AddComponent<Camera>();camera.enabled=false;camera.scene=scene;camera.farClipPlane=300;
+                camera.transform.position=new Vector3(0,33,-8);camera.transform.LookAt(new Vector3(0,30,3));
+                var target=new RenderTexture(64,64,24);target.Create();camera.targetTexture=target;
+                try
+                {
+                    for(int i=0;i<32;i++) {camera.Render();UnityEngine.Rendering.AsyncGPUReadback.Request(target,0).WaitForCompletion();}
+                    var counts=grass.ReadCountsForChecks(camera);
+                    Require(counts[0]==0&&counts[1]==0,"Mixed sand excludes both GPU pools.");
+                }
+                finally {camera.targetTexture=null;UnityEngine.Object.DestroyImmediate(cameraObject);target.Release();UnityEngine.Object.DestroyImmediate(target);}
+                report.AppendLine("PASS: build/rebuild ownership; rollback; independent result lifetime; local exclusion; GPU beach rejection.");
             }
             finally { map?.Release(); UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene); }
         }

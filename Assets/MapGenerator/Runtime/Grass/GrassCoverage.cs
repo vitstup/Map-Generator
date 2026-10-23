@@ -29,7 +29,7 @@ namespace TacticalMaps.Grass
                         int sz = Mathf.Min(source - 1, (int)((z + .5f) * source / n));
                         float wet = weights[sz, sx, 0], dry = weights[sz, sx, 1];
                         float density = Mathf.Clamp01(wet + dry * .72f + weights[sz, sx, 2] * .08f);
-                        pixels[level][z * n + x] = new Color(density, dry / Mathf.Max(.001f, wet + dry), .5f, 1);
+                        pixels[level][z * n + x] = new Color(density, dry / Mathf.Max(.001f, wet + dry), weights[sz, sx, 4], 1);
                     }
                 }
             }

@@ -140,7 +140,7 @@ half4 MatteFragment(Varyings input) : SV_Target
         float slopeNormal=abs(normalize(cross(ddy(input.positionWS),ddx(input.positionWS))).y);
         float suitable = smoothstep(_GrassOptions.z,_GrassOptions.z+1.2,input.positionWS.y)
                        * smoothstep(_GrassOptions.w,min(1,_GrassOptions.w+.08),slopeNormal);
-        half amount=saturate(grass.r*1.6)*grass.a*patch*_GrassWind.w*suitable*_GrassTurfStrength;
+        half amount=saturate(grass.r*1.6)*grass.a*GrassPermission(grass.b)*patch*_GrassWind.w*suitable*_GrassTurfStrength;
         half3 tint=GrassPalette(input.positionWS.xz,grass.g,_GrassWind.z,_GrassMeadow.rgb,_GrassDry.rgb);
         float2 turfUV=input.positionWS.xz/4;
         float2 otherUV=float2(-turfUV.y,turfUV.x)*.73+.371;

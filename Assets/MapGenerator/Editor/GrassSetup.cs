@@ -21,22 +21,52 @@ namespace TacticalMaps.Editor
             if(system==null) {Setup();system=UnityEngine.Object.FindAnyObjectByType<GrassSystem>();}
             var settings=new SerializedObject(system);
             settings.FindProperty("chunkSize").intValue=16;
+            settings.FindProperty("chunksPreparedPerFrame").intValue=8;
             settings.FindProperty("candidatesPerAxis").intValue=64;
-            settings.FindProperty("maximumResidentChunks").intValue=128;
-            settings.FindProperty("geometryDistance").floatValue=80;
-            settings.FindProperty("nearDistance").floatValue=45;
-            settings.FindProperty("meadowDistance").floatValue=280;
+            settings.FindProperty("maximumResidentChunks").intValue=416;
+            settings.FindProperty("geometryDistance").floatValue=144;
+            settings.FindProperty("nearDistance").floatValue=84;
+            settings.FindProperty("meadowDistance").floatValue=420;
             settings.FindProperty("minimumPixels").floatValue=.7f;
             settings.FindProperty("middleDensity").floatValue=1;
             settings.FindProperty("heightRange").vector2Value=new Vector2(.22f,.72f);
             settings.FindProperty("meadowColor").colorValue=new Color(.32f,.43f,.19f);
             settings.FindProperty("dryColor").colorValue=new Color(.49f,.45f,.25f);
             settings.FindProperty("turfStrength").floatValue=1;
-            settings.ApplyModifiedPropertiesWithoutUndo();
+            BindFocus(settings);settings.ApplyModifiedPropertiesWithoutUndo();
             GrassTurfBaker.Bake();
             if(system.CurrentMap!=null) system.Attach(system.CurrentMap);
             EditorUtility.SetDirty(system); AssetDatabase.SaveAssets();
             EditorSceneManager.MarkSceneDirty(system.gameObject.scene);EditorSceneManager.SaveScene(system.gameObject.scene);
+        }
+        [MenuItem("Tools/Tactical Maps/Apply Smooth Grass Transitions")]
+        internal static void SmoothTransitions()
+        {
+            if(EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play mode first.");
+            var system=UnityEngine.Object.FindAnyObjectByType<GrassSystem>();
+            if(system==null||system.CurrentMap==null) throw new InvalidOperationException("Configure grass first.");
+            EnsureLibrary();
+            var so=new SerializedObject(system);
+            so.FindProperty("maximumResidentChunks").intValue=416;
+            so.FindProperty("geometryDistance").floatValue=144;
+            so.FindProperty("nearDistance").floatValue=84;
+            so.FindProperty("chunksPreparedPerFrame").intValue=8;
+            so.FindProperty("meadowDistance").floatValue=420;
+            BindFocus(so);so.ApplyModifiedPropertiesWithoutUndo();
+            var built=system.CurrentMap; var weights=new float[3][,,];
+            for(int i=0;i<3;i++) {var data=built.Terrains[i].terrainData;weights[i]=data.GetAlphamaps(0,0,data.alphamapWidth,data.alphamapHeight);}
+            var surface=new SurfaceData(built.Terrains[0].terrainData.terrainLayers,weights,Vector2.zero);
+            var coverage=GrassCoverage.Generate(surface,CancellationToken.None);
+            for(int i=0;i<3;i++)
+            {
+                var texture=built.Coverage[i]; var old=texture.GetPixels32();var updated=coverage.Pixels[i];
+                if(updated.Length!=old.Length) throw new InvalidOperationException("Coverage resolution changed. Rebuild grass instead.");
+                for(int j=0;j<updated.Length;j++) updated[j].a=old[j].a;
+                texture.SetPixels32(updated);texture.Apply(false,false);EditorUtility.SetDirty(texture);
+            }
+            system.Attach(built); EditorUtility.SetDirty(system);
+            AssetDatabase.SaveAssets();EditorSceneManager.MarkSceneDirty(system.gameObject.scene);EditorSceneManager.SaveScene(system.gameObject.scene);
+            Debug.Log("Smooth grass transitions applied. Beach masks refreshed; existing local exclusions preserved.");
         }
         [MenuItem("Tools/Tactical Maps/Set Up Low Poly Grass")]
         internal static void Setup()
@@ -86,9 +116,20 @@ namespace TacticalMaps.Editor
             if (library == null) { library = ScriptableObject.CreateInstance<GrassLibrary>(); AssetDatabase.CreateAsset(library, Folder + "/GrassLibrary.asset"); }
             var so = new SerializedObject(library);
             so.FindProperty("nearMesh").objectReferenceValue = near; so.FindProperty("middleMesh").objectReferenceValue = middle;
+            so.FindProperty("simplifiedMesh").objectReferenceValue = GrassMeshFactory.Ensure(Folder + "/GrassSimplified.asset",false,true);
             so.FindProperty("material").objectReferenceValue = material;
             so.FindProperty("compute").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/GrassCulling.compute");
             so.ApplyModifiedPropertiesWithoutUndo(); return library;
+        }
+        private static void BindFocus(SerializedObject settings)
+        {
+            foreach(var behaviour in UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            {
+                if(behaviour.GetType().Name!="RTSCameraController") continue;
+                var target=new SerializedObject(behaviour).FindProperty("target");
+                if(target!=null) settings.FindProperty("focusTarget").objectReferenceValue=target.objectReferenceValue;
+                break;
+            }
         }
         private static Mesh EnsureMesh(string name, int blades, bool bent) => GrassMeshFactory.Ensure(Folder + "/" + name + ".asset", bent);
         private static void Save(Texture2D texture, string path)

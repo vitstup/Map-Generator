@@ -12,6 +12,7 @@ namespace TacticalMaps.Grass
         [Header("Resources")]
         [SerializeField] private GrassLibrary library;
         [SerializeField] private GrassMap currentMap;
+        [SerializeField] private Transform focusTarget;
         [Header("Coverage")]
         [SerializeField, Range(0, 1)] private float density = .9f;
         [SerializeField] private Vector2 heightRange = new Vector2(.22f, .72f);
@@ -26,13 +27,13 @@ namespace TacticalMaps.Grass
         [Header("LOD and memory")]
         [SerializeField, Range(16, 64)] private int chunkSize = 16;
         [SerializeField, Range(16, 64)] private int candidatesPerAxis = 64;
-        [SerializeField, Range(32, 384)] private int maximumResidentChunks = 128;
-        [SerializeField, Range(1, 16)] private int chunksPreparedPerFrame = 4;
-        [SerializeField, Min(20)] private float geometryDistance = 80;
-        [SerializeField, Min(1)] private float nearDistance = 45;
+        [SerializeField, Range(32, 512)] private int maximumResidentChunks = 416;
+        [SerializeField, Range(1, 16)] private int chunksPreparedPerFrame = 8;
+        [SerializeField, Min(20)] private float geometryDistance = 144;
+        [SerializeField, Min(1)] private float nearDistance = 84;
         [SerializeField, Range(.2f, 8)] private float minimumPixels = .7f;
         [SerializeField, Range(.1f, 1)] private float middleDensity = 1;
-        [SerializeField, Min(100)] private float meadowDistance = 280;
+        [SerializeField, Min(100)] private float meadowDistance = 420;
         [SerializeField, Range(0, 1)] private float turfStrength = 1;
         [Header("Diagnostics: 0 normal, 1 density, 2 LOD, 3 chunks")]
         [SerializeField, Range(0, 3)] private int debugView;
@@ -47,6 +48,10 @@ namespace TacticalMaps.Grass
         internal GrassLibrary Library => library;
         internal int BakeMode { get; set; }
         internal bool MatureForChecks { get; set; }
+        internal Vector3? FocusForChecks { get; set; }
+        internal int TopologyForChecks { get; set; }
+        private bool freezeWind;
+        internal bool FreezeWindForChecks { get=>freezeWind; set {freezeWind=value;ApplySurface(true);} }
 
         /// <summary>Suppress grass in a world-space XZ rectangle, at coverage-map resolution.</summary>
         public void Exclude(Bounds worldArea)
@@ -104,7 +109,7 @@ namespace TacticalMaps.Grass
                 m.SetFloat("_GrassTurfStrength", turfStrength);
                 m.SetVector("_GrassRect", new Vector4(p.x, p.z, size.x, size.z));
                 m.SetColor("_GrassMeadow", meadowColor); m.SetColor("_GrassDry", dryColor);
-                m.SetVector("_GrassWind", new Vector4(windStrength, windSpeed, seed, density));
+                m.SetVector("_GrassWind", new Vector4(freezeWind?0:windStrength, windSpeed, seed, density));
                 m.SetVector("_GrassOptions", new Vector4(chunkSize, debugView, currentMap.SeaLevel + shoreClearanceHeight, Mathf.Cos(maximumSlope * Mathf.Deg2Rad)));
                 m.SetFloat("_GrassEnabled", isActiveAndEnabled ? 1 : 0);
             }
@@ -114,6 +119,12 @@ namespace TacticalMaps.Grass
             if (currentMap == null || !currentMap.isActiveAndEnabled || library == null || !library.Valid) return;
             if (camera.cameraType != CameraType.Game && camera.cameraType != CameraType.SceneView) return;
             if ((camera.cullingMask & (1 << gameObject.layer)) == 0) return;
+#if UNITY_EDITOR
+            // Preview scenes (baking/checks) must not draw into the live world, or vice versa.
+            bool preview=UnityEditor.SceneManagement.EditorSceneManager.IsPreviewScene(gameObject.scene);
+            bool cameraPreview=camera.scene.IsValid()&&UnityEditor.SceneManagement.EditorSceneManager.IsPreviewScene(camera.scene);
+            if((preview||cameraPreview)&&camera.scene!=gameObject.scene) return;
+#endif
             ApplySurface(); SubmittedDraws = 0;
             if (SuppressGeometryForChecks || !SystemInfo.supportsComputeShaders || !SystemInfo.supportsInstancing) return;
             int key = camera.GetInstanceID();
@@ -134,8 +145,9 @@ namespace TacticalMaps.Grass
             if (renderer.Revision != revision) { ReleaseViews(); return; }
             renderer.Render(camera, new GrassRenderSettings
             {
+                CheckTopology=TopologyForChecks, Focus=ResolveFocus(camera), NearRange=new Vector2(nearDistance,geometryDistance),
                 Density = density, Heights = heightRange, Slope = maximumSlope, Shore = shoreClearanceHeight,
-                Seed = seed, Wind = new Vector2(windStrength, windSpeed), Meadow = meadowColor, Dry = dryColor,
+                Seed = seed, Wind = new Vector2(freezeWind?0:windStrength, windSpeed), Meadow = meadowColor, Dry = dryColor,
                 Distance = geometryDistance, NearDistance = nearDistance, MinPixels = minimumPixels,
                 MiddleDensity = middleDensity, PrepareBudget = chunksPreparedPerFrame, Debug = debugView, Layer = gameObject.layer
                 , MeadowDistance = meadowDistance, BakeMode = BakeMode, Mature = MatureForChecks
@@ -143,17 +155,46 @@ namespace TacticalMaps.Grass
             ResidentChunks = renderer.ResidentCount; SubmittedDraws = renderer.Draws;
             BufferBytes = 0; foreach (var v in views.Values) BufferBytes += v.BufferBytes;
         }
+        private Vector3 ResolveFocus(Camera camera)
+        {
+            var origin=camera.transform.position;
+            // Cover the foreground and orbit target together. Centering solely on the target
+            // would remove foreground grass at a low viewing angle.
+            if(FocusForChecks.HasValue) return Vector3.Lerp(origin,FocusForChecks.Value,.5f);
+            if(focusTarget!=null&&camera.CompareTag("MainCamera")) return Vector3.Lerp(origin,focusTarget.position,.5f);
+            // Editor/auxiliary cameras have no RTS orbit target. Intersect their central ray
+            // with the actual Terrain height, using two refinements and a bounded horizon fallback.
+            var direction=camera.transform.forward;
+            if(direction.y>-.08f) return origin;
+            Vector3 point=origin;
+            for(int j=0;j<3;j++)
+            {
+                float height=currentMap.SeaLevel;
+                foreach(var terrain in currentMap.Terrains)
+                {
+                    var p=terrain.transform.position;var size=terrain.terrainData.size;
+                    if(point.x<p.x||point.z<p.z||point.x>p.x+size.x||point.z>p.z+size.z) continue;
+                    height=p.y+terrain.terrainData.GetInterpolatedHeight((point.x-p.x)/size.x,(point.z-p.z)/size.z);break;
+                }
+                float distance=Mathf.Clamp((height-origin.y)/direction.y,0,2000);
+                point=origin+direction*distance;
+            }
+            return Vector3.Lerp(origin,point,.5f);
+        }
         internal uint[] ReadCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(), out var v) ? v.ReadCounts() : new uint[2];
+        internal uint[] ReadDrawCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadDrawCounts():new uint[3];
+        internal Dictionary<uint,int> ReadLodMembershipForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadLodMembershipForChecks():new Dictionary<uint,int>();
         private void ReleaseViews() { foreach (var v in views.Values) v.Dispose(); views.Clear(); ResidentChunks = 0; BufferBytes = 0; SubmittedDraws = 0; }
     }
     internal struct GrassRenderSettings
     {
         internal float Density, Slope, Shore, Distance, NearDistance, MinPixels, MiddleDensity;
         internal float MeadowDistance;
-        internal Vector2 Heights, Wind;
+        internal Vector2 Heights, Wind, NearRange;
+        internal Vector3 Focus;
         internal Color Meadow, Dry;
         internal int Seed, PrepareBudget, Debug, Layer;
-        internal int BakeMode;
+        internal int BakeMode, CheckTopology;
         internal bool Mature;
     }
 
@@ -168,12 +209,14 @@ namespace TacticalMaps.Grass
         internal long BufferBytes => near.BufferBytes + meadow.BufferBytes;
         internal GrassView(GrassLibrary library, GrassMap map, int chunk, int axis, int capacity, int revision)
         {
-            try { near = new GrassRenderer(library,map,chunk,axis,capacity,revision,0); meadow = new GrassRenderer(library,map,64,32,128,revision,1); }
+            try { near = new GrassRenderer(library,map,chunk,axis,capacity,revision,0); meadow = new GrassRenderer(library,map,64,40,224,revision,1); }
             catch { near?.Dispose(); meadow?.Dispose(); throw; }
         }
         internal void Render(Camera camera, GrassRenderSettings settings)
         { near.Render(camera,settings); var coarse=settings; coarse.Distance=settings.MeadowDistance; coarse.PrepareBudget=Mathf.Max(4,settings.PrepareBudget); meadow.Render(camera,coarse); }
-        internal uint[] ReadCounts() => new[] { near.ReadCounts()[0], meadow.ReadCounts()[1] };
+        internal Dictionary<uint,int> ReadLodMembershipForChecks() => near.ReadLodMembershipForChecks();
+        internal uint[] ReadDrawCounts() {var n=near.ReadCounts();return new[]{n[0],n[1],meadow.ReadCounts()[1]};}
+        internal uint[] ReadCounts() {var n=ReadDrawCounts();return new[]{n[0]+n[1],n[2]};}
         public void Dispose() { near.Dispose(); meadow.Dispose(); }
     }
 }

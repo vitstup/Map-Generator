@@ -13,12 +13,18 @@ SamplerState sampler_linear_clamp;
 float4 _Rect0, _Rect1, _Rect2, _Vertical0, _Vertical1, _Vertical2;
 float4 _ChunkOrigin, _HeightRange, _PlantRules, _Camera, _Lod, _Projection;
 float4 _Planes[6];
-float4 _CameraForward;
+float4 _Focus;
 uint _Pool;
+int _TopologyCheck;
 uint _Axis, _PerSlot, _Slot, _ActiveCount;
 float _ChunkSize;
-float _ViewAngle;
+
 bool Contains(float2 p, float4 rect) { return all(p >= rect.xy) && all(p < rect.xy + rect.zw); }
+float4 CoverageAt(int level,float2 uv)
+{
+    return level==0?_Coverage0.SampleLevel(sampler_linear_clamp,uv,0):
+           level==1?_Coverage1.SampleLevel(sampler_linear_clamp,uv,0):_Coverage2.SampleLevel(sampler_linear_clamp,uv,0);
+}
 float HeightAt(int level, float2 uv)
 {
     float4 vertical = level == 0 ? _Vertical0 : level == 1 ? _Vertical1 : _Vertical2;
@@ -43,8 +49,7 @@ void Generate(uint3 dispatch : SV_DispatchThreadID)
     {
         float4 rect = level == 0 ? _Rect0 : level == 1 ? _Rect1 : _Rect2;
         float2 uv = (world - rect.xy) / rect.zw;
-        float4 cover = level == 0 ? _Coverage0.SampleLevel(sampler_linear_clamp, uv, 0) :
-                       level == 1 ? _Coverage1.SampleLevel(sampler_linear_clamp, uv, 0) : _Coverage2.SampleLevel(sampler_linear_clamp, uv, 0);
+        float4 cover=CoverageAt(level,uv);
         float hole = level == 0 ? _Holes0.SampleLevel(sampler_linear_clamp, uv, 0) :
                      level == 1 ? _Holes1.SampleLevel(sampler_linear_clamp, uv, 0) : _Holes2.SampleLevel(sampler_linear_clamp, uv, 0);
         float height = HeightAt(level, uv);
@@ -53,14 +58,29 @@ void Generate(uint3 dispatch : SV_DispatchThreadID)
         float gz = (HeightAt(level, uv + float2(0, stepSize / rect.w)) - HeightAt(level, uv - float2(0, stepSize / rect.w))) / (2 * stepSize);
         float slope = rsqrt(1 + gx * gx + gz * gz);
         float suitability = smoothstep(_PlantRules.y, min(1, _PlantRules.y + .08), slope) * smoothstep(_PlantRules.z, _PlantRules.z + 1.2, height);
-        float probability = saturate(cover.r*1.45) * cover.a * GrassPatch(world, _PlantRules.w) * _PlantRules.x * suitability;
+        float probability = saturate(cover.r*1.45) * cover.a * GrassPermission(cover.b) * GrassPatch(world, _PlantRules.w) * _PlantRules.x * suitability;
         float pick = GrassHash(key + 191.7 + _PlantRules.w);
         if (pick < probability && hole > .5)
         {
             float h = lerp(_HeightRange.x, _HeightRange.y, random) * lerp(.8, 1.2, GrassNoise(world / 7 + _PlantRules.w));
             if (_Pool == 1) h=lerp(.16,.28,random);
             instance.positionHeight = float4(world.x, height - .035, world.y, h);
-            instance.variation = float4(random * 6.283185, cover.g, GrassHash(key + 89.4), probability);
+            // Root permission is invariant in the interior of a meadow. Classify the entire
+            // footprint once at generation time, avoiding texture fetches per vertex per frame.
+            float2 extent=(_Pool==0?.65:2.6)/rect.zw;
+            float4 a=CoverageAt(level,uv+float2(extent.x,0));
+            float4 b=CoverageAt(level,uv-float2(extent.x,0));
+            float4 c=CoverageAt(level,uv+float2(0,extent.y));
+            float4 e=CoverageAt(level,uv-float2(0,extent.y));
+            float4 f=CoverageAt(level,uv+extent),g=CoverageAt(level,uv-extent);
+            float4 j=CoverageAt(level,uv+float2(extent.x,-extent.y)),k=CoverageAt(level,uv+float2(-extent.x,extent.y));
+            float maxSand=max(cover.b,max(max(a.b,b.b),max(c.b,e.b)));
+            maxSand=max(maxSand,max(max(f.b,g.b),max(j.b,k.b)));
+            float minPermission=min(cover.a,min(min(a.a,b.a),min(c.a,e.a)));
+            minPermission=min(minPermission,min(min(f.a,g.a),min(j.a,k.a)));
+            bool edge=maxSand>.001||minPermission<.999;
+            edge=edge||any(uv<extent)||any(uv>1-extent);
+            instance.variation = float4(random * 6.283185, cover.g, GrassHash(key + 89.4), edge?-probability:probability);
         }
     }
     _Instances[_Slot * _PerSlot + i] = instance;
@@ -75,14 +95,17 @@ void Cull(uint3 dispatch : SV_DispatchThreadID)
     float3 center = instance.positionHeight.xyz + float3(0, height * .5, 0);
     float radius = _Pool == 0 ? height+1 : 3.5;
     for (int p = 0; p < 6; p++) if (dot(_Planes[p].xyz, center) + _Planes[p].w < -radius) return;
-    float d = distance(_Camera.xyz, center);
+    float d = distance(_Focus.xz, instance.positionHeight.xz);
     if (d >= _Lod.x) return;
-    float viewDepth=max(.1,dot(center-_Camera.xyz,_CameraForward.xyz));
+    float viewDepth=max(.1,distance(instance.positionHeight.xyz,_Camera.xyz));
     float pixels = (_Pool==0?height:2.8) * _Projection.x / (_Projection.y > .5 ? 1 : viewDepth);
-    if (pixels < _Lod.z) return;
-    float angleKeep=lerp(.65,1,smoothstep(.2,.75,_ViewAngle));
-    if(_Pool==0&&instance.variation.z>angleKeep) return;
+    if (pixels <= _Lod.z) return;
     if(_Pool==1&&instance.variation.z>_Projection.z) return;
-    // Coarse meadow is an understorey, not a sparse replacement for the taller near plants.
-    if (_Pool==0) _Near.Append(index); else _Middle.Append(index);
+    if (_Pool==0)
+    {
+        float detailed=GrassDetailWeight(pixels/GrassLodBias(instance.positionHeight.xz,_PlantRules.w));
+        // At zero morph the subdivided blade is exactly the single triangle. No double draw.
+        if(_TopologyCheck==1||(_TopologyCheck==0&&detailed>0)) _Near.Append(index); else _Middle.Append(index);
+    }
+    else _Middle.Append(index);
 }

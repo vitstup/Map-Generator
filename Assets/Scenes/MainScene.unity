@@ -5174,6 +5174,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Grass.GrassSystem
   library: {fileID: 11400000, guid: 0db28e7111592924e95ce2ccdf85e222, type: 2}
   currentMap: {fileID: 1762455602}
+  focusTarget: {fileID: 1499704914}
   density: 0.9
   heightRange: {x: 0.22, y: 0.72}
   maximumSlope: 35
@@ -5185,13 +5186,13 @@ MonoBehaviour:
   windSpeed: 1.2
   chunkSize: 16
   candidatesPerAxis: 64
-  maximumResidentChunks: 128
-  chunksPreparedPerFrame: 4
-  geometryDistance: 80
-  nearDistance: 45
+  maximumResidentChunks: 416
+  chunksPreparedPerFrame: 8
+  geometryDistance: 144
+  nearDistance: 84
   minimumPixels: 0.7
   middleDensity: 1
-  meadowDistance: 280
+  meadowDistance: 420
   turfStrength: 1
   debugView: 0
 --- !u!4 &690129048
@@ -10778,6 +10779,11 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 1}
+--- !u!4 &1499704914 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4544566311847170299, guid: 07a83ef670067164fa3d02aa87d949aa, type: 3}
+  m_PrefabInstance: {fileID: 223138547}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1509255467
 GameObject:
   m_ObjectHideFlags: 0

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Grass.GrassLibrary
   nearMesh: {fileID: 4300000, guid: 2fcc3dc043ea76c41b55e55b883af37c, type: 2}
   middleMesh: {fileID: 4300000, guid: d0a8d750f1efa2b43b093cd849f48bfb, type: 2}
+  simplifiedMesh: {fileID: 4300000, guid: 252c310eca0309649a9480af981eefe1, type: 2}
   material: {fileID: 2100000, guid: 8e95201bec2b14449818e84afd07d1c4, type: 2}
   compute: {fileID: 7200000, guid: b5c67cecf2fb336418644361b195fbeb, type: 3}
   turfAlbedo: {fileID: 2800000, guid: c07300977f169b24a9d102c7bb9f8e6a, type: 2}

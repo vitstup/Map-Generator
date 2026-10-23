@@ -20,17 +20,16 @@ namespace TacticalMaps.Grass
         private readonly List<Vector2Int> wanted = new List<Vector2Int>();
         private readonly HashSet<Vector2Int> wantedSet = new HashSet<Vector2Int>();
         private readonly Queue<int> free = new Queue<int>();
-        private readonly List<Vector2Int> evict = new List<Vector2Int>();
         private readonly int[] active;
         private readonly Plane[] planes = new Plane[6];
         private readonly Vector4[] planeVectors = new Vector4[6];
         private readonly int cell, axis, capacity, perSlot, generateKernel, cullKernel, countOffset;
         private readonly int pool;
         private readonly float minY, maxY;
-        private Vector3 lastPosition;
+        private Vector3 lastPosition,lastFocus;
         private Quaternion lastRotation;
         private Matrix4x4 lastProjection;
-        private int lastPixelHeight;
+        private int lastPixelHeight,lastTopology;
         private Vector2Int wantedCenter;
         private int wantedRadius = -1;
         private bool validVisibility;
@@ -39,13 +38,13 @@ namespace TacticalMaps.Grass
         internal int ResidentCount => slots.Count;
         internal int Draws { get; private set; }
         internal float LastUsed { get; private set; }
-        internal long BufferBytes => (long)capacity * perSlot * 36 + capacity * 8 + 4 + 2 * GraphicsBuffer.IndirectDrawIndexedArgs.size;
+        internal long BufferBytes => (long)capacity * perSlot * (pool==0?40:36) + capacity * 8 + 4 + 2 * GraphicsBuffer.IndirectDrawIndexedArgs.size;
 
         internal GrassRenderer(GrassLibrary assets, GrassMap source, int chunk, int samples, int maximum, int revision, int poolIndex)
         {
             pool = poolIndex;
             library = assets; map = source; cell = Mathf.Clamp(chunk, 16, 64); axis = Mathf.Clamp(samples, 16, 64);
-            capacity = Mathf.Clamp(maximum, 32, 384); perSlot = axis * axis; active = new int[capacity]; Revision = revision;
+            capacity = Mathf.Clamp(maximum, 32, 512); perSlot = axis * axis; active = new int[capacity]; Revision = revision;
             minY = float.PositiveInfinity; maxY = float.NegativeInfinity;
             foreach (var t in map.Terrains) { minY = Mathf.Min(minY, t.transform.position.y); maxY = Mathf.Max(maxY, t.transform.position.y + t.terrainData.size.y); }
             try
@@ -59,9 +58,9 @@ namespace TacticalMaps.Grass
                 countOffset = CounterOffset();
                 for (int lod = 0; lod < 2; lod++)
                 {
-                    visible[lod] = new GraphicsBuffer(GraphicsBuffer.Target.Append, lod==pool?capacity*perSlot:1, 4);
+                    visible[lod] = new GraphicsBuffer(GraphicsBuffer.Target.Append, (pool==0||lod==1)?capacity*perSlot:1, 4);
                     arguments[lod] = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
-                    var mesh = library.Mesh(lod);
+                    var mesh = Mesh(lod);
                     arguments[lod].SetData(new[] { new GraphicsBuffer.IndirectDrawIndexedArgs
                     { indexCountPerInstance = mesh.GetIndexCount(0), startIndex = mesh.GetIndexStart(0), baseVertexIndex = mesh.GetBaseVertex(0) } });
                     properties[lod].SetBuffer("_GrassInstances", instances); properties[lod].SetBuffer("_VisibleGrass", visible[lod]);
@@ -89,6 +88,7 @@ namespace TacticalMaps.Grass
                     foreach(var block in properties)
                     {
                         block.SetTexture("_GroundHeight"+i,t.terrainData.heightmapTexture);
+                        block.SetTexture("_GroundCoverage"+i,map.Coverage[i]);
                         block.SetVector("_GroundRect"+i,new Vector4(p.x,p.z,size.x,size.z));
                         block.SetVector("_GroundVertical"+i,new Vector4(p.y,size.y,t.terrainData.heightmapResolution,0));
                     }
@@ -114,7 +114,7 @@ namespace TacticalMaps.Grass
             LastUsed = Time.realtimeSinceStartup;
             compute.SetVector("_HeightRange", new Vector4(Mathf.Max(.05f, s.Heights.x), Mathf.Max(s.Heights.x, s.Heights.y), 0, 0));
             compute.SetVector("_PlantRules", new Vector4(s.Density, Mathf.Cos(s.Slope * Mathf.Deg2Rad), map.SeaLevel + s.Shore, s.Seed));
-            bool changed = !validVisibility || lastPosition != camera.transform.position || lastRotation != camera.transform.rotation || lastProjection != camera.projectionMatrix || lastPixelHeight != camera.pixelHeight;
+            bool changed = !validVisibility || lastTopology!=s.CheckTopology || lastFocus!=s.Focus || lastPosition != camera.transform.position || lastRotation != camera.transform.rotation || lastProjection != camera.projectionMatrix || lastPixelHeight != camera.pixelHeight;
             // Every render in Edit Mode may have the same Time.frameCount. Only Game views use the frame guard.
             if (!Application.isPlaying || preparedFrame != Time.frameCount)
             {
@@ -137,19 +137,22 @@ namespace TacticalMaps.Grass
                     activeSlots.SetData(active, 0, 0, count);
                     compute.SetInt("_ActiveCount", count); compute.SetVectorArray("_Planes", planeVectors);
                     compute.SetVector("_Camera", camera.transform.position);
-                    compute.SetVector("_CameraForward", camera.transform.forward);
-                    compute.SetFloat("_ViewAngle",Mathf.Abs(camera.transform.forward.y));
+                    compute.SetVector("_Focus", s.Focus);
+                    compute.SetInt("_TopologyCheck",s.CheckTopology);
                     float pixels = camera.orthographic ? camera.pixelHeight / (2 * camera.orthographicSize) : camera.pixelHeight / (2 * Mathf.Tan(camera.fieldOfView * Mathf.Deg2Rad * .5f));
                     compute.SetVector("_Lod", new Vector4(Mathf.Max(20, s.Distance), Mathf.Max(1, s.NearDistance), s.MinPixels, 0));
                     compute.SetVector("_Projection", new Vector4(pixels, camera.orthographic ? 1 : 0, s.MiddleDensity, s.Wind.x));
                     compute.Dispatch(cullKernel, (count * perSlot + 63) / 64, 1, 1);
                 }
                 for (int i = 0; i < 2; i++) GraphicsBuffer.CopyCount(visible[i], arguments[i], countOffset);
-                lastPosition = camera.transform.position; lastRotation = camera.transform.rotation; lastProjection = camera.projectionMatrix; lastPixelHeight = camera.pixelHeight; validVisibility = true;
+                lastTopology=s.CheckTopology;lastFocus=s.Focus; lastPosition = camera.transform.position; lastRotation = camera.transform.rotation; lastProjection = camera.projectionMatrix; lastPixelHeight = camera.pixelHeight; validVisibility = true;
             }
             Draws = 0;
             foreach (var entry in properties)
             {
+                entry.SetInt("_GrassTopologyCheck",s.CheckTopology);
+                entry.SetVector("_GrassFocus",s.Focus);
+                entry.SetVector("_GrassNearRange",new Vector4(s.NearRange.x,s.NearRange.y,0,0));
                 entry.SetColor("_GrassMeadow", s.Meadow); entry.SetColor("_GrassDry", s.Dry);
                 entry.SetVector("_GrassWind", new Vector4(s.Wind.x, s.Wind.y, s.Seed, s.Density));
                 entry.SetVector("_GrassOptions", new Vector4(cell, s.Debug, 0, 0));
@@ -161,18 +164,19 @@ namespace TacticalMaps.Grass
             }
             var world = map.Terrains[2]; var outer = world.terrainData.size;
             var allBounds = new Bounds(world.transform.position + outer * .5f, outer + Vector3.one * 8);
-            for (int i = pool; i <= pool; i++)
+            for (int i = pool==0?0:1; i < 2; i++)
             {
                 var rp = new RenderParams(library.Material) { camera = camera, layer = s.Layer, worldBounds = allBounds,
                     matProps = properties[i], shadowCastingMode = ShadowCastingMode.Off, receiveShadows = true,
                     lightProbeUsage = LightProbeUsage.Off, reflectionProbeUsage = ReflectionProbeUsage.Off };
-                Graphics.RenderMeshIndirect(rp, library.Mesh(i), arguments[i]); Draws++;
+                Graphics.RenderMeshIndirect(rp, Mesh(i), arguments[i]); Draws++;
             }
         }
+        private Mesh Mesh(int lod) => pool==0&&lod==1?library.Simplified:library.Mesh(lod);
         private bool Prepare(Camera camera, GrassRenderSettings s)
         {
-            var center = new Vector2Int(Mathf.FloorToInt(camera.transform.position.x / cell), Mathf.FloorToInt(camera.transform.position.z / cell));
-            int radius = Mathf.CeilToInt(s.Distance / cell) + 1;
+            var center = new Vector2Int(Mathf.FloorToInt(s.Focus.x / cell), Mathf.FloorToInt(s.Focus.z / cell));
+            int radius = Mathf.CeilToInt(s.Distance / cell) + (pool==0?2:1);
             bool changed = false;
             if (wantedRadius != radius || wantedCenter != center)
             {
@@ -191,15 +195,27 @@ namespace TacticalMaps.Grass
                 wanted.Sort((a, b) => Score(a, center, forward).CompareTo(Score(b, center, forward)));
                 if (wanted.Count > capacity) wanted.RemoveRange(capacity, wanted.Count - capacity);
                 foreach (var key in wanted) wantedSet.Add(key);
-                evict.Clear(); foreach (var entry in slots) if (!wantedSet.Contains(entry.Key)) evict.Add(entry.Key);
-                changed = evict.Count > 0;
-                foreach (var key in evict) { free.Enqueue(slots[key]); slots.Remove(key); }
             }
             int budget = Mathf.Max(1, s.PrepareBudget);
             foreach (var key in wanted)
             {
                 if (slots.ContainsKey(key)) continue;
-                if (budget-- <= 0 || free.Count == 0) break;
+                if (budget-- <= 0) break;
+                if(free.Count==0)
+                {
+                    Vector2 cameraXZ=new Vector2(s.Focus.x,s.Focus.z);
+                    Vector2Int victim=default;float farthest=-1;
+                    foreach(var entry in slots)
+                    {
+                        if(wantedSet.Contains(entry.Key)) continue;
+                        var minimum=new Vector2(entry.Key.x*cell,entry.Key.y*cell);
+                        var closest=new Vector2(Mathf.Clamp(cameraXZ.x,minimum.x,minimum.x+cell),Mathf.Clamp(cameraXZ.y,minimum.y,minimum.y+cell));
+                        float distance=(closest-cameraXZ).sqrMagnitude;
+                        if(distance>s.Distance*s.Distance&&distance>farthest) {farthest=distance;victim=entry.Key;}
+                    }
+                    if(farthest<0) break;
+                    free.Enqueue(slots[victim]);slots.Remove(victim);
+                }
                 int slot = free.Dequeue(); slots.Add(key, slot);
                 birthUpload[0]=Time.realtimeSinceStartup;births.SetData(birthUpload,0,slot,1);
                 compute.SetInt("_Slot", slot); compute.SetVector("_ChunkOrigin", new Vector4(key.x * cell, key.y * cell, 0, 0));
@@ -213,6 +229,17 @@ namespace TacticalMaps.Grass
         {
             var result = new uint[2]; var args = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
             for (int i = 0; i < 2; i++) { arguments[i].GetData(args); result[i] = args[0].instanceCount; } return result;
+        }
+        internal Dictionary<uint,int> ReadLodMembershipForChecks()
+        {
+            var result=new Dictionary<uint,int>();var counts=ReadCounts();
+            for(int lod=0;lod<2;lod++)
+            {
+                var indices=new uint[(int)counts[lod]];
+                if(indices.Length>0) visible[lod].GetData(indices,0,0,indices.Length);
+                foreach(var index in indices) result.Add(index,lod);
+            }
+            return result;
         }
         public void Dispose()
         {

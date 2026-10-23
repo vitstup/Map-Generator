@@ -31,4 +31,19 @@ float3 GrassPalette(float2 world, float dryness, float seed, float3 meadow, floa
     return lerp(lerp(fresh,warm,smoothstep(.25,.8,regional)),dry,dryness*.75)
            *lerp(.82,1.13,local);
 }
+// The same beach exclusion and projected-size transitions are used in every representation.
+float GrassPermission(float sand) { return 1-smoothstep(.03,.18,sand); }
+float GrassScreenFade(float pixels, float minimum) { return smoothstep(minimum, max(minimum*3,2), pixels); }
+float GrassLodBias(float2 anchor,float seed)
+{
+    return lerp(.82,1.18,GrassHash(anchor+seed+513.7))*lerp(.94,1.06,GrassNoise(anchor/13+seed));
+}
+float GrassDetailWeight(float pixels) { return smoothstep(4,7,pixels*1.5); }
+float GrassFieldFade(float2 anchor,float2 focus,float start,float end,float seed)
+{
+    float range=end*lerp(.83,1,GrassHash(anchor+seed+271.3));
+    range*=lerp(.96,1,GrassNoise(anchor/17+seed));
+    return 1-smoothstep(start/end*range,range,distance(anchor,focus));
+}
+float GrassRangeFade(float distanceXZ, float start, float end) { return 1-smoothstep(start,end,distanceXZ); }
 #endif
