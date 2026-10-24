@@ -17,6 +17,7 @@ float4 _Focus;
 float4 _MeadowRange;
 uint _Pool;
 int _TopologyCheck;
+int _TransitionCheck;
 uint _Axis, _PerSlot, _Slot, _ActiveCount;
 float _ChunkSize;
 
@@ -99,7 +100,14 @@ void Cull(uint3 dispatch : SV_DispatchThreadID)
     for (int p = 0; p < 6; p++) if (dot(_Planes[p].xyz, center) + _Planes[p].w < -radius) return;
     float d = distance(_Focus.xz, instance.positionHeight.xz);
     if (d >= _Lod.x) return;
-    if (_Pool==2&&GrassFieldFade(instance.positionHeight.xz,_Focus.xz,_MeadowRange.x,_MeadowRange.y,_MeadowRange.z)>.999) return;
+    if((_TransitionCheck&1)!=0)
+    {
+        if (_Pool==2&&GrassFieldFade(instance.positionHeight.xz,_Focus.xz,_MeadowRange.x,_MeadowRange.y,_MeadowRange.z)>.999) return;
+    }
+    else
+    {
+        if(_Pool==2&&d+radius<_MeadowRange.w*.72*.82) return;
+    }
     float viewDepth=max(.1,distance(instance.positionHeight.xyz,_Camera.xyz));
     float pixels = (_Pool==0?height:2.8) * _Projection.x / (_Projection.y > .5 ? 1 : viewDepth);
     if (pixels <= _Lod.z) return;

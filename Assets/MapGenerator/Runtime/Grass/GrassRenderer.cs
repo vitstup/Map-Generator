@@ -29,7 +29,7 @@ namespace TacticalMaps.Grass
         private Vector3 lastPosition,lastFocus;
         private Quaternion lastRotation;
         private Matrix4x4 lastProjection;
-        private int lastPixelHeight,lastTopology;
+        private int lastPixelHeight,lastTopology,lastTransition;
         private Vector2Int wantedCenter;
         private int wantedRadius = -1;
         private bool validVisibility;
@@ -118,11 +118,12 @@ namespace TacticalMaps.Grass
         internal void Render(Camera camera, GrassRenderSettings s)
         {
             Draws = 0;
+            if((s.GeometryMask&(1<<pool))==0) return;
             if((pool==2&&(s.SuppressCards||s.BakeMode>0))||(pool==1&&s.BakeMode>0&&s.BakeRegion.w>0)) return;
             LastUsed = Time.realtimeSinceStartup;
             compute.SetVector("_HeightRange", new Vector4(Mathf.Max(.05f, s.Heights.x), Mathf.Max(s.Heights.x, s.Heights.y), 0, 0));
             compute.SetVector("_PlantRules", new Vector4(s.Density, Mathf.Cos(s.Slope * Mathf.Deg2Rad), map.SeaLevel + s.Shore, s.Seed));
-            bool changed = !validVisibility || lastTopology!=s.CheckTopology || lastFocus!=s.Focus || lastPosition != camera.transform.position || lastRotation != camera.transform.rotation || lastProjection != camera.projectionMatrix || lastPixelHeight != camera.pixelHeight;
+            bool changed = !validVisibility || lastTopology!=s.CheckTopology || lastTransition!=s.TransitionCheck || lastFocus!=s.Focus || lastPosition != camera.transform.position || lastRotation != camera.transform.rotation || lastProjection != camera.projectionMatrix || lastPixelHeight != camera.pixelHeight;
             // Every render in Edit Mode may have the same Time.frameCount. Only Game views use the frame guard.
             if (!Application.isPlaying || preparedFrame != Time.frameCount)
             {
@@ -147,19 +148,22 @@ namespace TacticalMaps.Grass
                     compute.SetVector("_Camera", camera.transform.position);
                     compute.SetVector("_Focus", s.Focus);
                     compute.SetInt("_TopologyCheck",s.CheckTopology);
-                    compute.SetVector("_MeadowRange",new Vector4(s.MeadowDistance*.48f,s.MeadowDistance*.82f,s.Seed,0));
+                    compute.SetInt("_TransitionCheck",s.TransitionCheck);
+                    compute.SetVector("_MeadowRange",new Vector4(s.MeadowDistance*.48f,s.MeadowDistance*.82f,s.Seed,s.MeadowDistance));
                     float pixels = camera.orthographic ? camera.pixelHeight / (2 * camera.orthographicSize) : camera.pixelHeight / (2 * Mathf.Tan(camera.fieldOfView * Mathf.Deg2Rad * .5f));
                     compute.SetVector("_Lod", new Vector4(Mathf.Max(20, s.Distance), Mathf.Max(1, s.NearDistance), s.MinPixels, 0));
                     compute.SetVector("_Projection", new Vector4(pixels, camera.orthographic ? 1 : 0, s.MiddleDensity, s.Wind.x));
                     compute.Dispatch(cullKernel, (count * perSlot + 63) / 64, 1, 1);
                 }
                 for (int i = 0; i < 2; i++) GraphicsBuffer.CopyCount(visible[i], arguments[i], countOffset);
-                lastTopology=s.CheckTopology;lastFocus=s.Focus; lastPosition = camera.transform.position; lastRotation = camera.transform.rotation; lastProjection = camera.projectionMatrix; lastPixelHeight = camera.pixelHeight; validVisibility = true;
+                lastTransition=s.TransitionCheck;lastTopology=s.CheckTopology;lastFocus=s.Focus; lastPosition = camera.transform.position; lastRotation = camera.transform.rotation; lastProjection = camera.projectionMatrix; lastPixelHeight = camera.pixelHeight; validVisibility = true;
             }
             Draws = 0;
             foreach (var entry in properties)
             {
                 entry.SetInt("_GrassTopologyCheck",s.CheckTopology);
+                entry.SetInt("_GrassTransitionCheck",s.TransitionCheck);
+                entry.SetVector("_GrassFieldRanges",new Vector4(s.NearRange.x,s.NearRange.y,s.MeadowDistance,s.Distance));
                 entry.SetVector("_GrassFocus",s.Focus);
                 entry.SetVector("_GrassNearRange",new Vector4(s.NearRange.x,s.NearRange.y,0,0));
                 entry.SetColor("_GrassMeadow", s.Meadow); entry.SetColor("_GrassDry", s.Dry);

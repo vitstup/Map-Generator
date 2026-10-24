@@ -46,4 +46,40 @@ float GrassFieldFade(float2 anchor,float2 focus,float start,float end,float seed
     return 1-smoothstep(start/end*range,range,distance(anchor,focus));
 }
 float GrassRangeFade(float distanceXZ, float start, float end) { return 1-smoothstep(start,end,distanceXZ); }
+
+// Smooth world-anchored variation is shared by both sides of every handoff.
+// Independent per-instance fade ranges cannot form complementary coverage.
+float GrassHandoffFade(float2 world,float2 focus,float start,float end,float seed)
+{
+    float bias=lerp(.82,1,GrassNoise(world/19+seed*.031));
+    return 1-smoothstep(start*bias,end*bias,distance(world,focus));
+}
+float GrassLayerMask(float2 world,float2 pixel,float2 focus,float4 ranges,int pool,float seed,float canopy)
+{
+    float d=distance(world,focus);
+    // Entirely owned regions avoid noise work in the large close-up pixel footprint.
+    if(d<ranges.x*.82)
+    {
+        if(pool==0) return 1;
+        if(pool==2) return -1;
+        // Preserve the original understorey when individual nearby blades are resolved.
+        return 1-canopy-GrassHash(floor(pixel)+float2(seed*.17,seed*.37));
+    }
+    if(pool==2&&d<ranges.z*.72*.82) return -1;
+    if(pool==1&&d>ranges.y&&d<ranges.z*.72*.82) return 1;
+    float rank=GrassHash(floor(pixel)+float2(seed*.17,seed*.37));
+    float near=GrassHandoffFade(world,focus,ranges.x,ranges.y,seed);
+    if(pool==0) return near-rank;
+    float meadow=GrassHandoffFade(world,focus,ranges.z*.72,ranges.z,seed);
+    if(pool==1) return min(rank-near*canopy,meadow-rank);
+    float far=GrassHandoffFade(world,focus,ranges.w*.66,ranges.w,seed);
+    return min(rank-meadow,far-rank);
+}
+float GrassCanopyWeight(float pixels) { return 1-smoothstep(2,7,pixels); }
+half3 GrassCanopyLighting(half3 sky,half3 lightColor,half3 lightDirection,half shadow)
+{
+    // Distant texels represent many differently oriented blades. Their average
+    // lighting converges to the same upward, diffuse canopy used by Terrain.
+    return sky+lightColor*saturate(lightDirection.y)*shadow;
+}
 #endif

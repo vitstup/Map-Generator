@@ -26,10 +26,12 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         float4 _GrassMeadow,_GrassDry,_GrassWind,_GrassOptions,_GrassLodDistances,_GrassProjection;
         float4 _GrassAmbientSky,_GrassAmbientSide,_GrassFocus,_GrassNearRange;
         int _GrassLod,_GrassPool,_GrassTopologyCheck;
+        int _GrassTransitionCheck;
+        float4 _GrassFieldRanges;
         float _GrassBakeMode;
         float4 _GrassBakeRegion;
         struct Attributes { float3 positionOS:POSITION; float2 uv:TEXCOORD0; float2 meta:TEXCOORD1; uint instanceID:SV_InstanceID; };
-        struct Varyings { float4 positionCS:SV_POSITION; float3 world:TEXCOORD0; half3 normal:TEXCOORD1; half3 color:TEXCOORD2; half fog:TEXCOORD3; float4 shadowCoord:TEXCOORD4; half fade:TEXCOORD5; half detail:TEXCOORD6; nointerpolation float2 noiseSeed:TEXCOORD7; };
+        struct Varyings { float4 positionCS:SV_POSITION; float3 world:TEXCOORD0; half3 normal:TEXCOORD1; half3 color:TEXCOORD2; half fog:TEXCOORD3; float4 shadowCoord:TEXCOORD4; half fade:TEXCOORD5; half detail:TEXCOORD6; nointerpolation float2 noiseSeed:TEXCOORD7; half canopy:TEXCOORD8; };
         float GroundHeight(float2 world)
         {
             int level=all(world>=_GroundRect0.xy)&&all(world<_GroundRect0.xy+_GroundRect0.zw)?0:
@@ -63,6 +65,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             if(_GrassTopologyCheck>0) detail=0;
             if(_GrassBakeMode>.5) detail=1;
             float nearCover=GrassFieldFade(anchor,_GrassFocus.xz,_GrassNearRange.x,_GrassNearRange.y,_GrassWind.z);
+            if((_GrassTransitionCheck&1)==0) nearCover=GrassHandoffFade(anchor,_GrassFocus.xz,_GrassNearRange.x,_GrassNearRange.y,_GrassWind.z);
             float blade=input.meta.x, part=input.meta.y, t=input.uv.y, side=input.uv.x;
             float r=GrassHash(anchor+blade*13.71+_GrassWind.z), r2=GrassHash(anchor.yx+blade*7.3+17);
             float cluster=GrassNoise(anchor/2.3+_GrassWind.z*.01);
@@ -129,11 +132,15 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             if(_GrassBakeMode>.5) palette=1;
             output.color=palette*lerp(.72,1.2,t)*lerp(.91,1.08,r);
             if(part>.5) output.color=lerp(half3(.8,.83,.62),half3(.34,.39,.62),GrassHash(anchor+91));
+            float canopyPixels=.45*_GrassProjection.x/(_GrassProjection.y>.5?1:cameraDistance);
+            output.canopy=(_GrassTransitionCheck&2)==0?GrassCanopyWeight(canopyPixels):0;
+            if(_GrassBakeMode<.5&&part<.5) output.color=lerp(output.color,palette*.93*lerp(.82,1.18,r),output.canopy);
             if(_GrassOptions.y>.5&&_GrassOptions.y<1.5) output.color=half3(.1,.7,.1)*abs(instance.variation.w);
             if(_GrassOptions.y>1.5&&_GrassOptions.y<2.5) output.color=_GrassPool==0?lerp(half3(.8,.7,.08),half3(.1,.7,.2),detail):half3(.7,.3,.04);
             if(_GrassOptions.y>2.5) output.color=half3(GrassHash(floor(anchor/_GrassOptions.x)),.3,.5);
             float fadeStart=_GrassPool==0?min(_GrassLodDistances.y,_GrassLodDistances.x*.9):_GrassLodDistances.x*.72;
             output.fade=GrassFieldFade(anchor,_GrassFocus.xz,fadeStart,_GrassLodDistances.x,_GrassWind.z)*GrassScreenFade(projected,_GrassLodDistances.z);
+            if((_GrassTransitionCheck&1)==0) output.fade=GrassScreenFade(projected,_GrassLodDistances.z);
             output.detail=detail;
             [branch] if(instance.variation.w<0) output.fade*=GroundPermission(anchor+root);
             if(_GrassPool==1) output.fade*=saturate((_GrassProjection.z-instance.variation.z)*12);
@@ -145,6 +152,9 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         }
         void Fade(Varyings input)
         {
+            if(_GrassBakeMode<.5&&(_GrassTransitionCheck&1)==0)
+                clip(GrassLayerMask(input.world.xz,input.positionCS.xy,_GrassFocus.xz,_GrassFieldRanges,_GrassPool,_GrassWind.z,
+                    GrassCanopyWeight(.45*_GrassProjection.x/(_GrassProjection.y>.5?1:max(.1,distance(input.world,_WorldSpaceCameraPos))))));
             if(_GrassBakeMode>.5&&_GrassBakeRegion.w>0)
                 clip(_GrassBakeRegion.z-max(abs(input.world.x-_GrassBakeRegion.x),abs(input.world.z-_GrassBakeRegion.y)));
             // Pixel coordinates are exact across topologies; interpolated positions amplified
@@ -167,6 +177,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             half3 ambient=lerp(_GrassAmbientSide.rgb,_GrassAmbientSky.rgb,saturate(normal.y));
             // Indirect draws have no Renderer LightData.z. A directional sun has no distance attenuation.
             half3 color=input.color*(ambient+light.color*diffuse*light.shadowAttenuation);
+            color=lerp(color,input.color*GrassCanopyLighting(_GrassAmbientSky.rgb,light.color,light.direction,light.shadowAttenuation),input.canopy*.85);
             return half4(MixFog(color,input.fog),1);
         }
         half4 Depth(Varyings input):SV_Target { Fade(input); return 0; }

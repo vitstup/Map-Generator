@@ -53,6 +53,8 @@ namespace TacticalMaps.Grass
         internal Vector4 BakeRegion { get; set; }
         internal Vector3? FocusForChecks { get; set; }
         internal int TopologyForChecks { get; set; }
+        internal int TransitionForChecks { get; set; }
+        internal int GeometryMaskForChecks { get; set; } = 7;
         private bool freezeWind;
         internal bool FreezeWindForChecks { get=>freezeWind; set {freezeWind=value;ApplySurface(true);} }
 
@@ -148,7 +150,8 @@ namespace TacticalMaps.Grass
             if (renderer.Revision != revision) { ReleaseViews(); return; }
             renderer.Render(camera, new GrassRenderSettings
             {
-                CheckTopology=TopologyForChecks, Focus=ResolveFocus(camera), NearRange=new Vector2(nearDistance,geometryDistance),
+                CheckTopology=TopologyForChecks, TransitionCheck=TransitionForChecks, GeometryMask=GeometryMaskForChecks,
+                Focus=ResolveFocus(camera), NearRange=new Vector2(nearDistance,geometryDistance),
                 Density = density, Heights = heightRange, Slope = maximumSlope, Shore = shoreClearanceHeight,
                 Seed = seed, Wind = new Vector2(freezeWind?0:windStrength, windSpeed), Meadow = meadowColor, Dry = dryColor,
                 Distance = geometryDistance, NearDistance = nearDistance, MinPixels = minimumPixels,
@@ -199,7 +202,7 @@ namespace TacticalMaps.Grass
         internal Vector3 Focus;
         internal Color Meadow, Dry;
         internal int Seed, PrepareBudget, Debug, Layer;
-        internal int BakeMode, CheckTopology;
+        internal int BakeMode, CheckTopology, TransitionCheck, GeometryMask;
         internal bool Mature, SuppressCards;
     }
 

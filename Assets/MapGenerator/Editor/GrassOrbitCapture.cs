@@ -18,11 +18,15 @@ namespace TacticalMaps.Editor
         internal static void MaximumOrbit() => Start(false,true);
         [MenuItem("Tools/Tactical Maps/Capture Distant Grass Orbit")]
         internal static void DistantOrbit() => Start(false,true,"Temp/grass-card-orbit");
-        private static void Start(bool transitions,bool maximum=false,string destination=null)
+        [MenuItem("Tools/Tactical Maps/Capture Grass Band Comparison")]
+        internal static void BandComparison() => Start(false,true,"Temp/grass-band-orbit",true);
+        private static void Start(bool transitions,bool maximum=false,string destination=null,bool compare=false)
         {
             if(tick!=null) throw new InvalidOperationException("A meadow capture is already running.");
             var system=UnityEngine.Object.FindAnyObjectByType<GrassSystem>();
             if(system==null||system.CurrentMap==null) throw new InvalidOperationException("Configure grass first.");
+            bool frozen=system.FreezeWindForChecks;
+            if(compare) system.FreezeWindForChecks=true;
             var ground=maximum?FindInteriorMeadow(system.CurrentMap):FindMeadow(system.CurrentMap);
             var beach=transitions?FindBeach(system.CurrentMap,ground):ground;
             var cameraObject=new GameObject("MeadowFlightCamera"){hideFlags=HideFlags.HideAndDontSave};
@@ -32,6 +36,7 @@ namespace TacticalMaps.Editor
             var target=new RenderTexture(1280,720,24);target.Create();camera.targetTexture=target;
             var pixels=new Texture2D(1280,720,TextureFormat.RGB24,false);
             string folder=destination??(maximum?"Temp/grass-max-orbit":transitions?"Temp/grass-transitions":"Temp/meadow-flight");Directory.CreateDirectory(folder);
+            if(compare) {Directory.CreateDirectory(folder+"/before");Directory.CreateDirectory(folder+"/after");}
             var keys=new[]{new Vector3(0,2.5f,-8),new Vector3(12,3,-10),new Vector3(0,45,-65),
                 new Vector3(0,70,-.1f),new Vector3(0,270,-400),new Vector3(90,40,-50),new Vector3(12,3,-8)};
             Vector3[] targets=null;
@@ -64,13 +69,25 @@ namespace TacticalMaps.Editor
                         camera.transform.position=focus+Quaternion.Euler(pitch,yaw,0)*Vector3.back*150;
                         camera.transform.LookAt(focus);system.FocusForChecks=focus;
                     }
+                    if(compare) system.TransitionForChecks=3;
                     camera.Render();
                     if(frame>=0)
                     {
                         var previous=RenderTexture.active;
                         try {RenderTexture.active=target;pixels.ReadPixels(new Rect(0,0,1280,720),0,0);pixels.Apply();}
                         finally {RenderTexture.active=previous;}
-                        File.WriteAllBytes(folder+"/frame-"+frame.ToString("D4")+".jpg",pixels.EncodeToJPG(92));
+                        File.WriteAllBytes(folder+(compare?"/before":"")+"/frame-"+frame.ToString("D4")+".jpg",pixels.EncodeToJPG(92));
+                    }
+                    if(compare)
+                    {
+                        system.TransitionForChecks=0;camera.Render();
+                        if(frame>=0)
+                        {
+                            var previous=RenderTexture.active;
+                            try {RenderTexture.active=target;pixels.ReadPixels(new Rect(0,0,1280,720),0,0);pixels.Apply();}
+                            finally {RenderTexture.active=previous;}
+                            File.WriteAllBytes(folder+"/after/frame-"+frame.ToString("D4")+".jpg",pixels.EncodeToJPG(92));
+                        }
                     }
                     frame++;
                     if(frame>=frames) {Finish("PASS: captured "+frames+" frames. Ground="+ground);return;}
@@ -82,6 +99,7 @@ namespace TacticalMaps.Editor
             void Finish(string message)
             {
                 EditorApplication.update-=tick;tick=null;camera.targetTexture=null;system.FocusForChecks=null;
+                if(compare) {system.TransitionForChecks=0;system.FreezeWindForChecks=frozen;}
                 UnityEngine.Object.DestroyImmediate(cameraObject);target.Release();UnityEngine.Object.DestroyImmediate(target);UnityEngine.Object.DestroyImmediate(pixels);
                 File.WriteAllText(folder+"-status.txt",message);Debug.Log(message);
             }

@@ -28,6 +28,8 @@ Shader "TacticalMaps/Grass/DistantCards"
         float4 _GroundRect0,_GroundRect1,_GroundRect2,_GroundVertical0,_GroundVertical1,_GroundVertical2;
         float4 _GrassMeadow,_GrassDry,_GrassWind,_GrassOptions,_GrassLodDistances,_GrassProjection;
         float4 _GrassAmbientSky,_GrassAmbientSide,_GrassFocus,_GrassMeadowRange;
+        int _GrassTransitionCheck;
+        float4 _GrassFieldRanges;
         struct Attributes { float3 positionOS:POSITION; float2 uv:TEXCOORD0; float2 meta:TEXCOORD1; uint instanceID:SV_InstanceID; };
         struct Varyings
         {
@@ -107,12 +109,15 @@ Shader "TacticalMaps/Grass/DistantCards"
             float pixels=2.8*_GrassProjection.x/(_GrassProjection.y>.5?1:cameraDistance);
             float delay=GrassHash(anchor+317.3)*.18;
             o.fade=arrival*range*GrassScreenFade(pixels,_GrassLodDistances.z)*smoothstep(delay,delay+.55,_GrassClock-_GrassBirth[id/_GrassPerSlot]);
+            if((_GrassTransitionCheck&1)==0) o.fade=GrassScreenFade(pixels,_GrassLodDistances.z)*smoothstep(delay,delay+.55,_GrassClock-_GrassBirth[id/_GrassPerSlot]);
             o.noiseSeed=floor(float2(GrassHash(anchor+card*23.73),GrassHash(anchor+card*37.13))*8192);
             o.edge=instance.variation.w<0?1:0;
             return o;
         }
         half4 SampleAndClip(Varyings i)
         {
+            if((_GrassTransitionCheck&1)==0)
+                clip(GrassLayerMask(i.world.xz,i.positionCS.xy,_GrassFocus.xz,_GrassFieldRanges,2,_GrassWind.z,1));
             half4 tex=SAMPLE_TEXTURE2D(_GrassCardsAlbedo,sampler_GrassCardsAlbedo,i.uv);
             clip(tex.a-.35);
             float fade=i.fade;
@@ -140,6 +145,8 @@ Shader "TacticalMaps/Grass/DistantCards"
             half diffuse=saturate((dot(normal,light.direction)+.25)/1.25);
             half3 ambient=lerp(_GrassAmbientSide.rgb,_GrassAmbientSky.rgb,saturate(normal.y));
             half3 color=i.color*tex.rgb*(ambient+light.color*diffuse*light.shadowAttenuation);
+            if((_GrassTransitionCheck&2)==0)
+                color=lerp(color,i.color*lerp(.93,tex.rgb,.45)*GrassCanopyLighting(_GrassAmbientSky.rgb,light.color,light.direction,light.shadowAttenuation),.85);
             return half4(MixFog(color,ComputeFogFactor(TransformWorldToHClip(i.world).z)),1);
         }
         half4 Depth(Varyings i):SV_Target { SampleAndClip(i); return 0; }
