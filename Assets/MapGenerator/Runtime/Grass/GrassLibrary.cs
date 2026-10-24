@@ -9,12 +9,18 @@ namespace TacticalMaps.Grass
         [SerializeField] private Mesh simplifiedMesh;
         [SerializeField] private Material material;
         [SerializeField] private ComputeShader compute;
+        [SerializeField] private ComputeShader flowerField;
+        internal ComputeShader FlowerField => flowerField;
         [SerializeField] private Texture2D turfAlbedo;
         [SerializeField] private Texture2D turfNormal;
         [SerializeField] private Mesh cardsMesh;
         [SerializeField] private Material cardsMaterial;
         [SerializeField] private Texture2D cardsAlbedo;
         [SerializeField] private Texture2D cardsNormal;
+        [SerializeField] private Texture2D cardsFlowers;
+        [SerializeField] private Texture2D turfFlowers;
+        internal Texture2D CardsFlowers => cardsFlowers;
+        internal Texture2D TurfFlowers => turfFlowers;
         internal Mesh CardsMesh => cardsMesh;
         internal Material CardsMaterial => cardsMaterial;
         internal Texture2D CardsAlbedo => cardsAlbedo;

@@ -12,6 +12,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
         #include "UnityIndirect.cginc"
         #include "GrassCommon.hlsl"
+        #include "GrassFlowers.hlsl"
         struct GrassInstance { float4 positionHeight; float4 variation; };
         StructuredBuffer<GrassInstance> _GrassInstances;
         StructuredBuffer<uint> _VisibleGrass;
@@ -31,7 +32,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         float _GrassBakeMode;
         float4 _GrassBakeRegion;
         struct Attributes { float3 positionOS:POSITION; float2 uv:TEXCOORD0; float2 meta:TEXCOORD1; uint instanceID:SV_InstanceID; };
-        struct Varyings { float4 positionCS:SV_POSITION; float3 world:TEXCOORD0; half3 normal:TEXCOORD1; half3 color:TEXCOORD2; half fog:TEXCOORD3; float4 shadowCoord:TEXCOORD4; half fade:TEXCOORD5; half detail:TEXCOORD6; nointerpolation float2 noiseSeed:TEXCOORD7; half canopy:TEXCOORD8; };
+        struct Varyings { float4 positionCS:SV_POSITION; float3 world:TEXCOORD0; half3 normal:TEXCOORD1; half3 color:TEXCOORD2; half fog:TEXCOORD3; float4 shadowCoord:TEXCOORD4; half fade:TEXCOORD5; half detail:TEXCOORD6; nointerpolation float2 noiseSeed:TEXCOORD7; half canopy:TEXCOORD8; nointerpolation half petal:TEXCOORD9; };
         float GroundHeight(float2 world)
         {
             int level=all(world>=_GroundRect0.xy)&&all(world<_GroundRect0.xy+_GroundRect0.zw)?0:
@@ -70,16 +71,31 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             float r=GrassHash(anchor+blade*13.71+_GrassWind.z), r2=GrassHash(anchor.yx+blade*7.3+17);
             float cluster=GrassNoise(anchor/2.3+_GrassWind.z*.01);
             int family=cluster<.33?0:cluster<.66?1:2;
-            // Species selection is independent of the rank used for angle/density thinning.
-            bool flower=cluster>.58&&GrassHash(anchor+138.7)>.965;
-            float facing=instance.variation.x*.4+r*6.283185;
+            int head=_GrassPool==0?0:part>.5?(int)floor((blade-32)*.111111111):(int)blade;
+            bool floral=part>.5||blade<(_GrassPool==0?1:2);
+            uint packed=asuint(instance.variation.x),flowerShift=head==1?16:9;
+            uint code=(packed>>flowerShift)&127u;
+            int species=(int)(code>>4),siteIndex=(int)(code&15u)-1;
+            bool flower=floral&&_GrassFlowers.x>0&&siteIndex>=0;
+            float2 siteCell=floor(anchor);
+            if(_GrassPool==1)
+            {
+                int row=(int)floor(siteIndex/3.0);
+                siteCell=floor(floor(anchor/1.6)*1.6)+float2(siteIndex-row*3,row);
+            }
+            float2 flowerWorld=GrassFlowerSitePosition(siteCell,_GrassWind.z);
+            float2 flowerRoot=flowerWorld-anchor;
+            int form=GrassFlowerForm(species);
+            float stemHeight=_GrassPool==0?instance.positionHeight.w*1.35:lerp(.48,.75,GrassHash(flowerWorld+27));
+            float nominalRadius=_GrassFlowers.z*GrassFlowerSize(species);
+            float radius=max(nominalRadius,min(nominalRadius*2.2,.45*(_GrassProjection.y>.5?1:cameraDistance)/max(1,_GrassProjection.x)));
+            float facing=(packed&511u)*(6.283185/511)*.4+r*6.283185;
             float2 along=float2(cos(facing),sin(facing)), across=float2(-along.y,along.x);
             float2 root=along*lerp(.04,.32,r2);
             float height=instance.positionHeight.w*lerp(.65,1.35,r2);
             float width=lerp(.025,.055,r), reach=height*lerp(.2,.8,r);
             if(family==0) {height*=.6; reach*=1.8;}
             if(family==2) {height*=.42; width*=2.1; reach*=1.5;}
-            if(flower&&blade==0) {height=instance.positionHeight.w*1.35; width=.009; reach=0;root=0;}
             if(_GrassPool==1)
             {
                 // Half of the patch keeps upright stems instead of losing all meadow height.
@@ -97,6 +113,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
                 }
                 height*=lerp(1.15,1,nearCover);
             }
+            if(flower&&part<.5) {height=stemHeight;width=_GrassPool==0?.009:.013;reach=0;root=flowerRoot;}
             float morph=_GrassPool==0?detail:1;
             float2 curved=root+along*reach*t*t+across*width*side*pow(saturate(1-t),.55);
             float2 straight=root+along*reach*t+across*width*side*(1-t);
@@ -108,21 +125,32 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             if(_GrassPool==0&&part<.5) xz+=across*side*width*saturate(1-projected/5)*.45*lerp(1-t,1,morph);
             if(part>.5)
             {
-                // Petals share a stem tip. Only flower instances retain this geometry.
-                float theta=(blade-12)*1.256637;
-                float2 direction=float2(cos(theta),sin(theta));
-                float2 crosswise=float2(-direction.y,direction.x);
-                xz=direction*(.018+t*.085)+crosswise*side*.034;
-                y=instance.positionHeight.w*1.35+(1-t)*.025;
-                normal=float3(0,1,0);
-                if(!flower||_GrassPool==1) {xz=0;y=0;}
+                int petal=(int)(_GrassPool==0?blade-12:blade-32-head*9);
+                int petals=GrassFlowerPetals(form);
+                float theta=petal*(6.283185/petals)+GrassHash(flowerWorld+91)*6.283185;
+                float2 direction=float2(cos(theta),sin(theta)),crosswise=float2(-direction.y,direction.x);
+                float width=form==0?.22:form==1?.6:form==2?.48:.17;
+                float baseRadius=form==2?.36:.12;
+                root=flowerRoot;
+                xz=flowerRoot+direction*radius*lerp(baseRadius,1,t)+crosswise*side*radius*width;
+                y=stemHeight+(form==1?t*.55:form==2?-t*.9:form==3?t*.18:(1-t)*.06)*radius;
+                normal=normalize(float3(direction.x*(form==2?.65:form==1?-.4:0),1,direction.y*(form==2?.65:form==1?-.4:0)));
+                if(part>1.5)
+                {
+                    xz=flowerRoot+float2(side*.23,lerp(-.15,.28,t))*radius;
+                    y=stemHeight+radius*.08;normal=float3(0,1,0);
+                }
+                height=stemHeight;
+                if(!flower||(part<1.5&&petal>=petals)){xz=flowerRoot;y=stemHeight;}
             }
             float gust=GrassGust(anchor,_Time.y,_GrassWind.y);
             // At morph=0 intermediate vertices lie on the same moving triangle, including normals.
-            xz+=float2(.85,.4)*(gust+sin(_Time.y*2.1+facing)*.08)*_GrassWind.x*lerp(t,t*t,morph)*height;
+            float windTip=part>.5?1:lerp(t,t*t,morph);
+            float windPhase=part>.5||flower?GrassHash(flowerWorld+43)*6.283185:facing;
+            xz+=float2(.85,.4)*(gust+sin(_Time.y*2.1+windPhase)*.08)*_GrassWind.x*windTip*height;
             Varyings output;
             float3 position=instance.positionHeight.xyz+float3(xz.x,y,xz.y);
-            if(_GrassPool==1) position.y=GroundHeight(anchor+root)+y-.02;
+            if(_GrassPool==1||flower) position.y=GroundHeight(anchor+root)+y-.02;
             output.world=position;
             // A per-blade world seed keeps the fade independent of triangle subdivision.
             output.noiseSeed=floor(float2(GrassHash(anchor+blade*23.73),GrassHash(anchor+blade*37.13+_GrassWind.z))*8192);
@@ -131,16 +159,22 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             half3 palette=GrassPalette(anchor,instance.variation.y,_GrassWind.z,_GrassMeadow.rgb,_GrassDry.rgb);
             if(_GrassBakeMode>.5) palette=1;
             output.color=palette*lerp(.72,1.2,t)*lerp(.91,1.08,r);
-            if(part>.5) output.color=lerp(half3(.8,.83,.62),half3(.34,.39,.62),GrassHash(anchor+91));
+            output.petal=part>.5&&flower?1:0;
+            if(part>.5)
+            {
+                output.color=(part>1.5?GrassFlowerCenterColor(form):GrassFlowerColor(species).rgb)*lerp(1,.7,saturate((radius/nominalRadius-1)/1.2));
+                if(_GrassBakeMode>.5) output.color=1;
+            }
             float canopyPixels=.45*_GrassProjection.x/(_GrassProjection.y>.5?1:cameraDistance);
             output.canopy=(_GrassTransitionCheck&2)==0?GrassCanopyWeight(canopyPixels):0;
             if(_GrassBakeMode<.5&&part<.5) output.color=lerp(output.color,palette*.93*lerp(.82,1.18,r),output.canopy);
             if(_GrassOptions.y>.5&&_GrassOptions.y<1.5) output.color=half3(.1,.7,.1)*abs(instance.variation.w);
-            if(_GrassOptions.y>1.5&&_GrassOptions.y<2.5) output.color=_GrassPool==0?lerp(half3(.8,.7,.08),half3(.1,.7,.2),detail):half3(.7,.3,.04);
+            if(_GrassOptions.y>1.5&&_GrassOptions.y<2.5&&part<.5) output.color=_GrassPool==0?lerp(half3(.8,.7,.08),half3(.1,.7,.2),detail):half3(.7,.3,.04);
             if(_GrassOptions.y>2.5) output.color=half3(GrassHash(floor(anchor/_GrassOptions.x)),.3,.5);
             float fadeStart=_GrassPool==0?min(_GrassLodDistances.y,_GrassLodDistances.x*.9):_GrassLodDistances.x*.72;
             output.fade=GrassFieldFade(anchor,_GrassFocus.xz,fadeStart,_GrassLodDistances.x,_GrassWind.z)*GrassScreenFade(projected,_GrassLodDistances.z);
             if((_GrassTransitionCheck&1)==0) output.fade=GrassScreenFade(projected,_GrassLodDistances.z);
+            if(part>.5&&flower) output.fade=(_GrassTransitionCheck&1)==0?1:GrassFieldFade(anchor,_GrassFocus.xz,fadeStart,_GrassLodDistances.x,_GrassWind.z);
             output.detail=detail;
             [branch] if(instance.variation.w<0) output.fade*=GroundPermission(anchor+root);
             if(_GrassPool==1) output.fade*=saturate((_GrassProjection.z-instance.variation.z)*12);
@@ -165,6 +199,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         half4 Frag(Varyings input):SV_Target
         {
             Fade(input);
+            if(_GrassBakeMode>2.5) return half4(input.petal.xxx,1);
             if(_GrassBakeMode>1.5) return half4(normalize(input.normal).xzy*.5+.5,1);
             if(_GrassBakeMode>.5) return half4(input.color,1);
             #if defined(_MAIN_LIGHT_SHADOWS_SCREEN)

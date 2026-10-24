@@ -1,6 +1,7 @@
 #pragma kernel Generate
 #pragma kernel Cull
 #include "GrassCommon.hlsl"
+#include "GrassFlowers.hlsl"
 struct GrassInstance { float4 positionHeight; float4 variation; };
 RWStructuredBuffer<GrassInstance> _Instances;
 StructuredBuffer<uint> _ActiveSlots;
@@ -83,7 +84,33 @@ void Generate(uint3 dispatch : SV_DispatchThreadID)
             minPermission=min(minPermission,min(min(f.a,g.a),min(j.a,k.a)));
             bool edge=maxSand>.001||minPermission<.999;
             edge=edge||any(uv<extent)||any(uv>1-extent);
-            instance.variation = float4(random * 6.283185, cover.g, GrassHash(key + 89.4), edge?-probability:probability);
+            float rotation=random*6.283185;
+            if(_Pool<2)
+            {
+                uint packed=(uint)round(random*511);
+                if(_Pool==0)
+                {
+                    float2 site;
+                    float2 cell=floor(world);
+                    if(GrassFlowerSite(cell,_PlantRules.w,site)&&all(abs(floor(site*4)*.25-key)<.01))
+                        packed|=(1u|((uint)GrassFlowerSpecies(site,_PlantRules.w)<<4))<<9;
+                }
+                else
+                {
+                    int heads=0;
+                    float2 origin=floor(key);
+                    [unroll]for(int z=0;z<3;z++)[unroll]for(int x=0;x<3;x++)
+                    {
+                        float2 site;
+                        if(heads>=2||!GrassFlowerSite(origin+float2(x,z),_PlantRules.w,site))continue;
+                        if(any(site<key)||any(site>=key+_ChunkSize/_Axis))continue;
+                        uint code=(uint)(1+x+z*3)|((uint)GrassFlowerSpecies(site,_PlantRules.w)<<4);
+                        packed|=code<<(heads==0?9:16);heads++;
+                    }
+                }
+                rotation=asfloat(packed|0x3f000000u);
+            }
+            instance.variation = float4(rotation, cover.g, GrassHash(key + 89.4), edge?-probability:probability);
         }
     }
     _Instances[_Slot * _PerSlot + i] = instance;

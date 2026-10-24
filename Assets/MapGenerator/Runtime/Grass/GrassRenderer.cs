@@ -70,6 +70,7 @@ namespace TacticalMaps.Grass
                     {
                         properties[lod].SetTexture("_GrassCardsAlbedo",assets.CardsAlbedo);
                         properties[lod].SetTexture("_GrassCardsNormal",assets.CardsNormal);
+                        properties[lod].SetTexture("_GrassCardsFlowers",assets.CardsFlowers!=null?assets.CardsFlowers:Texture2D.blackTexture);
                     }
                     properties[lod].SetBuffer("_GrassBirth",births);properties[lod].SetInt("_GrassPerSlot",perSlot);
                     var directions=new[]{Vector3.up,Vector3.right,Vector3.left,Vector3.forward,Vector3.back};
@@ -123,6 +124,9 @@ namespace TacticalMaps.Grass
             LastUsed = Time.realtimeSinceStartup;
             compute.SetVector("_HeightRange", new Vector4(Mathf.Max(.05f, s.Heights.x), Mathf.Max(s.Heights.x, s.Heights.y), 0, 0));
             compute.SetVector("_PlantRules", new Vector4(s.Density, Mathf.Cos(s.Slope * Mathf.Deg2Rad), map.SeaLevel + s.Shore, s.Seed));
+            var flowers=s.Flowers;flowers.w=s.BakeMode>0?1:0;
+            compute.SetVector("_GrassFlowers",flowers);compute.SetInt("_GrassFlowerCount",s.FlowerCount);
+            compute.SetVectorArray("_GrassFlowerColors",s.FlowerColors);
             bool changed = !validVisibility || lastTopology!=s.CheckTopology || lastTransition!=s.TransitionCheck || lastFocus!=s.Focus || lastPosition != camera.transform.position || lastRotation != camera.transform.rotation || lastProjection != camera.projectionMatrix || lastPixelHeight != camera.pixelHeight;
             // Every render in Edit Mode may have the same Time.frameCount. Only Game views use the frame guard.
             if (!Application.isPlaying || preparedFrame != Time.frameCount)
@@ -163,6 +167,8 @@ namespace TacticalMaps.Grass
             {
                 entry.SetInt("_GrassTopologyCheck",s.CheckTopology);
                 entry.SetInt("_GrassTransitionCheck",s.TransitionCheck);
+                entry.SetVector("_GrassFlowers",s.Flowers);entry.SetInt("_GrassFlowerCount",s.FlowerCount);
+                entry.SetVectorArray("_GrassFlowerColors",s.FlowerColors);entry.SetVectorArray("_GrassFlowerShapes",s.FlowerShapes);
                 entry.SetVector("_GrassFieldRanges",new Vector4(s.NearRange.x,s.NearRange.y,s.MeadowDistance,s.Distance));
                 entry.SetVector("_GrassFocus",s.Focus);
                 entry.SetVector("_GrassNearRange",new Vector4(s.NearRange.x,s.NearRange.y,0,0));
@@ -245,6 +251,26 @@ namespace TacticalMaps.Grass
             var result = new uint[2]; var args = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
             for (int i = 0; i < 2; i++) { arguments[i].GetData(args); result[i] = args[0].instanceCount; } return result;
         }
+#if UNITY_EDITOR
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FlowerCheckInstance { public Vector4 position,variation; }
+        internal Vector3? FindFlowerForChecks()
+        {
+            var data=new FlowerCheckInstance[perSlot];Vector3? best=null;float height=0;int chunks=0;
+            foreach(var slot in slots.Values)
+            {
+                instances.GetData(data,0,slot*perSlot,perSlot);
+                foreach(var item in data)
+                {
+                    uint packed=unchecked((uint)BitConverter.SingleToInt32Bits(item.variation.x));
+                    if(((packed>>9)&15)==0||item.position.w<=height)continue;
+                    height=item.position.w;best=new Vector3(item.position.x,item.position.y+item.position.w*1.35f,item.position.z);
+                }
+                if(++chunks>=4)break;
+            }
+            return best;
+        }
+#endif
         internal Dictionary<uint,int> ReadLodMembershipForChecks()
         {
             var result=new Dictionary<uint,int>();var counts=ReadCounts();

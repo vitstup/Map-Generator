@@ -24,6 +24,36 @@ namespace TacticalMaps.Grass
         [SerializeField] private Color dryColor = new Color(.49f, .45f, .25f);
         [SerializeField, Range(0, 1)] private float windStrength = .22f;
         [SerializeField, Min(0)] private float windSpeed = 1.2f;
+        [Header("Flowers: shared by every LOD")]
+        [SerializeField, Tooltip("Show flowers on every geometry LOD and on Terrain. Keeps the palette, density and distance settings.")]
+        private bool showFlowers = true;
+        public bool ShowFlowers
+        {
+            get => showFlowers;
+            set
+            {
+                if(showFlowers==value)return;
+                showFlowers=value;revision++;
+                ApplySurface(true);
+            }
+        }
+        [SerializeField, Range(0,.2f)] private float flowerDensity = .035f;
+        [SerializeField, Range(4,40)] private float flowerPatchSize = 12;
+        [SerializeField, Range(.04f,.16f)] private float flowerRadius = .095f;
+        [SerializeField, Range(0,1), Tooltip("Fraction of flower marks retained on the far blue Terrain LOD.")] private float distantFlowerRetention=.55f;
+        [SerializeField, Range(0,1), Tooltip("Fraction of flower marks retained on purple distant cards.")] private float purpleFlowerRetention=.5f;
+        [SerializeField, Range(.1f,1), Tooltip("Head size on the far blue Terrain LOD, relative to other LODs.")] private float distantFlowerSize=2f/3f;
+        [SerializeField, Min(1), Tooltip("Camera distance in metres beyond which Terrain flower marks stop drawing. They fade over the final 10%.")] private float distantFlowerMaximumDistance=3000;
+        [SerializeField, Tooltip("Up to eight weighted flower types. Changing colors does not require rebaking.")]
+        private GrassFlowerType[] flowerPalette = {
+            new GrassFlowerType("White rosette",new Color(.83f,.84f,.72f),.5f),
+            new GrassFlowerType("Gold cup",new Color(.76f,.51f,.13f),.24f,.9f,GrassFlowerForm.Cup),
+            new GrassFlowerType("Violet bell",new Color(.4f,.31f,.65f),.18f,1.1f,GrassFlowerForm.Bell),
+            new GrassFlowerType("Red star",new Color(.65f,.12f,.1f),.08f,1,GrassFlowerForm.Star)
+        };
+        private readonly Vector4[] flowerColors=new Vector4[GrassFlowerType.Maximum];
+        private readonly Vector4[] flowerShapes=new Vector4[GrassFlowerType.Maximum];
+        private int flowerRevision=int.MinValue,flowerCount;
         [Header("LOD and memory")]
         [SerializeField, Range(16, 64)] private int chunkSize = 16;
         [SerializeField, Range(16, 64)] private int candidatesPerAxis = 64;
@@ -40,6 +70,9 @@ namespace TacticalMaps.Grass
         [SerializeField, Range(0, 3)] private int debugView;
         private readonly Dictionary<int, GrassView> views = new Dictionary<int, GrassView>();
         private int revision;
+        private readonly Dictionary<int,GrassFlowerField> flowerFields=new Dictionary<int,GrassFlowerField>();
+        internal int FlowerCacheBuildsForChecks(Camera camera)=>flowerFields.TryGetValue(camera.GetInstanceID(),out var field)?field.Builds:0;
+        internal float BlueFlowerRetentionForChecks {get=>distantFlowerRetention;set=>distantFlowerRetention=value;}
         private int surfaceRevision = int.MinValue;
         internal GrassMap CurrentMap => currentMap;
         internal int ResidentChunks { get; private set; }
@@ -55,6 +88,9 @@ namespace TacticalMaps.Grass
         internal int TopologyForChecks { get; set; }
         internal int TransitionForChecks { get; set; }
         internal int GeometryMaskForChecks { get; set; } = 7;
+        private bool suppressFlowers;
+        internal bool SuppressFlowersForChecks { get=>suppressFlowers;set {suppressFlowers=value;ApplySurface(true);} }
+        private Vector4 FlowerSettings => new Vector4(!showFlowers||suppressFlowers||flowerCount==0?0:flowerDensity,flowerPatchSize,flowerRadius,0);
         private bool freezeWind;
         internal bool FreezeWindForChecks { get=>freezeWind; set {freezeWind=value;ApplySurface(true);} }
 
@@ -89,9 +125,9 @@ namespace TacticalMaps.Grass
             catch { foreach (var texture in textures) GrassMap.Dispose(texture); throw; }
         }
         internal void Attach(GrassMap map) { ReleaseViews(); currentMap = map; ApplySurface(true); }
-        internal void Detach(GrassMap map) { if (currentMap != map) return; ReleaseViews(); SetSurface(false); currentMap = null; }
+        internal void Detach(GrassMap map) { if (currentMap != map) return; ReleaseViews(); ReleaseFlowerFields(); SetSurface(false); currentMap = null; }
         private void OnEnable() { RenderPipelineManager.beginCameraRendering += Render; ApplySurface(true); }
-        private void OnDisable() { RenderPipelineManager.beginCameraRendering -= Render; ReleaseViews(); SetSurface(false); }
+        private void OnDisable() { RenderPipelineManager.beginCameraRendering -= Render; ReleaseViews(); ReleaseFlowerFields(); SetSurface(false); }
         private void OnValidate() { revision++; }
         private void SetSurface(bool active)
         {
@@ -101,6 +137,8 @@ namespace TacticalMaps.Grass
         }
         private void ApplySurface(bool force = false)
         {
+            if(force)flowerRevision=int.MinValue;
+            PrepareFlowerPalette();
             if (currentMap == null) return;
             if (!force && surfaceRevision == revision) return;
             surfaceRevision = revision;
@@ -111,6 +149,17 @@ namespace TacticalMaps.Grass
                 m.SetTexture("_GrassCoverage", currentMap.Coverage[i]);
                 m.SetTexture("_GrassTurf", library != null ? library.TurfAlbedo : null);
                 m.SetTexture("_GrassTurfNormal", library != null ? library.TurfNormal : null);
+                m.SetTexture("_GrassTurfFlowers",library!=null&&library.TurfFlowers!=null?library.TurfFlowers:Texture2D.blackTexture);
+                m.SetVector("_GrassFlowers",FlowerSettings);
+                m.SetInt("_GrassFlowerCount",flowerCount);
+                m.SetVectorArray("_GrassFlowerColors",flowerColors);m.SetVectorArray("_GrassFlowerShapes",flowerShapes);
+                // Terrain's derived materials copy declared properties, not anonymous arrays.
+                for(int j=0;j<GrassFlowerType.Maximum;j++)
+                    m.SetVector("_GrassFlowerColor"+j,new Vector4(flowerColors[j].x,flowerColors[j].y,flowerColors[j].z,flowerShapes[j].x));
+                m.SetVector("_GrassFlowerWeights0",new Vector4(flowerColors[0].w,flowerColors[1].w,flowerColors[2].w,flowerColors[3].w));
+                m.SetVector("_GrassFlowerWeights1",new Vector4(flowerColors[4].w,flowerColors[5].w,flowerColors[6].w,flowerColors[7].w));
+                m.SetVector("_GrassFlowerForms0",new Vector4(flowerShapes[0].y,flowerShapes[1].y,flowerShapes[2].y,flowerShapes[3].y));
+                m.SetVector("_GrassFlowerForms1",new Vector4(flowerShapes[4].y,flowerShapes[5].y,flowerShapes[6].y,flowerShapes[7].y));
                 m.SetFloat("_GrassTurfStrength", turfStrength);
                 m.SetVector("_GrassRect", new Vector4(p.x, p.z, size.x, size.z));
                 m.SetColor("_GrassMeadow", meadowColor); m.SetColor("_GrassDry", dryColor);
@@ -118,6 +167,25 @@ namespace TacticalMaps.Grass
                 m.SetVector("_GrassOptions", new Vector4(chunkSize, debugView, currentMap.SeaLevel + shoreClearanceHeight, Mathf.Cos(maximumSlope * Mathf.Deg2Rad)));
                 m.SetFloat("_GrassEnabled", isActiveAndEnabled ? 1 : 0);
             }
+        }
+        private void PrepareFlowerPalette()
+        {
+            if(flowerRevision==revision) return;
+            flowerRevision=revision;flowerCount=0;float total=0;
+            if(flowerPalette!=null) foreach(var type in flowerPalette)
+            {
+                if(type==null||type.weight<=0)continue;if(flowerCount==GrassFlowerType.Maximum)break;
+                total+=type.weight;flowerCount++;
+            }
+            flowerCount=0;float cumulative=0;
+            if(total>0&&flowerPalette!=null) foreach(var type in flowerPalette)
+            {
+                if(type==null||type.weight<=0)continue;if(flowerCount==GrassFlowerType.Maximum)break;
+                cumulative+=type.weight/total;var c=type.color;
+                flowerColors[flowerCount]=new Vector4(c.r,c.g,c.b,cumulative);
+                flowerShapes[flowerCount]=new Vector4(Mathf.Clamp(type.size,.5f,2),(int)type.form,0,0);flowerCount++;
+            }
+            for(int i=flowerCount;i<GrassFlowerType.Maximum;i++){flowerColors[i]=Vector4.zero;flowerShapes[i]=Vector4.one;}
         }
         private void Render(ScriptableRenderContext context, Camera camera)
         {
@@ -131,6 +199,31 @@ namespace TacticalMaps.Grass
             if((preview||cameraPreview)&&camera.scene!=gameObject.scene) return;
 #endif
             ApplySurface(); SubmittedDraws = 0;
+            if(showFlowers&&flowerCount>0&&flowerDensity>0&&SystemInfo.supportsComputeShaders&&library.FlowerField!=null)
+            {
+                int cameraId=camera.GetInstanceID();
+                if(!flowerFields.TryGetValue(cameraId,out var field))
+                {
+                    if(flowerFields.Count>=2)
+                    {
+                        int oldest=0;float oldestTime=float.PositiveInfinity;
+                        foreach(var pair in flowerFields)if(pair.Value.LastUsed<oldestTime){oldest=pair.Key;oldestTime=pair.Value.LastUsed;}
+                        if(Time.realtimeSinceStartup-oldestTime>=.5f){flowerFields[oldest].Dispose();flowerFields.Remove(oldest);}
+                    }
+                    if(flowerFields.Count<2){field=new GrassFlowerField(library.FlowerField);flowerFields.Add(cameraId,field);}
+                }
+                if(field!=null)field.Prepare(camera,new Vector4(flowerDensity,flowerPatchSize,flowerRadius,0),flowerColors,flowerCount,seed);
+                else Shader.SetGlobalFloat("_GrassFlowerFieldReady",0);
+            }
+            else
+            {
+                if(!showFlowers)ReleaseFlowerFields();
+                Shader.SetGlobalFloat("_GrassFlowerFieldReady",0);
+            }
+            Shader.SetGlobalFloat("_GrassBlueFlowerRetention",BlueFlowerRetentionForChecks);
+            Shader.SetGlobalVector("_GrassFlowerLodFocus",ResolveFocus(camera));
+            Shader.SetGlobalVector("_GrassFlowerLodRanges",new Vector4(distantDistance*.66f,distantDistance,meadowDistance*.72f,meadowDistance));
+            Shader.SetGlobalVector("_GrassFlowerLodStyle",new Vector4(purpleFlowerRetention,distantFlowerSize,Mathf.Max(1,distantFlowerMaximumDistance),0));
             if (SuppressGeometryForChecks || !SystemInfo.supportsComputeShaders || !SystemInfo.supportsInstancing) return;
             int key = camera.GetInstanceID();
             if (!views.TryGetValue(key, out var renderer))
@@ -158,6 +251,7 @@ namespace TacticalMaps.Grass
                 MiddleDensity = middleDensity, PrepareBudget = chunksPreparedPerFrame, Debug = debugView, Layer = gameObject.layer
                 , MeadowDistance = meadowDistance, DistantDistance = distantDistance, BakeMode = BakeMode, Mature = MatureForChecks,
                 SuppressCards = SuppressCardsForChecks, BakeRegion = BakeRegion
+                , Flowers=FlowerSettings,FlowerColors=flowerColors,FlowerShapes=flowerShapes,FlowerCount=flowerCount
             });
             ResidentChunks = renderer.ResidentCount; SubmittedDraws = renderer.Draws;
             BufferBytes = 0; foreach (var v in views.Values) BufferBytes += v.BufferBytes;
@@ -189,8 +283,12 @@ namespace TacticalMaps.Grass
             return Vector3.Lerp(origin,point,.5f);
         }
         internal uint[] ReadCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(), out var v) ? v.ReadCounts() : new uint[2];
+#if UNITY_EDITOR
+        internal Vector3? FindFlowerForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.FindFlowerForChecks():null;
+#endif
         internal uint[] ReadDrawCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadDrawCounts():new uint[4];
         internal Dictionary<uint,int> ReadLodMembershipForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadLodMembershipForChecks():new Dictionary<uint,int>();
+        private void ReleaseFlowerFields() {foreach(var field in flowerFields.Values)field.Dispose();flowerFields.Clear();}
         private void ReleaseViews() { foreach (var v in views.Values) v.Dispose(); views.Clear(); ResidentChunks = 0; BufferBytes = 0; SubmittedDraws = 0; }
     }
     internal struct GrassRenderSettings
@@ -198,6 +296,9 @@ namespace TacticalMaps.Grass
         internal float Density, Slope, Shore, Distance, NearDistance, MinPixels, MiddleDensity;
         internal float MeadowDistance, DistantDistance;
         internal Vector4 BakeRegion;
+        internal Vector4 Flowers;
+        internal Vector4[] FlowerColors,FlowerShapes;
+        internal int FlowerCount;
         internal Vector2 Heights, Wind, NearRange;
         internal Vector3 Focus;
         internal Color Meadow, Dry;
@@ -233,6 +334,9 @@ namespace TacticalMaps.Grass
             if(cards!=null) { coarse.Distance=settings.DistantDistance; cards.Render(camera,coarse); }
         }
         internal Dictionary<uint,int> ReadLodMembershipForChecks() => near.ReadLodMembershipForChecks();
+#if UNITY_EDITOR
+        internal Vector3? FindFlowerForChecks() => near.FindFlowerForChecks();
+#endif
         internal uint[] ReadDrawCounts() {var n=near.ReadCounts();return new[]{n[0],n[1],meadow.ReadCounts()[1],cards?.ReadCounts()[1] ?? 0};}
         internal uint[] ReadCounts() {var n=ReadDrawCounts();return new[]{n[0]+n[1],n[2]+n[3]};}
         public void Dispose() { near.Dispose(); meadow.Dispose(); cards?.Dispose(); }

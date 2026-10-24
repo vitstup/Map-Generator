@@ -1,0 +1,33 @@
+#pragma kernel Build
+#include "GrassFlowers.hlsl"
+RWTexture2DArray<float4> _FlowerOutput;
+float4 _FlowerBuildRect;
+float _FlowerSeed;
+int _FlowerSlice;
+int2 _FlowerBuildSize;
+[numthreads(8,8,1)]
+void Build(uint3 id:SV_DispatchThreadID)
+{
+    if(any(id.xy>=(uint2)_FlowerBuildSize))return;
+    float spacing=_FlowerBuildRect.z;
+    float2 tile=_FlowerBuildRect.xy/spacing+id.xy;
+    float2 world=(tile+.5)*spacing;
+    float best=1e10;float4 result=0;
+    [loop]for(int z=-1;z<=1;z++)[loop]for(int x=-1;x<=1;x++)
+    {
+        float2 candidate=tile+float2(x,z);
+        float2 sub=floor(float2(GrassHash(candidate+_FlowerSeed+31),GrassHash(candidate.yx+_FlowerSeed+73))*spacing);
+        float2 center;
+        if(!GrassFlowerSite(candidate*spacing+sub,_FlowerSeed,center))continue;
+        float d=dot(center-world,center-world);
+        if(d>=best)continue;
+        best=d;
+        uint species=GrassFlowerSpecies(center,_FlowerSeed);
+        uint donor=(uint)round(GrassHash(floor(center*4)*.25+191.7+_FlowerSeed)*30);
+        // Offset is relative to this cell centre; byte metadata is point sampled.
+        result=float4((center-world)/spacing*.25+.5,(species*32+donor+1)/255.0,
+            GrassHash(floor(center)+_FlowerSeed+509.3));
+    }
+    int2 slot=((int2)tile&1023);
+    _FlowerOutput[uint3(slot,_FlowerSlice)]=result;
+}

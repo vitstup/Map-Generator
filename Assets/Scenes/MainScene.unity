@@ -5184,6 +5184,35 @@ MonoBehaviour:
   dryColor: {r: 0.49, g: 0.45, b: 0.25, a: 1}
   windStrength: 0.22
   windSpeed: 1.2
+  showFlowers: 1
+  flowerDensity: 0.035
+  flowerPatchSize: 12
+  flowerRadius: 0.095
+  distantFlowerRetention: 0.55
+  purpleFlowerRetention: 0.5
+  distantFlowerSize: 0.6666667
+  distantFlowerMaximumDistance: 3000
+  flowerPalette:
+  - name: White rosette
+    color: {r: 0.83, g: 0.84, b: 0.72, a: 1}
+    weight: 0.5
+    size: 1
+    form: 0
+  - name: Gold cup
+    color: {r: 0.76, g: 0.51, b: 0.13, a: 1}
+    weight: 0.24
+    size: 0.9
+    form: 1
+  - name: Violet bell
+    color: {r: 0.4, g: 0.31, b: 0.65, a: 1}
+    weight: 0.18
+    size: 1.1
+    form: 2
+  - name: Red star
+    color: {r: 0.65, g: 0.12, b: 0.1, a: 1}
+    weight: 0.08
+    size: 1
+    form: 3
   chunkSize: 16
   candidatesPerAxis: 64
   maximumResidentChunks: 416

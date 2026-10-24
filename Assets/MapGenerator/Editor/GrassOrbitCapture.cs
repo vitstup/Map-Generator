@@ -18,6 +18,10 @@ namespace TacticalMaps.Editor
         internal static void MaximumOrbit() => Start(false,true);
         [MenuItem("Tools/Tactical Maps/Capture Distant Grass Orbit")]
         internal static void DistantOrbit() => Start(false,true,"Temp/grass-card-orbit");
+        [MenuItem("Tools/Tactical Maps/Capture Flower Meadow Orbit")]
+        internal static void FlowerOrbit() => Start(false,true,"Temp/grass-flower-orbit");
+        [MenuItem("Tools/Tactical Maps/Capture Flower Head Orbit")]
+        internal static void FlowerHeadOrbit() => Start(false,true,"Temp/flower-head-orbit");
         [MenuItem("Tools/Tactical Maps/Capture Grass Band Comparison")]
         internal static void BandComparison() => Start(false,true,"Temp/grass-band-orbit",true);
         private static void Start(bool transitions,bool maximum=false,string destination=null,bool compare=false)

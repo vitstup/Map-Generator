@@ -23,9 +23,12 @@ namespace TacticalMaps.Editor
                 }
                 else { Add(0,1,blade,0); triangles.AddRange(new[]{start,start+2,start+1}); }
             }
-            if(detailed||simplified) for(int petal=0;petal<5;petal++)
+            int heads=detailed||simplified?1:2;
+            for(int head=0;head<heads;head++)for(int petal=0;petal<9;petal++)
             {
-                int start=vertices.Count; Add(-1,0,12+petal,1); Add(1,0,12+petal,1); Add(0,1,12+petal,1);
+                int start=vertices.Count;int blade=(detailed||simplified?12:32)+head*9+petal;
+                int part=petal==8?2:1;
+                Add(-1,0,blade,part);Add(1,0,blade,part);Add(0,1,blade,part);
                 triangles.AddRange(new[]{start,start+2,start+1});
             }
             var existing=AssetDatabase.LoadAssetAtPath<Mesh>(path);

@@ -21,6 +21,7 @@ namespace TacticalMaps.Editor
                 var systemObject=new GameObject("TurfBakeSystem"); systemObject.layer=30;
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(systemObject,scene);
                 var system=systemObject.AddComponent<GrassSystem>();
+                system.GeometryMaskForChecks=1;
                 var config=new SerializedObject(system); config.FindProperty("library").objectReferenceValue=library;
                 config.FindProperty("density").floatValue=1; config.FindProperty("windStrength").floatValue=0;
                 config.FindProperty("chunksPreparedPerFrame").intValue=16; config.ApplyModifiedPropertiesWithoutUndo();
@@ -54,11 +55,14 @@ namespace TacticalMaps.Editor
                 System.IO.File.WriteAllBytes("Temp/turf-bake-debug.png",image.EncodeToPNG());
                 Debug.Log("Turf bake GPU counts: "+string.Join(",",system.ReadCountsForChecks(camera)));
                 system.BakeMode=2; var normals=Read(camera,target,image,true);
+                system.BakeMode=3; var flowers=Read(camera,target,image,false,true);
                 int covered=0; foreach(var p in albedo) if(p.a>0) covered++;
                 if(covered < albedo.Length*.45f) throw new InvalidOperationException("Turf bake is too sparse: "+(float)covered/albedo.Length);
                 var turf=Save("TurfAlbedo",albedo,false); var normal=Save("TurfNormal",normals,true);
+                var mask=Save("TurfFlowers",flowers,false,true);
                 var lib=new SerializedObject(library); lib.FindProperty("turfAlbedo").objectReferenceValue=turf;
                 lib.FindProperty("turfNormal").objectReferenceValue=normal; lib.ApplyModifiedPropertiesWithoutUndo();
+                lib.Update();lib.FindProperty("turfFlowers").objectReferenceValue=mask;lib.ApplyModifiedPropertiesWithoutUndo();
                 AssetDatabase.SaveAssets();
                 foreach(var live in UnityEngine.Object.FindObjectsByType<GrassSystem>(FindObjectsSortMode.None))
                     if(live!=system&&live.CurrentMap!=null) live.Attach(live.CurrentMap);
@@ -73,13 +77,13 @@ namespace TacticalMaps.Editor
                 EditorSceneManager.ClosePreviewScene(scene);
             }
         }
-        private static Color32[] Read(Camera camera,RenderTexture target,Texture2D image,bool normal)
+        private static Color32[] Read(Camera camera,RenderTexture target,Texture2D image,bool normal,bool mask=false)
         {
             camera.Render(); var previous=RenderTexture.active;
             try { RenderTexture.active=target;image.ReadPixels(new Rect(0,0,512,512),0,0);image.Apply(); }
             finally {RenderTexture.active=previous;}
             var pixels=image.GetPixels32();
-            for(int i=0;i<pixels.Length;i++) if(pixels[i].a==0) pixels[i]=normal?new Color32(128,128,255,0):new Color32(208,208,208,0);
+            for(int i=0;i<pixels.Length;i++) if(pixels[i].a==0) pixels[i]=mask?new Color32(0,0,0,0):normal?new Color32(128,128,255,0):new Color32(208,208,208,0);
             // Make texture edges periodic without losing the real coverage alpha channel.
             for(int y=0;y<512;y++) for(int x=0;x<12;x++)
             {
@@ -93,11 +97,11 @@ namespace TacticalMaps.Editor
             }
             return pixels;
         }
-        private static Texture2D Save(string name,Color32[] pixels,bool normal)
+        private static Texture2D Save(string name,Color32[] pixels,bool normal,bool mask=false)
         {
             string path=GrassSetup.Folder+"/"+name+".asset";
             var old=AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            var texture=old!=null?old:new Texture2D(512,512,TextureFormat.RGBA32,true,true);
+            var texture=old!=null?old:new Texture2D(512,512,mask?TextureFormat.R8:TextureFormat.RGBA32,true,true);
             texture.name=name; texture.wrapMode=TextureWrapMode.Repeat;texture.filterMode=FilterMode.Trilinear;texture.anisoLevel=8;
             texture.SetPixels32(pixels);texture.Apply(true,false);
             if(old==null) AssetDatabase.CreateAsset(texture,path); else EditorUtility.SetDirty(texture);

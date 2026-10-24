@@ -4,6 +4,21 @@ Shader "Hidden/TacticalMaps/Terrain/MatteAdd"
 {
     Properties
     {
+        [HideInInspector] _GrassTurfFlowers("Flower petal mask", 2D) = "black" {}
+        [HideInInspector] _GrassFlowers("Flower settings", Vector) = (0,12,.095,0)
+        [HideInInspector] _GrassFlowerForms0("Flower forms 0", Vector) = (0,1,2,3)
+        [HideInInspector] _GrassFlowerForms1("Flower forms 1", Vector) = (0,0,0,0)
+        [HideInInspector] _GrassFlowerCount("Flower palette count", Int) = 0
+        [HideInInspector] _GrassFlowerWeights0("Flower weights 0", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerWeights1("Flower weights 1", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerColor0("Flower color 0", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerColor1("Flower color 1", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerColor2("Flower color 2", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerColor3("Flower color 3", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerColor4("Flower color 4", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerColor5("Flower color 5", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerColor6("Flower color 6", Vector) = (1,1,1,1)
+        [HideInInspector] _GrassFlowerColor7("Flower color 7", Vector) = (1,1,1,1)
         [HideInInspector] _GrassEnabled("Grass enabled", Float) = 0
         [HideInInspector] _GrassTurf("Grass turf albedo", 2D) = "white" {}
         [HideInInspector] _GrassTurfNormal("Grass turf normal", 2D) = "bump" {}

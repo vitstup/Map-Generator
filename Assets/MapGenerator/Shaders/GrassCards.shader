@@ -11,6 +11,8 @@ Shader "TacticalMaps/Grass/DistantCards"
         #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
         #include "UnityIndirect.cginc"
         #include "GrassCommon.hlsl"
+        #include "GrassFlowers.hlsl"
+#include "GrassFlowerStamps.hlsl"
         struct GrassInstance { float4 positionHeight; float4 variation; };
         StructuredBuffer<GrassInstance> _GrassInstances;
         StructuredBuffer<uint> _VisibleGrass;
@@ -19,6 +21,7 @@ Shader "TacticalMaps/Grass/DistantCards"
         float _GrassClock;
         TEXTURE2D(_GrassCardsAlbedo); SAMPLER(sampler_GrassCardsAlbedo);
         TEXTURE2D(_GrassCardsNormal);
+        TEXTURE2D(_GrassCardsFlowers);
         TEXTURE2D(_GroundHeight0); TEXTURE2D(_GroundHeight1); TEXTURE2D(_GroundHeight2);
         SAMPLER(sampler_GroundHeight0);
         TEXTURE2D(_GroundCoverage0); TEXTURE2D(_GroundCoverage1); TEXTURE2D(_GroundCoverage2);
@@ -41,7 +44,11 @@ Shader "TacticalMaps/Grass/DistantCards"
             half fade:TEXCOORD4;
             nointerpolation float2 noiseSeed:TEXCOORD5;
             nointerpolation float edge:TEXCOORD6;
+            nointerpolation float top:TEXCOORD7;
+            nointerpolation float flowerPermission:TEXCOORD8;
+            float canopyHeight:TEXCOORD9;
         };
+        float4 _GrassFlowerLodStyle;
         int GroundLevel(float2 world)
         {
             return all(world>=_GroundRect0.xy)&&all(world<_GroundRect0.xy+_GroundRect0.zw)?0:
@@ -112,17 +119,42 @@ Shader "TacticalMaps/Grass/DistantCards"
             if((_GrassTransitionCheck&1)==0) o.fade=GrassScreenFade(pixels,_GrassLodDistances.z)*smoothstep(delay,delay+.55,_GrassClock-_GrassBirth[id/_GrassPerSlot]);
             o.noiseSeed=floor(float2(GrassHash(anchor+card*23.73),GrassHash(anchor+card*37.13))*8192);
             o.edge=instance.variation.w<0?1:0;
+            o.top=top;
+            o.canopyHeight=o.world.y-elevation+.375;
+            o.flowerPermission=abs(instance.variation.w);
             return o;
         }
-        half4 SampleAndClip(Varyings i)
+        half4 SampleAndClip(Varyings i,out float4 flower)
         {
             if((_GrassTransitionCheck&1)==0)
                 clip(GrassLayerMask(i.world.xz,i.positionCS.xy,_GrassFocus.xz,_GrassFieldRanges,2,_GrassWind.z,1));
             half4 tex=SAMPLE_TEXTURE2D(_GrassCardsAlbedo,sampler_GrassCardsAlbedo,i.uv);
-            clip(tex.a-.35);
+
             float fade=i.fade;
             [branch] if(i.edge>.5) fade*=Permission(i.world.xz);
             clip(fade-GrassHash(floor(i.positionCS.xy)+i.noiseSeed));
+            flower=0;
+            if(_GrassFlowers.x>0&&(_GrassOptions.y<.5||(_GrassOptions.y>1.5&&_GrassOptions.y<2.5)))
+            {
+                if(_GrassFlowerStampCheck==1)
+                {
+                    if(i.top>.5)flower=GrassFlowerStamp(i.world,_GrassWind.z,i.flowerPermission);
+                }
+                else
+                {
+                    // Evaluate the same world field on a canopy plane along this pixel's ray.
+                    // Upright cards can then carry a compact head instead of hiding it or
+                    // stretching an XZ dot into a vertical stripe.
+                    float3 ray=i.world-_WorldSpaceCameraPos;
+                    if(unity_OrthoParams.w>.5)ray=-UNITY_MATRIX_V[2].xyz;
+                    if(abs(ray.y)>.04)
+                    {
+                        float3 canopy=i.world+ray*((i.canopyHeight-i.world.y)/ray.y);
+                        flower=GrassFlowerStamp(canopy,_GrassWind.z,i.flowerPermission,_GrassFlowerLodStyle.x);
+                    }
+                }
+            }
+            clip(max(tex.a-.35,(_GrassFlowerStampCheck==1?-1:flower.a-.08)));
             return tex;
         }
         half3 CardNormal(Varyings i)
@@ -135,7 +167,10 @@ Shader "TacticalMaps/Grass/DistantCards"
         }
         half4 Frag(Varyings i):SV_Target
         {
-            half4 tex=SampleAndClip(i);
+            float4 flower;
+            half4 tex=SampleAndClip(i,flower);
+            half3 tint=i.color;
+            if(_GrassFlowerStampCheck==1)tint=lerp(tint,flower.rgb,flower.a);
             half3 normal=CardNormal(i);
             #if defined(_MAIN_LIGHT_SHADOWS_SCREEN)
             Light light=GetMainLight(ComputeScreenPos(TransformWorldToHClip(i.world)));
@@ -144,13 +179,15 @@ Shader "TacticalMaps/Grass/DistantCards"
             #endif
             half diffuse=saturate((dot(normal,light.direction)+.25)/1.25);
             half3 ambient=lerp(_GrassAmbientSide.rgb,_GrassAmbientSky.rgb,saturate(normal.y));
-            half3 color=i.color*tex.rgb*(ambient+light.color*diffuse*light.shadowAttenuation);
+            half3 color=tint*tex.rgb*(ambient+light.color*diffuse*light.shadowAttenuation);
             if((_GrassTransitionCheck&2)==0)
-                color=lerp(color,i.color*lerp(.93,tex.rgb,.45)*GrassCanopyLighting(_GrassAmbientSky.rgb,light.color,light.direction,light.shadowAttenuation),.85);
+                color=lerp(color,tint*lerp(.93,tex.rgb,.45)*GrassCanopyLighting(_GrassAmbientSky.rgb,light.color,light.direction,light.shadowAttenuation),.85);
+            if(_GrassFlowerStampCheck!=1)
+                color=lerp(color,flower.rgb*GrassCanopyLighting(_GrassAmbientSky.rgb,light.color,light.direction,light.shadowAttenuation),flower.a);
             return half4(MixFog(color,ComputeFogFactor(TransformWorldToHClip(i.world).z)),1);
         }
-        half4 Depth(Varyings i):SV_Target { SampleAndClip(i); return 0; }
-        half4 Normals(Varyings i):SV_Target { SampleAndClip(i); return half4(CardNormal(i),0); }
+        half4 Depth(Varyings i):SV_Target { float4 flower; SampleAndClip(i,flower); return 0; }
+        half4 Normals(Varyings i):SV_Target { float4 flower; SampleAndClip(i,flower); return half4(CardNormal(i),0); }
         ENDHLSL
         Pass
         {

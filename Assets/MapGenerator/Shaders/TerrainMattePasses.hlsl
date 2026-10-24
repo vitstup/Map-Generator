@@ -15,11 +15,25 @@ CBUFFER_START(TacticalTerrainSettings)
 CBUFFER_END
 
 #include "GrassCommon.hlsl"
+#define GRASS_FLOWER_MATERIAL_PALETTE
+#include "GrassFlowers.hlsl"
+#include "GrassFlowerStamps.hlsl"
+TEXTURE2D(_GrassTurfFlowers);
 TEXTURE2D(_GrassCoverage); SAMPLER(sampler_GrassCoverage);
 TEXTURE2D(_GrassTurf); SAMPLER(sampler_GrassTurf);
 TEXTURE2D(_GrassTurfNormal); SAMPLER(sampler_GrassTurfNormal);
 float4 _GrassRect, _GrassMeadow, _GrassDry, _GrassWind, _GrassOptions;
 float _GrassEnabled, _GrassTurfStrength;
+float _GrassBlueFlowerRetention;
+float4 _GrassFlowerLodFocus,_GrassFlowerLodRanges,_GrassFlowerLodStyle;
+float4 TerrainFlowerStamp(float3 world,float permission)
+{
+    float medium=1-GrassHandoffFade(world.xz,_GrassFlowerLodFocus.xz,_GrassFlowerLodRanges.z,_GrassFlowerLodRanges.w,_GrassWind.z);
+    float distant=1-GrassHandoffFade(world.xz,_GrassFlowerLodFocus.xz,_GrassFlowerLodRanges.x,_GrassFlowerLodRanges.y,_GrassWind.z);
+    float retention=lerp(lerp(1,_GrassFlowerLodStyle.x,medium),_GrassBlueFlowerRetention,distant);
+    float sizeScale=lerp(1,_GrassFlowerLodStyle.y,distant);
+    return GrassFlowerStamp(world,_GrassWind.z,permission,retention,sizeScale,_GrassFlowerLodStyle.z);
+}
 
 #ifndef TERRAIN_SPLAT_BASEPASS
 float3 TerrainHash(float2 cell)
@@ -157,11 +171,21 @@ half4 MatteFragment(Varyings input) : SV_Target
         float gust=GrassGust(input.positionWS.xz,_Time.y,_GrassWind.y);
         // The texture is a neutral albedo/coverage bake of the same plants, not a lighting screenshot.
         half3 canopy=tint*max(.45,turf.rgb);
+        if(_GrassFlowers.x>0)
+        {
+            float4 flower=TerrainFlowerStamp(input.positionWS,amount);
+            canopy=lerp(canopy,flower.rgb,flower.a);
+        }
         albedo=lerp(albedo,canopy,amount*saturate(turf.a*2+.25));
         normal.xy+=float2(.85,.4)*gust*_GrassWind.x*amount*.18;
         normal=normalize(normal);
         if (_GrassOptions.y > .5 && _GrassOptions.y < 1.5) albedo=lerp(half3(.4,.06,.03),half3(.1,.7,.1),amount);
         if (_GrassOptions.y > 1.5 && _GrassOptions.y < 2.5) albedo=lerp(albedo,half3(.1,.25,.65),amount);
+        if (_GrassOptions.y > 1.5 && _GrassOptions.y < 2.5 && _GrassFlowers.x>0)
+        {
+            float4 head=TerrainFlowerStamp(input.positionWS,amount);
+            albedo=lerp(albedo,head.rgb,amount*head.a);
+        }
         if (_GrassOptions.y > 2.5) albedo=lerp(albedo,half3(GrassHash(floor(input.positionWS.xz/_GrassOptions.x)),.3,.5),amount);
     }
     InputData lighting; InitializeInputData(input,normal,lighting); InitializeBakedGIData(input,lighting);

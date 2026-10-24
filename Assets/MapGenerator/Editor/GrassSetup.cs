@@ -119,6 +119,7 @@ namespace TacticalMaps.Editor
             so.FindProperty("simplifiedMesh").objectReferenceValue = GrassMeshFactory.Ensure(Folder + "/GrassSimplified.asset",false,true);
             so.FindProperty("material").objectReferenceValue = material;
             so.FindProperty("compute").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/GrassCulling.compute");
+            so.FindProperty("flowerField").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/GrassFlowerField.compute");
             so.ApplyModifiedPropertiesWithoutUndo(); return library;
         }
         private static void BindFocus(SerializedObject settings)

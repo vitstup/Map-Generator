@@ -36,6 +36,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: c07300977f169b24a9d102c7bb9f8e6a, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _GrassTurfFlowers:
+        m_Texture: {fileID: 2800000, guid: 5382855f248946244a4ba03067f9ea0b, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _GrassTurfNormal:
         m_Texture: {fileID: 2800000, guid: 497876075cd1cf14a92452978d648b1f, type: 2}
         m_Scale: {x: 1, y: 1}
@@ -104,6 +108,7 @@ Material:
     - _EnableHeightBlend: 0
     - _EnableInstancedPerPixelNormal: 1
     - _GrassEnabled: 1
+    - _GrassFlowerCount: 4
     - _GrassTurfStrength: 1
     - _HeightTransition: 0
     - _Metallic0: 0
@@ -122,6 +127,19 @@ Material:
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _GrassDry: {r: 0.49, g: 0.45, b: 0.25, a: 1}
+    - _GrassFlowerColor0: {r: 0.83, g: 0.84, b: 0.72, a: 1}
+    - _GrassFlowerColor1: {r: 0.76, g: 0.51, b: 0.13, a: 0.9}
+    - _GrassFlowerColor2: {r: 0.4, g: 0.31, b: 0.65, a: 1.1}
+    - _GrassFlowerColor3: {r: 0.65, g: 0.12, b: 0.1, a: 1}
+    - _GrassFlowerColor4: {r: 0, g: 0, b: 0, a: 1}
+    - _GrassFlowerColor5: {r: 0, g: 0, b: 0, a: 1}
+    - _GrassFlowerColor6: {r: 0, g: 0, b: 0, a: 1}
+    - _GrassFlowerColor7: {r: 0, g: 0, b: 0, a: 1}
+    - _GrassFlowerForms0: {r: 0, g: 1, b: 2, a: 3}
+    - _GrassFlowerForms1: {r: 1, g: 1, b: 1, a: 1}
+    - _GrassFlowerWeights0: {r: 0.5, g: 0.74, b: 0.92, a: 1}
+    - _GrassFlowerWeights1: {r: 0, g: 0, b: 0, a: 0}
+    - _GrassFlowers: {r: 0.035, g: 12, b: 0.095, a: 0}
     - _GrassMeadow: {r: 0.32, g: 0.43, b: 0.19, a: 1}
     - _GrassOptions: {r: 16, g: 0, b: 50.4, a: 0.81915206}
     - _GrassRect: {r: -1024, g: -1024, b: 2048, a: 2048}

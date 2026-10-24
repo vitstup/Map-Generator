@@ -33,6 +33,7 @@ namespace TacticalMaps.Editor
                 settings.FindProperty("chunksPreparedPerFrame").intValue=16;
                 settings.ApplyModifiedPropertiesWithoutUndo();
                 system.MatureForChecks=true;
+                system.GeometryMaskForChecks=1;
                 var root=new GameObject("GrassGroupBakeGround");root.SetActive(false);
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
                 var weights=new float[3][,,];var sizes=new Vector2[3];
@@ -58,7 +59,7 @@ namespace TacticalMaps.Editor
                 camera.cullingMask=1<<30;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.clear;
                 target=new RenderTexture(Tile,Tile,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear);target.Create();camera.targetTexture=target;
                 image=new Texture2D(Tile,Tile,TextureFormat.RGBA32,false,true);
-                var albedo=new Color32[Width*Height];var normals=new Color32[Width*Height];
+                var albedo=new Color32[Width*Height];var normals=new Color32[Width*Height];var flowers=new Color32[Width*Height];
                 for(int row=0;row<2;row++)for(int variant=0;variant<4;variant++)
                 {
                     var center=new Vector3(variant*8,7,0);
@@ -77,9 +78,11 @@ namespace TacticalMaps.Editor
                     for(int frame=0;frame<36;frame++) {camera.Render();AsyncGPUReadback.Request(target,0).WaitForCompletion();}
                     Read(albedo,variant,row);
                     system.BakeMode=2;Read(normals,variant,row);
+                    system.BakeMode=3;Read(flowers,variant,row);
                 }
                 Dilate(albedo,normals);
                 var a=Save("CardsAlbedo",albedo,false);var n=Save("CardsNormal",normals,true);
+                var mask=SaveMask("CardsFlowers",flowers);
                 var mesh=EnsureMesh();
                 var shader=Shader.Find("TacticalMaps/Grass/DistantCards");
                 if(shader==null) throw new InvalidOperationException("Distant grass shader was not imported.");
@@ -91,10 +94,12 @@ namespace TacticalMaps.Editor
                 lib.FindProperty("cardsMaterial").objectReferenceValue=material;
                 lib.FindProperty("cardsAlbedo").objectReferenceValue=a;
                 lib.FindProperty("cardsNormal").objectReferenceValue=n;
+                lib.FindProperty("cardsFlowers").objectReferenceValue=mask;
                 lib.ApplyModifiedPropertiesWithoutUndo();AssetDatabase.SaveAssets();
                 foreach(var live in UnityEngine.Object.FindObjectsByType<GrassSystem>(FindObjectsSortMode.None))
                     if(live!=system&&live.CurrentMap!=null) live.Attach(live.CurrentMap);
                 System.IO.File.WriteAllBytes("Temp/grass-cards-atlas.png",a.EncodeToPNG());
+                System.IO.File.WriteAllBytes("Temp/grass-cards-flowers.png",mask.EncodeToPNG());
                 Debug.Log("Baked four real grass groups from side and top; ten triangles per distant group.");
 
                 void Read(Color32[] destination,int column,int row)
@@ -116,6 +121,16 @@ namespace TacticalMaps.Editor
                     if(terrain.terrainData!=null) UnityEngine.Object.DestroyImmediate(terrain.terrainData);
                 EditorSceneManager.ClosePreviewScene(scene);
             }
+        }
+        private static Texture2D SaveMask(string name,Color32[] pixels)
+        {
+            string path=GrassSetup.Folder+"/"+name+".asset";
+            var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);bool create=texture==null;
+            if(create) texture=new Texture2D(Width,Height,TextureFormat.R8,true,true);
+            texture.name=name;texture.wrapMode=TextureWrapMode.Clamp;texture.filterMode=FilterMode.Trilinear;texture.anisoLevel=8;
+            texture.SetPixels32(pixels);texture.Apply(true,false);
+            if(create)AssetDatabase.CreateAsset(texture,path);else EditorUtility.SetDirty(texture);
+            return texture;
         }
         private static Mesh EnsureMesh()
         {
