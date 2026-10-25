@@ -1,0 +1,13 @@
+.grass-installer {
+    padding: 12px;
+}
+.grass-installer > * {
+    margin-bottom: 8px;
+}
+.folder-path {
+    white-space: normal;
+    -unity-font-style: bold;
+}
+.result {
+    white-space: normal;
+}
