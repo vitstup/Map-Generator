@@ -1,5 +1,7 @@
 #pragma kernel Generate
 #pragma kernel Cull
+#pragma kernel FrameArguments
+#pragma kernel PrepareFrame
 #include "GrassCommon.hlsl"
 #include "GrassFlowers.hlsl"
 struct GrassInstance { float4 positionHeight; float4 variation; };
@@ -7,6 +9,7 @@ RWStructuredBuffer<GrassInstance> _Instances;
 StructuredBuffer<uint> _ActiveSlots;
 AppendStructuredBuffer<uint> _Near;
 AppendStructuredBuffer<uint> _Middle;
+AppendStructuredBuffer<uint> _Heads;
 Texture2D<float> _Height0, _Height1, _Height2;
 Texture2D<float4> _Coverage0, _Coverage1, _Coverage2;
 Texture2D<float> _Holes0, _Holes1, _Holes2;
@@ -19,8 +22,39 @@ float4 _MeadowRange;
 uint _Pool;
 int _TopologyCheck;
 int _TransitionCheck;
+int _ReferenceGeometry;
 uint _Axis, _PerSlot, _Slot, _ActiveCount;
 float _ChunkSize;
+RWStructuredBuffer<uint4> _Prepared;
+StructuredBuffer<uint> _FrameNear, _FrameMiddle;
+RWByteAddressBuffer _FrameCounts, _FrameDispatch;
+float4 _FrameWind, _FrameMeadow, _FrameDry, _FrameNearRange;
+
+[numthreads(1,1,1)]
+void FrameArguments(uint3 dispatch:SV_DispatchThreadID)
+{
+    uint count=_FrameCounts.Load(0)+_FrameCounts.Load(4);
+    _FrameDispatch.Store3(0,uint3(max(1u,(count+63)/64),1,1));
+}
+[numthreads(64,1,1)]
+void PrepareFrame(uint3 dispatch:SV_DispatchThreadID)
+{
+    uint n=_FrameCounts.Load(0),count=n+_FrameCounts.Load(4),i=dispatch.x;
+    if(i>=count)return;
+    uint index=i<n?_FrameNear[i]:_FrameMiddle[i-n];
+    GrassInstance instance=_Instances[index];float2 anchor=instance.positionHeight.xz;
+    float cluster=GrassNoise(anchor/2.3+_FrameWind.z*.01);
+    uint family=cluster<.33?0:cluster<.66?1:2;
+    float3 palette=GrassPalette(anchor,instance.variation.y,_FrameWind.z,_FrameMeadow.rgb,_FrameDry.rgb);
+    float viewDepth=max(.1,distance(instance.positionHeight.xyz,_Camera.xyz));
+    float pixels=(_Pool==0?instance.positionHeight.w:2.8)*_Projection.x/(_Projection.y>.5?1:viewDepth);
+    float detail=GrassDetailWeight(pixels/GrassLodBias(anchor,_FrameWind.z));
+    float near=(_TransitionCheck&1)==0?GrassHandoffFade(anchor,_Focus.xz,_FrameNearRange.x,_FrameNearRange.y,_FrameWind.z):GrassFieldFade(anchor,_Focus.xz,_FrameNearRange.x,_FrameNearRange.y,_FrameWind.z);
+    // Binary16 is sufficient for colors and bounded morph weights. Keep wind as float32
+    // so flowers and stems use the exact same gust even during a close camera flight.
+    _Prepared[index]=uint4(f32tof16(palette.r)|(f32tof16(palette.g)<<16),
+        f32tof16(palette.b)|(f32tof16(detail)<<16),asuint(GrassGust(anchor,_FrameWind.x,_FrameWind.y)),f32tof16(near)|(family<<16));
+}
 
 bool Contains(float2 p, float4 rect) { return all(p >= rect.xy) && all(p < rect.xy + rect.zw); }
 float4 CoverageAt(int level,float2 uv)
@@ -124,6 +158,8 @@ void Cull(uint3 dispatch : SV_DispatchThreadID)
     if (height <= 0) return;
     float3 center = instance.positionHeight.xyz + float3(0, height * .5, 0);
     float radius = _Pool == 0 ? height+1 : 3.5;
+    // Include the longest low blade and the maximum current wind displacement.
+    if(_Pool==0&&_ReferenceGeometry==0)radius=max(radius,.5+height*(2+1.5*_Projection.w));
     for (int p = 0; p < 6; p++) if (dot(_Planes[p].xyz, center) + _Planes[p].w < -radius) return;
     float d = distance(_Focus.xz, instance.positionHeight.xz);
     if (d >= _Lod.x) return;
@@ -134,6 +170,14 @@ void Cull(uint3 dispatch : SV_DispatchThreadID)
     else
     {
         if(_Pool==2&&d+radius<_MeadowRange.w*.72*.82) return;
+        // Bound the shared handoff field over the complete plant footprint. The maximum
+        // gradient is .18 * 1.5 * sqrt(2) / 19 < .021 per metre, so no surviving pixel is lost.
+        if(_ReferenceGeometry==0)
+        {
+            float bias=lerp(.82,1,GrassNoise(instance.positionHeight.xz/19+_PlantRules.w*.031));
+            float outer=_Pool==1?_MeadowRange.w:_Lod.x;
+            if(d-radius>outer*min(1,bias+.021*radius))return;
+        }
     }
     float viewDepth=max(.1,distance(instance.positionHeight.xyz,_Camera.xyz));
     float pixels = (_Pool==0?height:2.8) * _Projection.x / (_Projection.y > .5 ? 1 : viewDepth);
@@ -142,8 +186,14 @@ void Cull(uint3 dispatch : SV_DispatchThreadID)
     if (_Pool==0)
     {
         float detailed=GrassDetailWeight(pixels/GrassLodBias(instance.positionHeight.xz,_PlantRules.w));
+        if(_ReferenceGeometry!=0)detailed=smoothstep(4,7,pixels/GrassLodBias(instance.positionHeight.xz,_PlantRules.w)*1.5);
         // At zero morph the subdivided blade is exactly the single triangle. No double draw.
         if(_TopologyCheck==1||(_TopologyCheck==0&&detailed>0)) _Near.Append(index); else _Middle.Append(index);
     }
     else _Middle.Append(index);
+    if(_Pool<2&&_GrassFlowers.x>0&&_ReferenceGeometry==0)
+    {
+        uint packed=asuint(instance.variation.x);
+        if(((packed>>9)&15u)!=0||(_Pool==1&&((packed>>16)&15u)!=0))_Heads.Append(index);
+    }
 }

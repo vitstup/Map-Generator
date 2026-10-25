@@ -38,7 +38,9 @@ float GrassLodBias(float2 anchor,float seed)
 {
     return lerp(.82,1.18,GrassHash(anchor+seed+513.7))*lerp(.94,1.06,GrassNoise(anchor/13+seed));
 }
-float GrassDetailWeight(float pixels) { return smoothstep(4,7,pixels*1.5); }
+// Keep resolved close blades curved; a subdivided silhouette below six pixels
+// contributes little detail but still repeats the full vertex work in both passes.
+float GrassDetailWeight(float pixels) { return smoothstep(6,10,pixels); }
 float GrassFieldFade(float2 anchor,float2 focus,float start,float end,float seed)
 {
     float range=end*lerp(.83,1,GrassHash(anchor+seed+271.3));

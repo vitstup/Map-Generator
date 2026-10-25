@@ -88,6 +88,7 @@ namespace TacticalMaps.Grass
         internal int TopologyForChecks { get; set; }
         internal int TransitionForChecks { get; set; }
         internal int GeometryMaskForChecks { get; set; } = 7;
+        internal bool ReferenceRenderingForChecks { get; set; }
         private bool suppressFlowers;
         internal bool SuppressFlowersForChecks { get=>suppressFlowers;set {suppressFlowers=value;ApplySurface(true);} }
         private Vector4 FlowerSettings => new Vector4(!showFlowers||suppressFlowers||flowerCount==0?0:flowerDensity,flowerPatchSize,flowerRadius,0);
@@ -243,7 +244,7 @@ namespace TacticalMaps.Grass
             if (renderer.Revision != revision) { ReleaseViews(); return; }
             renderer.Render(camera, new GrassRenderSettings
             {
-                CheckTopology=TopologyForChecks, TransitionCheck=TransitionForChecks, GeometryMask=GeometryMaskForChecks,
+                CheckTopology=TopologyForChecks, TransitionCheck=TransitionForChecks, GeometryMask=GeometryMaskForChecks, Reference=ReferenceRenderingForChecks,
                 Focus=ResolveFocus(camera), NearRange=new Vector2(nearDistance,geometryDistance),
                 Density = density, Heights = heightRange, Slope = maximumSlope, Shore = shoreClearanceHeight,
                 Seed = seed, Wind = new Vector2(freezeWind?0:windStrength, windSpeed), Meadow = meadowColor, Dry = dryColor,
@@ -287,6 +288,7 @@ namespace TacticalMaps.Grass
         internal Vector3? FindFlowerForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.FindFlowerForChecks():null;
 #endif
         internal uint[] ReadDrawCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadDrawCounts():new uint[4];
+        internal uint[] ReadHeadCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadHeadCounts():new uint[2];
         internal Dictionary<uint,int> ReadLodMembershipForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadLodMembershipForChecks():new Dictionary<uint,int>();
         private void ReleaseFlowerFields() {foreach(var field in flowerFields.Values)field.Dispose();flowerFields.Clear();}
         private void ReleaseViews() { foreach (var v in views.Values) v.Dispose(); views.Clear(); ResidentChunks = 0; BufferBytes = 0; SubmittedDraws = 0; }
@@ -304,7 +306,7 @@ namespace TacticalMaps.Grass
         internal Color Meadow, Dry;
         internal int Seed, PrepareBudget, Debug, Layer;
         internal int BakeMode, CheckTopology, TransitionCheck, GeometryMask;
-        internal bool Mature, SuppressCards;
+        internal bool Mature, SuppressCards, Reference;
     }
 
     // Three bounded pools. Extending distant groups never expands the dense grass buffer.
@@ -338,6 +340,7 @@ namespace TacticalMaps.Grass
         internal Vector3? FindFlowerForChecks() => near.FindFlowerForChecks();
 #endif
         internal uint[] ReadDrawCounts() {var n=near.ReadCounts();return new[]{n[0],n[1],meadow.ReadCounts()[1],cards?.ReadCounts()[1] ?? 0};}
+        internal uint[] ReadHeadCounts()=>new[]{near.ReadHeadCount(),meadow.ReadHeadCount()};
         internal uint[] ReadCounts() {var n=ReadDrawCounts();return new[]{n[0]+n[1],n[2]+n[3]};}
         public void Dispose() { near.Dispose(); meadow.Dispose(); cards?.Dispose(); }
     }
