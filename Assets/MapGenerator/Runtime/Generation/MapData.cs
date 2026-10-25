@@ -18,6 +18,8 @@ namespace TacticalMaps.Generation
         internal RockData Rocks { get; private set; }
         internal TreeData Trees { get; private set; }
         internal TacticalMaps.Grass.GrassCoverage Grass { get; private set; }
+        // The latest successful construction of this result. Never discover another map globally.
+        internal Transform BuiltRoot { get; set; }
         private bool released;
 
         internal MapData(Texture2D[] heightmaps, Vector2[] sizes, float terrainHeightMeters,
@@ -39,6 +41,7 @@ namespace TacticalMaps.Generation
         {
             if (released) return;
             released = true;
+            BuiltRoot = null;
             Surface = null;
             Rocks = null;
             Trees = null;

@@ -35,6 +35,7 @@ namespace TacticalMaps.Editor
                 TreeSetup.Configure(view.Generator, builder);
                 var serialized = new SerializedObject(view);
                 serialized.FindProperty("mapBuilder").objectReferenceValue = builder;
+                serialized.FindProperty("grassSystem").objectReferenceValue = UnityEngine.Object.FindAnyObjectByType<TacticalMaps.Grass.GrassSystem>();
                 if (serialized.FindProperty("buildTerrainButton").objectReferenceValue == null)
                 {
                     var button = CreateButton(view.transform);

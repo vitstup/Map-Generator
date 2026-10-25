@@ -34,10 +34,9 @@ namespace TacticalMaps.Editor
                 var grass=grassObject.AddComponent<GrassSystem>();
                 EditorUtility.CopySerialized(system,grass);
                 var settings=new SerializedObject(grass);
-                settings.FindProperty("currentMap").objectReferenceValue=null;settings.FindProperty("focusTarget").objectReferenceValue=null;
+                settings.FindProperty("currentMap").objectReferenceValue=null;
                 settings.FindProperty("debugView").intValue=0;settings.ApplyModifiedPropertiesWithoutUndo();
                 grass.enabled=true;grass.MatureForChecks=true;grass.FreezeWindForChecks=true;
-                var bs=new SerializedObject(builder);bs.FindProperty("grassSystem").objectReferenceValue=grass;bs.ApplyModifiedPropertiesWithoutUndo();
                 var textures=new Texture2D[3];var sizes=new[]{Vector2.one*2048,Vector2.one*8192,Vector2.one*20000};var weights=new float[3][,,];
                 for(int i=0;i<3;i++)
                 {
@@ -47,7 +46,7 @@ namespace TacticalMaps.Editor
                 }
                 var surface=new SurfaceData(system.CurrentMap.Terrains[0].terrainData.terrainLayers,weights,Vector2.zero);
                 map=new MapData(textures,sizes,100,5,4000,Vector2Int.zero,surface:surface,grass:GrassCoverage.Generate(surface,CancellationToken.None));
-                builder.Build(map);
+                builder.Build(map);grass.Build(map);
                 var lightObject=new GameObject("CheckSun");UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(lightObject,scene);
                 var sun=lightObject.AddComponent<Light>();sun.type=LightType.Directional;sun.shadows=LightShadows.None;
                 if(RenderSettings.sun!=null) {sun.color=RenderSettings.sun.color;sun.intensity=RenderSettings.sun.intensity;sun.transform.rotation=RenderSettings.sun.transform.rotation;}

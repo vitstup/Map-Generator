@@ -6,16 +6,23 @@ namespace TacticalMaps.Grass
     [ExecuteAlways, DisallowMultipleComponent]
     internal sealed class GrassMap : MonoBehaviour
     {
-        [SerializeField] private GrassSystem owner;
-        [SerializeField] private Terrain[] terrains;
-        [SerializeField] private Texture2D[] coverage;
-        [SerializeField] private float seaLevel;
+        [SerializeField, HideInInspector] private GrassSystem owner;
+        [SerializeField, HideInInspector] private Terrain[] terrains;
+        [SerializeField, HideInInspector] private Texture2D[] coverage;
+        [SerializeField, HideInInspector] private float seaLevel;
         private readonly bool[] privateMasks = new bool[3];
         internal Terrain[] Terrains => terrains;
         internal Texture2D[] Coverage => coverage;
         internal float SeaLevel => seaLevel;
         internal void Configure(GrassSystem system, Terrain[] ground, Texture2D[] masks, float sea)
-        { owner = system; terrains = ground; coverage = masks; seaLevel = sea; }
+        {
+            var previous = coverage;
+            if (owner != null) owner.Detach(this);
+            owner = system; terrains = ground; coverage = masks; seaLevel = sea;
+            System.Array.Clear(privateMasks, 0, privateMasks.Length);
+            if (isActiveAndEnabled) owner.Attach(this);
+            if (previous != null) foreach (var texture in previous) Dispose(texture);
+        }
         internal void Exclude(Bounds area)
         {
             for (int level = 0; level < terrains.Length; level++)

@@ -143,7 +143,9 @@ namespace TacticalMaps.Editor
                 var grassObject=new GameObject("GrassSystemCheck"); UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(grassObject,scene);
                 var grass=grassObject.AddComponent<GrassSystem>(); var gs=new SerializedObject(grass);
                 gs.FindProperty("library").objectReferenceValue=source.Library; gs.ApplyModifiedPropertiesWithoutUndo();
-                var bs=new SerializedObject(builder); bs.FindProperty("grassSystem").objectReferenceValue=grass; bs.ApplyModifiedPropertiesWithoutUndo();
+                var api=typeof(GrassSystem).GetMethods(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.DeclaredOnly);
+                Require(api.Length==1 && api[0].Name=="Build" && api[0].GetParameters().Length==1 && api[0].GetParameters()[0].ParameterType==typeof(MapData),"Grass facade exposes only Build(MapData).");
+                Require(typeof(GrassSystem).GetFields(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.DeclaredOnly).Length==0,"Grass configuration is encapsulated.");
                 var textures=new Texture2D[3]; var sizes=new Vector2[3]; var weights=new float[3][,,];
                 for(int i=0;i<3;i++)
                 {
@@ -154,13 +156,26 @@ namespace TacticalMaps.Editor
                 }
                 var surface=new SurfaceData(source.CurrentMap.Terrains[0].terrainData.terrainLayers,weights,Vector2.zero);
                 map=new MapData(textures,sizes,100,5,4000,Vector2Int.zero,surface:surface,grass:GrassCoverage.Generate(surface,CancellationToken.None));
-                builder.Build(map); var first=grass.CurrentMap; Require(first!=null,"Built grass attached.");
-                builder.Build(map); Require(first==null && grass.CurrentMap!=null,"Rebuild replaces owned grass.");
+                bool unbuiltRejected=false;try { grass.Build(map); } catch(InvalidOperationException) { unbuiltRejected=true; }
+                Require(unbuiltRejected && grass.CurrentMap==null,"Unbuilt MapData is rejected.");
+                builder.Build(map);Require(grass.CurrentMap==null,"Construction does not start grass.");
+                grass.Build(map);var first=grass.CurrentMap;Require(first!=null,"Explicit grass build attaches to its MapData.");
+                var oldCoverage=first.Coverage[0];var terrain=first.Terrains[0];
+                grass.Build(map);
+                Require(grass.CurrentMap==first && first.Terrains[0]==terrain && oldCoverage==null && first.GetComponents<GrassMap>().Length==1,"Repeated grass build replaces masks without duplicate components or rebuilding Terrain.");
                 var stable=grass.CurrentMap;
+                var stableCoverage=stable.Coverage[0];
                 gs.Update(); gs.FindProperty("library").objectReferenceValue=null; gs.ApplyModifiedPropertiesWithoutUndo();
-                bool failed=false; try { builder.Build(map); } catch(InvalidOperationException) { failed=true; }
-                Require(failed && grass.CurrentMap==stable && stable.gameObject.activeInHierarchy,"Failed grass stage preserves previous map.");
+                bool failed=false; try { grass.Build(map); } catch(InvalidOperationException) { failed=true; }
+                Require(failed && grass.CurrentMap==stable && stable.Coverage[0]==stableCoverage && stable.gameObject.activeInHierarchy,"Failed grass build preserves the current binding and coverage.");
+                builder.Build(map);
+                Require(stable==null && grass.CurrentMap==null,"Construction succeeds independently of invalid grass resources, releasing the old built map.");
+                gs.Update();gs.FindProperty("library").objectReferenceValue=source.Library;gs.ApplyModifiedPropertiesWithoutUndo();
+                grass.Build(map);stable=grass.CurrentMap;
+                CameraFocusChecks(grass,scene,report);
                 map.Release(); Require(stable.Coverage[0]!=null,"Grass survives MapData.Release.");
+                bool releasedRejected=false;try { grass.Build(map); } catch(InvalidOperationException) { releasedRejected=true; }
+                Require(releasedRejected && grass.CurrentMap==stable,"Released MapData cannot silently replace live coverage.");
                 grass.Exclude(new Bounds(new Vector3(0,30,0),new Vector3(40,100,40)));
                 Require(stable.Coverage[0].GetPixel(8,8).a==0,"Local exclusion updates coverage.");
                 // A mixed beach must reject geometry even when the meadow probability is high.
@@ -183,9 +198,28 @@ namespace TacticalMaps.Editor
                     Require(counts[0]==0&&counts[1]==0&&counts[2]==0&&counts[3]==0,"Mixed sand excludes all GPU pools.");
                 }
                 finally {camera.targetTexture=null;UnityEngine.Object.DestroyImmediate(cameraObject);target.Release();UnityEngine.Object.DestroyImmediate(target);}
-                report.AppendLine("PASS: build/rebuild ownership; rollback; independent result lifetime; local exclusion; GPU beach rejection.");
+                report.AppendLine("PASS: single-method grass facade; explicit construction/grass order; repeated builds; failure preservation; independent result lifetime; local exclusion; GPU beach rejection.");
             }
             finally { map?.Release(); UnityEditor.SceneManagement.EditorSceneManager.ClosePreviewScene(scene); }
+        }
+        private static void CameraFocusChecks(GrassSystem grass,UnityEngine.SceneManagement.Scene scene,StringBuilder report)
+        {
+            Require(new SerializedObject(grass).FindProperty("focusTarget")==null,"No serialized Cinemachine target dependency.");
+            var go=new GameObject("CameraPoseCheck");UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go,scene);
+            var camera=go.AddComponent<Camera>();camera.enabled=false;
+            var resolve=typeof(GrassSystem).GetMethod("ResolveFocus",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            Vector3 Focus()=>(Vector3)resolve.Invoke(grass,new object[]{camera});
+            camera.transform.position=new Vector3(0,65,-55);camera.transform.LookAt(new Vector3(0,30,0));
+            var initial=Focus();Require(Vector3.Distance(initial,new Vector3(0,47.5f,-27.5f))<.01f,"Oblique camera focus follows viewed Terrain.");
+            camera.transform.position+=Vector3.right*20;
+            Require(Vector3.Distance(Focus(),initial+Vector3.right*20)<.01f,"Moving the rendering camera moves residency without a target.");
+            camera.transform.rotation=Quaternion.Euler(90,0,0);
+            Require(Vector3.Distance(Focus(),new Vector3(20,47.5f,-55))<.01f,"Changing camera rotation recomputes the viewed ground.");
+            camera.orthographic=true;Require(Vector3.Distance(Focus(),new Vector3(20,47.5f,-55))<.01f,"Orthographic cameras use the same ground focus.");
+            camera.transform.rotation=Quaternion.identity;
+            Require(Vector3.Distance(Focus(),camera.transform.position)<.01f,"Horizontal views retain foreground residency.");
+            UnityEngine.Object.DestroyImmediate(go);
+            report.AppendLine("PASS: target-free perspective/orthographic focus; camera movement and rotation; bounded horizon fallback.");
         }
         private static Color32[] Capture(Camera camera,RenderTexture target,Texture2D pixels,string path)
         {

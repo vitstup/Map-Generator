@@ -12,7 +12,6 @@ namespace TacticalMaps.Grass
         [Header("Resources")]
         [SerializeField] private GrassLibrary library;
         [SerializeField] private GrassMap currentMap;
-        [SerializeField] private Transform focusTarget;
         [Header("Coverage")]
         [SerializeField, Range(0, 1)] private float density = .9f;
         [SerializeField] private Vector2 heightRange = new Vector2(.22f, .72f);
@@ -27,7 +26,7 @@ namespace TacticalMaps.Grass
         [Header("Flowers: shared by every LOD")]
         [SerializeField, Tooltip("Show flowers on every geometry LOD and on Terrain. Keeps the palette, density and distance settings.")]
         private bool showFlowers = true;
-        public bool ShowFlowers
+        internal bool ShowFlowers
         {
             get => showFlowers;
             set
@@ -98,7 +97,7 @@ namespace TacticalMaps.Grass
         internal bool FreezeWindForChecks { get=>freezeWind; set {freezeWind=value;ApplySurface(true);} }
 
         /// <summary>Suppress grass in a world-space XZ rectangle, at coverage-map resolution.</summary>
-        public void Exclude(Bounds worldArea)
+        internal void Exclude(Bounds worldArea)
         {
             if (currentMap == null) return;
             currentMap.Exclude(worldArea);
@@ -106,9 +105,15 @@ namespace TacticalMaps.Grass
             ReleaseViews(); ApplySurface(true);
         }
 
-        // Called only while a replacement map is inactive; failed builds leave the old map intact.
-        internal void Stage(MapData map, Transform root)
+        /// <summary>Build grass for the latest MapBuilder.Build of this MapData. Call on Unity's main thread.</summary>
+        public void Build(MapData map)
         {
+            if (map == null) throw new ArgumentNullException(nameof(map));
+            var root = map.BuiltRoot;
+            if (root == null || !root.gameObject.activeSelf)
+                throw new InvalidOperationException("Build this MapData with MapBuilder before building grass.");
+            if (root.gameObject.scene != gameObject.scene)
+                throw new InvalidOperationException("GrassSystem and the built map must belong to the same scene.");
             if (library == null || !library.Valid) throw new InvalidOperationException("Assign the grass resource library.");
             var ground = new Terrain[3]; var textures = new Texture2D[3];
             try
@@ -116,18 +121,23 @@ namespace TacticalMaps.Grass
                 var names = new[] { "Terrain_Main", "Terrain_Surroundings", "Terrain_Horizon" };
                 for (int i = 0; i < 3; i++)
                 {
-                    ground[i] = root.Find(names[i]).GetComponent<Terrain>();
+                    var child = root.Find(names[i]);
+                    if (child == null || !child.TryGetComponent(out ground[i]) || ground[i].terrainData == null)
+                        throw new InvalidOperationException("The built map is missing " + names[i] + ".");
                     int n = map.Grass != null ? map.Grass.Resolutions[i] : 1;
                     textures[i] = new Texture2D(n, n, TextureFormat.RGBA32, false, true)
                     { name = "GrassCoverage_" + i, wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
                     textures[i].SetPixels32(map.Grass != null ? map.Grass.Pixels[i] : new[] { new Color32(0, 0, 0, 255) });
                     textures[i].Apply(false, false);
                 }
-                root.gameObject.AddComponent<GrassMap>().Configure(this, ground, textures, ground[0].transform.position.y + map.SeaLevelMeters);
             }
             catch { foreach (var texture in textures) GrassMap.Dispose(texture); throw; }
+            // Prepare all owned textures before replacing the live binding. Repeated calls reuse the component.
+            var built = root.GetComponent<GrassMap>();
+            if (built == null) built = root.gameObject.AddComponent<GrassMap>();
+            built.Configure(this, ground, textures, ground[0].transform.position.y + map.SeaLevelMeters);
         }
-        internal void Attach(GrassMap map) { ReleaseViews(); currentMap = map; ApplySurface(true); }
+        internal void Attach(GrassMap map) { if (currentMap != null && currentMap != map) Detach(currentMap); ReleaseViews(); currentMap = map; ApplySurface(true); }
         internal void Detach(GrassMap map) { if (currentMap != map) return; ReleaseViews(); ReleaseFlowerFields(); SetSurface(false); currentMap = null; }
         private void OnEnable() { RenderPipelineManager.beginCameraRendering += Render; ApplySurface(true); }
         private void OnDisable() { RenderPipelineManager.beginCameraRendering -= Render; ReleaseViews(); ReleaseFlowerFields(); SetSurface(false); }
@@ -262,12 +272,11 @@ namespace TacticalMaps.Grass
         private Vector3 ResolveFocus(Camera camera)
         {
             var origin=camera.transform.position;
-            // Cover the foreground and orbit target together. Centering solely on the target
-            // would remove foreground grass at a low viewing angle.
+            // URP supplies the real rendering Camera (Camera.main for the main Game view),
+            // after Cinemachine has positioned it. No virtual-camera Follow/LookAt target is needed.
             if(FocusForChecks.HasValue) return Vector3.Lerp(origin,FocusForChecks.Value,.5f);
-            if(focusTarget!=null&&camera.CompareTag("MainCamera")) return Vector3.Lerp(origin,focusTarget.position,.5f);
-            // Editor/auxiliary cameras have no RTS orbit target. Intersect their central ray
-            // with the actual Terrain height, using two refinements and a bounded horizon fallback.
+            // Cover the foreground and viewed ground together. Intersect the central ray with
+            // actual Terrain height, using two refinements and a bounded horizon fallback.
             var direction=camera.transform.forward;
             if(direction.y>-.08f) return origin;
             Vector3 point=origin;

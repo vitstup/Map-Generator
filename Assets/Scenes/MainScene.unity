@@ -3970,6 +3970,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.MapWorkbench
   generator: {fileID: 1113947856}
   mapBuilder: {fileID: 1968958947}
+  grassSystem: {fileID: 690129047}
   buildTerrainButton: {fileID: 579704016}
   globalOverlay: {fileID: 1509255470}
   cropImage: {fileID: 2025528273}
@@ -5174,7 +5175,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Grass.GrassSystem
   library: {fileID: 11400000, guid: 0db28e7111592924e95ce2ccdf85e222, type: 2}
   currentMap: {fileID: 1762455602}
-  focusTarget: {fileID: 1499704914}
   density: 0.9
   heightRange: {x: 0.22, y: 0.72}
   maximumSlope: 35
@@ -10809,11 +10809,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 1}
---- !u!4 &1499704914 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 4544566311847170299, guid: 07a83ef670067164fa3d02aa87d949aa, type: 3}
-  m_PrefabInstance: {fileID: 223138547}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1509255467
 GameObject:
   m_ObjectHideFlags: 0
@@ -14884,7 +14879,6 @@ MonoBehaviour:
   waterGenerator: {fileID: 1968958948}
   rockBuilder: {fileID: 1968958949}
   treeBuilder: {fileID: 1968958950}
-  grassSystem: {fileID: 690129047}
   builtRoot: {fileID: 1762455601}
   builtResources:
   - {fileID: 15600000, guid: f56c9c3647628444996e2642cf44b8fd, type: 2}

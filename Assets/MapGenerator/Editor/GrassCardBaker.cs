@@ -51,7 +51,7 @@ namespace TacticalMaps.Editor
                 }
                 var surface=new SurfaceData(new TerrainLayer[6],weights,Vector2.zero);
                 map=new MapData(new Texture2D[3],sizes,10,0,4000,Vector2Int.zero,grass:GrassCoverage.Generate(surface,CancellationToken.None));
-                system.Stage(map,root.transform);root.SetActive(true);
+                map.BuiltRoot=root.transform;root.SetActive(true);system.Build(map);
                 var cameraObject=new GameObject("GrassGroupBakeCamera");
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(cameraObject,scene);
                 var camera=cameraObject.AddComponent<Camera>();camera.enabled=false;camera.scene=scene;

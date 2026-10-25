@@ -14,6 +14,7 @@ namespace TacticalMaps.Testing
     {
         [SerializeField] private MapGenerator generator;
         [SerializeField, UnityEngine.Serialization.FormerlySerializedAs("terrainBuilder")] private MapBuilder mapBuilder;
+        [SerializeField] private TacticalMaps.Grass.GrassSystem grassSystem;
         [SerializeField] private UnityEngine.UI.Button buildTerrainButton;
         [SerializeField] private UnityEngine.UI.RawImage globalOverlay, cropImage;
         [SerializeField] private UnityEngine.UI.RawImage[] results;
@@ -151,9 +152,11 @@ namespace TacticalMaps.Testing
             try
             {
                 if (currentMap == null) { buildPending = true; Generate(); return; }
+                if (grassSystem == null) throw new InvalidOperationException("Назначьте GrassSystem в MapWorkbench.");
                 mapBuilder.Build(currentMap);
+                grassSystem.Build(currentMap);
                 buildPending = false; hasBuiltTerrain = true;
-                status.text = "Карта построена: 3 Terrain и вода · осмотр в Scene";
+                status.text = "Карта построена: 3 Terrain, вода и трава · осмотр в Scene";
             }
             catch (Exception e) { buildPending = false; status.text = "Ошибка построения: " + e.Message; Debug.LogException(e); }
         }

@@ -23,12 +23,18 @@ namespace TacticalMaps.Editor
                 if (view == null || builder == null) throw new InvalidOperationException("Map workbench and builder are required.");
                 TreeSetup.Configure(view.Generator, builder);
                 var map = view.Generator.Generate(view.SelectedPoint);
-                try { builder.Build(map); }
+                var grass = new SerializedObject(view).FindProperty("grassSystem").objectReferenceValue as TacticalMaps.Grass.GrassSystem;
+                try
+                {
+                    if (grass == null) throw new InvalidOperationException("Assign GrassSystem in MapWorkbench.");
+                    builder.Build(map); grass.Build(map);
+                }
                 catch { map.Release(); throw; }
                 const string folder = "Assets/MapGenerator/Generated/MapPreview";
                 Directory.CreateDirectory(folder); AssetDatabase.Refresh();
                 // Replace only files produced by this tool, after a successful transactional build.
                 for (int i = 0; i < 3; i++) Save(map.Heightmaps[i], folder + "/Heightmap" + (i + 1) + ".asset");
+                for (int i = 0; i < 3; i++) Save(grass.CurrentMap.Coverage[i], folder + "/GrassCoverage" + i + ".asset");
                 ConstructionSetup.SavePreviewResources(builder, folder, true);
                 view.DisplayResults(map); view.SyncControls();
                 EditorUtility.SetDirty(view); EditorUtility.SetDirty(builder);

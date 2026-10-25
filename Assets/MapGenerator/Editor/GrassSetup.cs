@@ -33,7 +33,7 @@ namespace TacticalMaps.Editor
             settings.FindProperty("meadowColor").colorValue=new Color(.32f,.43f,.19f);
             settings.FindProperty("dryColor").colorValue=new Color(.49f,.45f,.25f);
             settings.FindProperty("turfStrength").floatValue=1;
-            BindFocus(settings);settings.ApplyModifiedPropertiesWithoutUndo();
+            settings.ApplyModifiedPropertiesWithoutUndo();
             GrassTurfBaker.Bake();
             if(system.CurrentMap!=null) system.Attach(system.CurrentMap);
             EditorUtility.SetDirty(system); AssetDatabase.SaveAssets();
@@ -52,7 +52,7 @@ namespace TacticalMaps.Editor
             so.FindProperty("nearDistance").floatValue=84;
             so.FindProperty("chunksPreparedPerFrame").intValue=8;
             so.FindProperty("meadowDistance").floatValue=420;
-            BindFocus(so);so.ApplyModifiedPropertiesWithoutUndo();
+            so.ApplyModifiedPropertiesWithoutUndo();
             var built=system.CurrentMap; var weights=new float[3][,,];
             for(int i=0;i<3;i++) {var data=built.Terrains[i].terrainData;weights[i]=data.GetAlphamaps(0,0,data.alphamapWidth,data.alphamapHeight);}
             var surface=new SurfaceData(built.Terrains[0].terrainData.terrainLayers,weights,Vector2.zero);
@@ -81,7 +81,12 @@ namespace TacticalMaps.Editor
             var system = UnityEngine.Object.FindAnyObjectByType<GrassSystem>();
             if (system == null) system = new GameObject("GrassSystem").AddComponent<GrassSystem>();
             var so = new SerializedObject(system); so.FindProperty("library").objectReferenceValue = library; so.ApplyModifiedPropertiesWithoutUndo();
-            var bs = new SerializedObject(builder); bs.FindProperty("grassSystem").objectReferenceValue = system; bs.ApplyModifiedPropertiesWithoutUndo();
+            var view = UnityEngine.Object.FindAnyObjectByType<TacticalMaps.Testing.MapWorkbench>();
+            if (view != null)
+            {
+                var ui = new SerializedObject(view); ui.FindProperty("grassSystem").objectReferenceValue = system;
+                ui.ApplyModifiedPropertiesWithoutUndo(); EditorUtility.SetDirty(view);
+            }
             var terrains = new Terrain[3]; var weights = new float[3][,,]; var sizes = new Vector2[3];
             var names = new[] { "Terrain_Main", "Terrain_Surroundings", "Terrain_Horizon" };
             for (int i = 0; i < 3; i++)
@@ -95,8 +100,9 @@ namespace TacticalMaps.Editor
             var generator = UnityEngine.Object.FindAnyObjectByType<MapGenerator>();
             var map = new MapData(new Texture2D[3], sizes, terrains[0].terrainData.size.y,
                 generator != null ? generator.Settings.SeaLevelMeters : 0, 4000, Vector2Int.zero, surface: surface, grass: cover);
-            var old = root.GetComponent<GrassMap>(); if (old != null) UnityEngine.Object.DestroyImmediate(old);
-            system.Stage(map, root); var built = root.GetComponent<GrassMap>();
+            map.BuiltRoot = root; // Editor-only adoption of an already saved construction preview.
+            system.Build(map); var built = root.GetComponent<GrassMap>();
+            map.Release();
             for (int i = 0; i < 3; i++) Save(built.Coverage[i], Folder + "/Coverage" + i + ".asset");
             system.Attach(built);
             foreach (var t in terrains) EditorUtility.SetDirty(t.materialTemplate);
@@ -121,16 +127,6 @@ namespace TacticalMaps.Editor
             so.FindProperty("compute").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/GrassCulling.compute");
             so.FindProperty("flowerField").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/GrassFlowerField.compute");
             so.ApplyModifiedPropertiesWithoutUndo(); return library;
-        }
-        private static void BindFocus(SerializedObject settings)
-        {
-            foreach(var behaviour in UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
-            {
-                if(behaviour.GetType().Name!="RTSCameraController") continue;
-                var target=new SerializedObject(behaviour).FindProperty("target");
-                if(target!=null) settings.FindProperty("focusTarget").objectReferenceValue=target.objectReferenceValue;
-                break;
-            }
         }
         private static Mesh EnsureMesh(string name, int blades, bool bent) => GrassMeshFactory.Ensure(Folder + "/" + name + ".asset", bent);
         private static void Save(Texture2D texture, string path)

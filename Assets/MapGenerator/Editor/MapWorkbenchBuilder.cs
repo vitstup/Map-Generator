@@ -51,6 +51,14 @@ namespace TacticalMaps.Editor
             ConstructionSetup.Configure(mapBuilder);
             TreeSetup.Configure(generator, mapBuilder);
             SetReference(w, "mapBuilder", mapBuilder);
+            var grass = UnityEngine.Object.FindAnyObjectByType<TacticalMaps.Grass.GrassSystem>();
+            if (grass == null)
+            {
+                grass = new GameObject("GrassSystem").AddComponent<TacticalMaps.Grass.GrassSystem>();
+                Undo.RegisterCreatedObjectUndo(grass.gameObject, "Create grass system");
+                SetReference(grass, "library", GrassSetup.EnsureLibrary());
+            }
+            SetReference(w, "grassSystem", grass);
             UnityEngine.UI.RawImage globalOverlay;
             UnityEngine.UI.RawImage cropImage;
             UnityEngine.UI.RawImage[] results;
