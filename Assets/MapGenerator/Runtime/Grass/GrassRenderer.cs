@@ -19,10 +19,11 @@ namespace TacticalMaps.Grass
         private static readonly ProfilingSampler prepareSampler=new ProfilingSampler("Grass.PreparePlants");
         private static readonly ProfilingSampler cullSampler=new ProfilingSampler("Grass.CullPlants");
         private readonly float[] birthUpload = new float[1];
-        private readonly GraphicsBuffer[] visible = new GraphicsBuffer[3], arguments = new GraphicsBuffer[3];
-        private readonly MaterialPropertyBlock[] properties = { new MaterialPropertyBlock(), new MaterialPropertyBlock(), new MaterialPropertyBlock() };
-        private readonly Mesh[] renderMeshes = new Mesh[3];
-        private readonly Material preparedMaterial, headsMaterial;
+        private readonly GraphicsBuffer[] visible = new GraphicsBuffer[4], arguments = new GraphicsBuffer[4];
+        private readonly MaterialPropertyBlock[] properties = { new MaterialPropertyBlock(), new MaterialPropertyBlock(), new MaterialPropertyBlock(), new MaterialPropertyBlock() };
+        private readonly Mesh[] renderMeshes = new Mesh[4];
+        private readonly GraphicsBuffer[][] drawInputs=new GraphicsBuffer[4][];
+        private readonly Material preparedMaterial, headsMaterial, sparseMaterial, cardsMaterial;
         private readonly Dictionary<Vector2Int, int> slots = new Dictionary<Vector2Int, int>();
         private readonly List<Vector2Int> wanted = new List<Vector2Int>();
         private readonly HashSet<Vector2Int> wantedSet = new HashSet<Vector2Int>();
@@ -36,17 +37,17 @@ namespace TacticalMaps.Grass
         private Vector3 lastPosition,lastFocus;
         private Quaternion lastRotation;
         private Matrix4x4 lastProjection;
-        private int lastPixelHeight,lastTopology,lastTransition;
+        private int lastPixelHeight,lastTopology,lastTransition,lastOptimization;
         private Vector2Int wantedCenter;
         private int wantedRadius = -1;
         private bool validVisibility;
-        private bool referenceGeometry;
+        private bool referenceGeometry, reducedCards;
         private int preparedFrame = -1;
         internal int Revision { get; }
         internal int ResidentCount => slots.Count;
         internal int Draws { get; private set; }
         internal float LastUsed { get; private set; }
-        internal long BufferBytes => (long)capacity * perSlot * (pool==0?60:pool==1?56:36) + capacity * 8 + (pool==2?8:24) + 3 * GraphicsBuffer.IndirectDrawIndexedArgs.size;
+        internal long BufferBytes => (long)capacity * perSlot * (pool==0?64:pool==1?60:36) + capacity * 8 + (pool==0?24:pool==1?28:12) + 4 * GraphicsBuffer.IndirectDrawIndexedArgs.size;
 
         internal GrassRenderer(GrassLibrary assets, GrassMap source, int chunk, int samples, int maximum, int revision, int poolIndex)
         {
@@ -71,21 +72,30 @@ namespace TacticalMaps.Grass
                     if(pool==1)preparedMaterial.EnableKeyword("GRASS_UNDERSTOREY");
                     headsMaterial=new Material(preparedMaterial){name="Prepared flower heads",hideFlags=HideFlags.HideAndDontSave};
                     headsMaterial.EnableKeyword("GRASS_HEADS");
+                    sparseMaterial=new Material(preparedMaterial){name="Sparse grass patches",hideFlags=HideFlags.HideAndDontSave};
+                    sparseMaterial.EnableKeyword("GRASS_SPARSE");
                     prepared=new GraphicsBuffer(GraphicsBuffer.Target.Structured,capacity*perSlot,16);
-                    frameCounts=new GraphicsBuffer(GraphicsBuffer.Target.Raw,2,4);
+                    frameCounts=new GraphicsBuffer(GraphicsBuffer.Target.Raw,3,4);
                     frameDispatch=new GraphicsBuffer(GraphicsBuffer.Target.Raw|GraphicsBuffer.Target.IndirectArguments,3,4);
                     frameKernel=compute.FindKernel("PrepareFrame");frameArgsKernel=compute.FindKernel("FrameArguments");
                     renderMeshes[0]=GrassLibrary.CreatePartMesh(library.Mesh(0),false);
                     renderMeshes[1]=GrassLibrary.CreatePartMesh(pool==0?library.Simplified:library.Mesh(1),false);
                     renderMeshes[2]=GrassLibrary.CreatePartMesh(library.Mesh(pool==0?0:1),true);
+                    renderMeshes[3]=GrassLibrary.CreatePartMesh(pool==0?library.Simplified:library.Mesh(1),false,true,pool==1);
                 }
-                for (int lod = 0; lod < 3; lod++)
+                if(pool==2)
                 {
-                    visible[lod] = new GraphicsBuffer(GraphicsBuffer.Target.Append, (lod==2?pool<2:pool==0||lod==1)?capacity*perSlot:1, 4);
+                    cardsMaterial=new Material(library.CardsMaterial){name="View grass cards",hideFlags=HideFlags.HideAndDontSave};
+                    renderMeshes[3]=GrassLibrary.CreateReducedCards(library.CardsMesh);
+                }
+                for (int lod = 0; lod < 4; lod++)
+                {
+                    visible[lod] = new GraphicsBuffer(GraphicsBuffer.Target.Append, (lod>=2?pool<2:pool==0||lod==1)?capacity*perSlot:1, 4);
                     arguments[lod] = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
                     var mesh = Mesh(lod);
                     arguments[lod].SetData(new[] { new GraphicsBuffer.IndirectDrawIndexedArgs
                     { indexCountPerInstance = mesh.GetIndexCount(0), startIndex = mesh.GetIndexStart(0), baseVertexIndex = mesh.GetBaseVertex(0) } });
+                    drawInputs[lod]=pool<2?new[]{instances,births,visible[lod],prepared}:new[]{instances,births,visible[lod]};
                     properties[lod].SetBuffer("_GrassInstances", instances); properties[lod].SetBuffer("_VisibleGrass", visible[lod]);
                     properties[lod].SetInt("_GrassLod", lod);
                     properties[lod].SetInt("_GrassPool", pool);
@@ -105,11 +115,12 @@ namespace TacticalMaps.Grass
                 compute.SetBuffer(generateKernel, "_Instances", instances); compute.SetBuffer(cullKernel, "_Instances", instances);
                 compute.SetBuffer(cullKernel, "_ActiveSlots", activeSlots);
                 compute.SetBuffer(cullKernel, "_Near", visible[0]); compute.SetBuffer(cullKernel, "_Middle", visible[1]);
-                compute.SetBuffer(cullKernel,"_Heads",visible[2]);
+                compute.SetBuffer(cullKernel,"_Heads",visible[2]);compute.SetBuffer(cullKernel,"_Sparse",visible[3]);
                 if(pool<2)
                 {
                     compute.SetBuffer(frameArgsKernel,"_FrameCounts",frameCounts);compute.SetBuffer(frameArgsKernel,"_FrameDispatch",frameDispatch);
                     compute.SetBuffer(frameKernel,"_FrameCounts",frameCounts);compute.SetBuffer(frameKernel,"_FrameNear",visible[0]);compute.SetBuffer(frameKernel,"_FrameMiddle",visible[1]);
+                    compute.SetBuffer(frameKernel,"_FrameSparse",visible[3]);
                     compute.SetBuffer(frameKernel,"_Instances",instances);compute.SetBuffer(frameKernel,"_Prepared",prepared);
                 }
                 compute.SetInt("_Axis", axis); compute.SetInt("_PerSlot", perSlot); compute.SetFloat("_ChunkSize", cell);
@@ -159,17 +170,20 @@ namespace TacticalMaps.Grass
             compute.SetVector("_GrassFlowers",flowers);compute.SetInt("_GrassFlowerCount",s.FlowerCount);
             compute.SetVectorArray("_GrassFlowerColors",s.FlowerColors);
             compute.SetInt("_ReferenceGeometry",s.Reference?1:0);
-            if(referenceGeometry!=s.Reference)
+            compute.SetInt("_Optimization",s.BakeMode>0?0:s.Optimization);
+            bool cardsChanged=pool==2&&reducedCards!=(!s.Reference&&(s.Optimization&8)!=0&&s.BakeMode==0);
+            reducedCards=!s.Reference&&(s.Optimization&8)!=0&&s.BakeMode==0;
+            if(referenceGeometry!=s.Reference||cardsChanged)
             {
                 referenceGeometry=s.Reference;validVisibility=false;
-                for(int i=0;pool<2&&i<3;i++)
+                for(int i=0;i<4;i++)
                 {
                     var mesh=Mesh(i);
                     arguments[i].SetData(new[]{new GraphicsBuffer.IndirectDrawIndexedArgs
                     {indexCountPerInstance=mesh.GetIndexCount(0),startIndex=mesh.GetIndexStart(0),baseVertexIndex=mesh.GetBaseVertex(0)}});
                 }
             }
-            bool changed = !validVisibility || lastTopology!=s.CheckTopology || lastTransition!=s.TransitionCheck || lastFocus!=s.Focus || lastPosition != camera.transform.position || lastRotation != camera.transform.rotation || lastProjection != camera.projectionMatrix || lastPixelHeight != camera.pixelHeight;
+            bool changed = !validVisibility || lastOptimization!=s.Optimization || lastTopology!=s.CheckTopology || lastTransition!=s.TransitionCheck || lastFocus!=s.Focus || lastPosition != camera.transform.position || lastRotation != camera.transform.rotation || lastProjection != camera.projectionMatrix || lastPixelHeight != camera.pixelHeight;
             // Every render in Edit Mode may have the same Time.frameCount. Only Game views use the frame guard.
             if (!Application.isPlaying || preparedFrame != Time.frameCount)
             {
@@ -203,8 +217,8 @@ namespace TacticalMaps.Grass
                     work.DispatchCompute(compute,cullKernel,(count*perSlot+63)/64,1,1);
                     cullSampler.End(work);Graphics.ExecuteCommandBuffer(work);
                 }
-                for (int i = 0; i < 3; i++) GraphicsBuffer.CopyCount(visible[i], arguments[i], countOffset);
-                lastTransition=s.TransitionCheck;lastTopology=s.CheckTopology;lastFocus=s.Focus; lastPosition = camera.transform.position; lastRotation = camera.transform.rotation; lastProjection = camera.projectionMatrix; lastPixelHeight = camera.pixelHeight; validVisibility = true;
+                for (int i = 0; i < 4; i++) GraphicsBuffer.CopyCount(visible[i], arguments[i], countOffset);
+                lastOptimization=s.Optimization;lastTransition=s.TransitionCheck;lastTopology=s.CheckTopology;lastFocus=s.Focus; lastPosition = camera.transform.position; lastRotation = camera.transform.rotation; lastProjection = camera.projectionMatrix; lastPixelHeight = camera.pixelHeight; validVisibility = true;
             }
             float frameTime=Application.isPlaying?Time.time:Time.realtimeSinceStartup;
             if(pool<2&&!s.Reference&&(changed||s.Wind.x>0))
@@ -213,7 +227,7 @@ namespace TacticalMaps.Grass
                 work.Clear();prepareSampler.Begin(work);
                 if(changed)
                 {
-                    GraphicsBuffer.CopyCount(visible[0],frameCounts,0);GraphicsBuffer.CopyCount(visible[1],frameCounts,4);
+                    GraphicsBuffer.CopyCount(visible[0],frameCounts,0);GraphicsBuffer.CopyCount(visible[1],frameCounts,4);GraphicsBuffer.CopyCount(visible[3],frameCounts,8);
                     work.DispatchCompute(compute,frameArgsKernel,1,1,1);
                 }
                 compute.SetVector("_FrameWind",new Vector4(frameTime,s.Wind.y,s.Seed,0));
@@ -247,16 +261,22 @@ namespace TacticalMaps.Grass
             }
             var world = map.Terrains[2]; var outer = world.terrainData.size;
             var allBounds = new Bounds(world.transform.position + outer * .5f, outer + Vector3.one * 8);
-            for (int i = pool==0?0:1; i < (pool<2&&!s.Reference?3:2); i++)
+            for (int i = pool==0?0:1; i < (pool<2&&!s.Reference?4:2); i++)
             {
                 if(i==2&&(s.Flowers.x<=0||s.FlowerCount==0))continue;
-                var rp = new RenderParams(pool==2?library.CardsMaterial:s.Reference?library.Material:i==2?headsMaterial:preparedMaterial) { camera = camera, layer = s.Layer, worldBounds = allBounds,
+                var material=pool==2?cardsMaterial:s.Reference?library.Material:i==2?headsMaterial:i==3?sparseMaterial:preparedMaterial;
+                if(pool==2){if(reducedCards)material.EnableKeyword("GRASS_REDUCED_CARDS");else material.DisableKeyword("GRASS_REDUCED_CARDS");}
+                if(s.Request!=null)
+                {
+                    s.Request.Draws.Add(new GrassRenderFeature.Draw{Mesh=Mesh(i),Material=material,Arguments=arguments[i],Properties=properties[i],Inputs=drawInputs[i]});Draws++;continue;
+                }
+                var rp = new RenderParams(material) { camera = camera, layer = s.Layer, worldBounds = allBounds,
                     matProps = properties[i], shadowCastingMode = ShadowCastingMode.Off, receiveShadows = true,
                     lightProbeUsage = LightProbeUsage.Off, reflectionProbeUsage = ReflectionProbeUsage.Off };
                 Graphics.RenderMeshIndirect(rp, Mesh(i), arguments[i]); Draws++;
             }
         }
-        private Mesh Mesh(int lod) => pool==2?library.CardsMesh:referenceGeometry&&lod<2?(pool==0&&lod==1?library.Simplified:library.Mesh(lod)):renderMeshes[lod];
+        private Mesh Mesh(int lod) => pool==2?(reducedCards?renderMeshes[3]:library.CardsMesh):referenceGeometry&&lod<2?(pool==0&&lod==1?library.Simplified:library.Mesh(lod)):renderMeshes[lod];
         private bool Prepare(Camera camera, GrassRenderSettings s)
         {
             var center = new Vector2Int(Mathf.FloorToInt(s.Focus.x / cell), Mathf.FloorToInt(s.Focus.z / cell));
@@ -312,7 +332,8 @@ namespace TacticalMaps.Grass
         internal uint[] ReadCounts()
         {
             var result = new uint[2]; var args = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
-            for (int i = 0; i < 2; i++) { arguments[i].GetData(args); result[i] = args[0].instanceCount; } return result;
+            for (int i = 0; i < 2; i++) { arguments[i].GetData(args); result[i] = args[0].instanceCount; }
+            if(pool<2){arguments[3].GetData(args);result[1]+=args[0].instanceCount;} return result;
         }
         internal uint ReadHeadCount()
         {
@@ -342,6 +363,7 @@ namespace TacticalMaps.Grass
         internal Dictionary<uint,int> ReadLodMembershipForChecks()
         {
             var result=new Dictionary<uint,int>();var counts=ReadCounts();
+            if(pool<2){var a=new GraphicsBuffer.IndirectDrawIndexedArgs[1];arguments[3].GetData(a);uint sparse=a[0].instanceCount;counts[1]-=sparse;var ids=new uint[(int)sparse];if(sparse>0)visible[3].GetData(ids);foreach(var id in ids)result.Add(id,1);}
             for(int lod=0;lod<2;lod++)
             {
                 var indices=new uint[(int)counts[lod]];
@@ -359,6 +381,8 @@ namespace TacticalMaps.Grass
             foreach(var mesh in renderMeshes)GrassMap.Dispose(mesh);
             GrassMap.Dispose(preparedMaterial);
             GrassMap.Dispose(headsMaterial);
+            GrassMap.Dispose(sparseMaterial);
+            GrassMap.Dispose(cardsMaterial);
             GrassMap.Dispose(compute);
         }
     }

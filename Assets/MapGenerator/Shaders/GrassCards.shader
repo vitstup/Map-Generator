@@ -5,6 +5,7 @@ Shader "TacticalMaps/Grass/DistantCards"
         Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="TransparentCutout" "Queue"="AlphaTest" }
         Cull Off ZWrite On
         HLSLINCLUDE
+        #pragma multi_compile_local _ GRASS_REDUCED_CARDS
         #pragma target 4.5
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -83,6 +84,9 @@ Shader "TacticalMaps/Grass/DistantCards"
             float2 anchor=instance.positionHeight.xz;
             float card=input.meta.x,top=input.meta.y;
             float angle=instance.variation.x+card*1.047198;
+#if defined(GRASS_REDUCED_CARDS)
+            if(top<.5)angle=instance.variation.x+card*.785398163;
+#endif
             float2 right=float2(cos(angle),sin(angle)),forward=float2(-right.y,right.x);
             float scale=instance.positionHeight.w;
             float2 offset;
@@ -90,6 +94,9 @@ Shader "TacticalMaps/Grass/DistantCards"
             if(top<.5)
             {
                 offset=right*(input.uv.x-.5)*3.2*scale+forward*(card-1)*.27;
+#if defined(GRASS_REDUCED_CARDS)
+                offset+=right*(input.uv.x-.5)*.64*scale;
+#endif
                 elevation=input.uv.y*1.1*scale;
             }
             else
@@ -165,7 +172,7 @@ Shader "TacticalMaps/Grass/DistantCards"
             n=normalize(half3(n.x*.55,max(n.y,.45),n.z*.55));
             return normalize(half3(i.rotation.x*n.x-i.rotation.y*n.z,n.y,i.rotation.y*n.x+i.rotation.x*n.z));
         }
-        half4 Frag(Varyings i):SV_Target
+        half4 Shade(Varyings i)
         {
             float4 flower;
             half4 tex=SampleAndClip(i,flower);
@@ -186,6 +193,15 @@ Shader "TacticalMaps/Grass/DistantCards"
                 color=lerp(color,flower.rgb*GrassCanopyLighting(_GrassAmbientSky.rgb,light.color,light.direction,light.shadowAttenuation),flower.a);
             return half4(MixFog(color,ComputeFogFactor(TransformWorldToHClip(i.world).z)),1);
         }
+        half4 Frag(Varyings i):SV_Target
+        {
+            return Shade(i);
+        }
+        struct LitNormalOutput { half4 color:SV_Target0; half4 normal:SV_Target1; };
+        LitNormalOutput LitNormals(Varyings i)
+        {
+            LitNormalOutput o;o.color=Shade(i);o.normal=half4(CardNormal(i),0);return o;
+        }
         half4 Depth(Varyings i):SV_Target { float4 flower; SampleAndClip(i,flower); return 0; }
         half4 Normals(Varyings i):SV_Target { float4 flower; SampleAndClip(i,flower); return half4(CardNormal(i),0); }
         ENDHLSL
@@ -195,6 +211,17 @@ Shader "TacticalMaps/Grass/DistantCards"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
+            #pragma multi_compile_fog
+            ENDHLSL
+        }
+        Pass
+        {
+            Name "GrassLitNormals" Tags { "LightMode"="GrassLitNormals" }
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment LitNormals
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile_fog

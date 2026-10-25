@@ -35,8 +35,17 @@ namespace TacticalMaps.Grass
         internal Texture2D TurfNormal => turfNormal;
         internal bool Valid => nearMesh != null && middleMesh != null && simplifiedMesh != null && material != null && compute != null;
 
+        internal static Mesh CreateReducedCards(Mesh source)
+        {
+            var mesh=Instantiate(source);mesh.name=source.name+" eight triangles";mesh.hideFlags=HideFlags.HideAndDontSave;
+            var sourceIndices=source.triangles;var meta=source.uv2;var indices=new List<int>();
+            for(int i=0;i<sourceIndices.Length;i+=3)
+                if(Mathf.RoundToInt(meta[sourceIndices[i]].x)!=1)
+                    indices.AddRange(new[]{sourceIndices[i],sourceIndices[i+1],sourceIndices[i+2]});
+            mesh.SetTriangles(indices,0);mesh.bounds=source.bounds;return mesh;
+        }
         // Compact templates owned by a view; authoring meshes and reference bakes stay intact.
-        internal static Mesh CreatePartMesh(Mesh source, bool heads)
+        internal static Mesh CreatePartMesh(Mesh source, bool heads, bool sparse = false, bool meadow = false)
         {
             var positions=source.vertices;var uv=source.uv;var meta=source.uv2;var indices=source.triangles;
             var remap=new Dictionary<int,int>();var vertices=new List<Vector3>();
@@ -44,6 +53,8 @@ namespace TacticalMaps.Grass
             for(int i=0;i<indices.Length;i+=3)
             {
                 if((meta[indices[i]].y>.5f)!=heads)continue;
+                int blade=Mathf.RoundToInt(meta[indices[i]].x);
+                if(sparse && (meadow ? (blade>=3&&blade<=13&&blade%2==1)||(blade>=19&&blade<=29&&blade%2==1) : blade%2==1))continue;
                 for(int j=0;j<3;j++)
                 {
                     int old=indices[i+j];
@@ -55,7 +66,7 @@ namespace TacticalMaps.Grass
                     triangles.Add(index);
                 }
             }
-            var mesh=new Mesh {name=source.name+(heads?" heads":" blades"),hideFlags=HideFlags.HideAndDontSave};
+            var mesh=new Mesh {name=source.name+(heads?" heads":sparse?" sparse blades":" blades"),hideFlags=HideFlags.HideAndDontSave};
             mesh.SetVertices(vertices);mesh.SetUVs(0,coords);mesh.SetUVs(1,parts);mesh.SetUVs(2,coefficients);mesh.SetTriangles(triangles,0);
             mesh.bounds=source.bounds;mesh.UploadMeshData(false);return mesh;
         }

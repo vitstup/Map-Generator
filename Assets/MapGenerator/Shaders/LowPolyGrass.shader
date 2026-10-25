@@ -8,6 +8,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         HLSLINCLUDE
         #pragma target 4.5
         #pragma multi_compile_local _ GRASS_PREPARED
+        #pragma multi_compile_local _ GRASS_SPARSE
         #pragma multi_compile_local _ GRASS_HEADS
         #pragma multi_compile_local _ GRASS_UNDERSTOREY
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -165,6 +166,9 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
                 }
                 height*=lerp(1.15,1,nearCover);
             }
+#if defined(GRASS_SPARSE)
+            width*=GRASS_POOL==0?2:1.6;
+#endif
             if(flower&&part<.5) {height=stemHeight;width=GRASS_POOL==0?.009:.013;reach=0;root=flowerRoot;}
             float morph=GRASS_POOL==0?detail:1;
 #if defined(GRASS_PREPARED)
@@ -271,9 +275,8 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             float noise=GrassHash(floor(input.positionCS.xy)+input.noiseSeed);
             clip(input.fade-noise);
         }
-        half4 Frag(Varyings input):SV_Target
+        half4 Shade(Varyings input)
         {
-            Fade(input);
             if(_GrassBakeMode>2.5) return half4(input.petal.xxx,1);
             if(_GrassBakeMode>1.5) return half4(normalize(input.normal).xzy*.5+.5,1);
             if(_GrassBakeMode>.5) return half4(input.color,1);
@@ -290,6 +293,16 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             color=lerp(color,input.color*GrassCanopyLighting(_GrassAmbientSky.rgb,light.color,light.direction,light.shadowAttenuation),input.canopy*.85);
             return half4(MixFog(color,input.fog),1);
         }
+        half4 Frag(Varyings input):SV_Target
+        {
+            Fade(input);
+            return Shade(input);
+        }
+        struct LitNormalOutput { half4 color:SV_Target0; half4 normal:SV_Target1; };
+        LitNormalOutput LitNormals(Varyings input)
+        {
+            Fade(input); LitNormalOutput o; o.color=Shade(input);o.normal=half4(normalize(input.normal),0);return o;
+        }
         half4 Depth(Varyings input):SV_Target { Fade(input); return 0; }
         ENDHLSL
         Pass
@@ -298,6 +311,17 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
+            #pragma multi_compile_fog
+            ENDHLSL
+        }
+        Pass
+        {
+            Name "GrassLitNormals" Tags { "LightMode"="GrassLitNormals" }
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment LitNormals
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile_fog

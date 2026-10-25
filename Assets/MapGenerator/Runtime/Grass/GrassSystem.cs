@@ -89,6 +89,8 @@ namespace TacticalMaps.Grass
         internal int TransitionForChecks { get; set; }
         internal int GeometryMaskForChecks { get; set; } = 7;
         internal bool ReferenceRenderingForChecks { get; set; }
+        // Bits: small near patches (1), small meadow patches (2), reduced cards (8), combined pass (64).
+        internal int OptimizationForChecks { get; set; } = 75;
         private bool suppressFlowers;
         internal bool SuppressFlowersForChecks { get=>suppressFlowers;set {suppressFlowers=value;ApplySurface(true);} }
         private Vector4 FlowerSettings => new Vector4(!showFlowers||suppressFlowers||flowerCount==0?0:flowerDensity,flowerPatchSize,flowerRadius,0);
@@ -244,7 +246,7 @@ namespace TacticalMaps.Grass
             if (renderer.Revision != revision) { ReleaseViews(); return; }
             renderer.Render(camera, new GrassRenderSettings
             {
-                CheckTopology=TopologyForChecks, TransitionCheck=TransitionForChecks, GeometryMask=GeometryMaskForChecks, Reference=ReferenceRenderingForChecks,
+                CheckTopology=TopologyForChecks, TransitionCheck=TransitionForChecks, GeometryMask=GeometryMaskForChecks, Reference=ReferenceRenderingForChecks, Optimization=OptimizationForChecks, Request=GrassRenderFeature.Begin(camera,OptimizationForChecks,BakeMode,ReferenceRenderingForChecks,renderer.RenderRequest),
                 Focus=ResolveFocus(camera), NearRange=new Vector2(nearDistance,geometryDistance),
                 Density = density, Heights = heightRange, Slope = maximumSlope, Shore = shoreClearanceHeight,
                 Seed = seed, Wind = new Vector2(freezeWind?0:windStrength, windSpeed), Meadow = meadowColor, Dry = dryColor,
@@ -295,6 +297,7 @@ namespace TacticalMaps.Grass
     }
     internal struct GrassRenderSettings
     {
+        internal GrassRenderFeature.Request Request;
         internal float Density, Slope, Shore, Distance, NearDistance, MinPixels, MiddleDensity;
         internal float MeadowDistance, DistantDistance;
         internal Vector4 BakeRegion;
@@ -305,7 +308,7 @@ namespace TacticalMaps.Grass
         internal Vector3 Focus;
         internal Color Meadow, Dry;
         internal int Seed, PrepareBudget, Debug, Layer;
-        internal int BakeMode, CheckTopology, TransitionCheck, GeometryMask;
+        internal int BakeMode, CheckTopology, TransitionCheck, GeometryMask, Optimization;
         internal bool Mature, SuppressCards, Reference;
     }
 
@@ -313,6 +316,7 @@ namespace TacticalMaps.Grass
     internal sealed class GrassView : IDisposable
     {
         private readonly GrassRenderer near, meadow, cards;
+        internal readonly GrassRenderFeature.Request RenderRequest=new();
         internal int Revision => near.Revision;
         internal float LastUsed => near.LastUsed;
         internal int ResidentCount => near.ResidentCount + meadow.ResidentCount + (cards?.ResidentCount ?? 0);

@@ -10,6 +10,8 @@ StructuredBuffer<uint> _ActiveSlots;
 AppendStructuredBuffer<uint> _Near;
 AppendStructuredBuffer<uint> _Middle;
 AppendStructuredBuffer<uint> _Heads;
+AppendStructuredBuffer<uint> _Sparse;
+int _Optimization;
 Texture2D<float> _Height0, _Height1, _Height2;
 Texture2D<float4> _Coverage0, _Coverage1, _Coverage2;
 Texture2D<float> _Holes0, _Holes1, _Holes2;
@@ -26,22 +28,22 @@ int _ReferenceGeometry;
 uint _Axis, _PerSlot, _Slot, _ActiveCount;
 float _ChunkSize;
 RWStructuredBuffer<uint4> _Prepared;
-StructuredBuffer<uint> _FrameNear, _FrameMiddle;
+StructuredBuffer<uint> _FrameNear, _FrameMiddle, _FrameSparse;
 RWByteAddressBuffer _FrameCounts, _FrameDispatch;
 float4 _FrameWind, _FrameMeadow, _FrameDry, _FrameNearRange;
 
 [numthreads(1,1,1)]
 void FrameArguments(uint3 dispatch:SV_DispatchThreadID)
 {
-    uint count=_FrameCounts.Load(0)+_FrameCounts.Load(4);
+    uint count=_FrameCounts.Load(0)+_FrameCounts.Load(4)+_FrameCounts.Load(8);
     _FrameDispatch.Store3(0,uint3(max(1u,(count+63)/64),1,1));
 }
 [numthreads(64,1,1)]
 void PrepareFrame(uint3 dispatch:SV_DispatchThreadID)
 {
-    uint n=_FrameCounts.Load(0),count=n+_FrameCounts.Load(4),i=dispatch.x;
+    uint n=_FrameCounts.Load(0),m=_FrameCounts.Load(4),count=n+m+_FrameCounts.Load(8),i=dispatch.x;
     if(i>=count)return;
-    uint index=i<n?_FrameNear[i]:_FrameMiddle[i-n];
+    uint index=i<n?_FrameNear[i]:i<n+m?_FrameMiddle[i-n]:_FrameSparse[i-n-m];
     GrassInstance instance=_Instances[index];float2 anchor=instance.positionHeight.xz;
     float cluster=GrassNoise(anchor/2.3+_FrameWind.z*.01);
     uint family=cluster<.33?0:cluster<.66?1:2;
@@ -188,8 +190,11 @@ void Cull(uint3 dispatch : SV_DispatchThreadID)
         float detailed=GrassDetailWeight(pixels/GrassLodBias(instance.positionHeight.xz,_PlantRules.w));
         if(_ReferenceGeometry!=0)detailed=smoothstep(4,7,pixels/GrassLodBias(instance.positionHeight.xz,_PlantRules.w)*1.5);
         // At zero morph the subdivided blade is exactly the single triangle. No double draw.
-        if(_TopologyCheck==1||(_TopologyCheck==0&&detailed>0)) _Near.Append(index); else _Middle.Append(index);
+        if(_TopologyCheck==1||(_TopologyCheck==0&&detailed>0)) _Near.Append(index);
+        else if(_ReferenceGeometry==0&&(_Optimization&1)!=0&&_TopologyCheck==0&&pixels/GrassLodBias(instance.positionHeight.xz,_PlantRules.w)<4.5) _Sparse.Append(index);
+        else _Middle.Append(index);
     }
+    else if(_Pool==1&&_ReferenceGeometry==0&&(_Optimization&2)!=0&&height*2.6*_Projection.x/(_Projection.y>.5?1:viewDepth)<3.5) _Sparse.Append(index);
     else _Middle.Append(index);
     if(_Pool<2&&_GrassFlowers.x>0&&_ReferenceGeometry==0)
     {
