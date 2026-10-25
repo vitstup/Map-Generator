@@ -10,6 +10,9 @@ float4 GrassFlowerStampLegacyLevel(float3 world,float seed,float spacing,float p
     float visibility=smoothstep(65,140,distanceToCamera);
     if(visibility<=0)return 0;
     float4 positionCS=TransformWorldToHClip(world);
+    // A grazing card-to-canopy ray can intersect behind the eye. Dividing by
+    // negative w mirrors that point onto the image and creates a bright stripe.
+    if(positionCS.w<=.01)return 0;
     float2 screen=positionCS.xy/positionCS.w*_ScreenParams.xy*.5;
     float pixelsPerMetre=_ScreenParams.y*.5*abs(UNITY_MATRIX_P._m11)/(unity_OrthoParams.w>.5?1:max(.1,positionCS.w));
     float2 cell=floor(world.xz/spacing);
@@ -29,6 +32,7 @@ float4 GrassFlowerStampLegacyLevel(float3 world,float seed,float spacing,float p
         if(GrassHash(donor+191.7+seed)>=permission)continue;
         int species=GrassFlowerSpecies(center,seed),form=GrassFlowerForm(species);
         float4 centerCS=TransformWorldToHClip(float3(center.x,world.y,center.y));
+        if(centerCS.w<=.01)continue;
         float2 delta=screen-centerCS.xy/centerCS.w*_ScreenParams.xy*.5;
         float nominal=_GrassFlowers.z*GrassFlowerSize(species)*pixelsPerMetre;
         // Keep a head readable, not a broad color wash. Bound its enlargement.
@@ -84,7 +88,9 @@ float4 GrassFlowerStampCachedLevel(float3 world,float seed,float permission,int 
     if((code&31u)/30.0>=permission)return float4(0,0,0,0);
     float2 center=rect.xy+(cell+.5+(data.rg-.5)*4)*rect.z;
     float4 positionCS=TransformWorldToHClip(world);
+    if(positionCS.w<=.01)return 0;
     float4 centerCS=TransformWorldToHClip(float3(center.x,world.y,center.y));
+    if(centerCS.w<=.01)return 0;
     float2 delta=(positionCS.xy/positionCS.w-centerCS.xy/centerCS.w)*_ScreenParams.xy*.5;
     float ppm=_ScreenParams.y*.5*abs(UNITY_MATRIX_P._m11)/(unity_OrthoParams.w>.5?1:max(.1,positionCS.w));
     float nominal=_GrassFlowers.z*GrassFlowerSize(species)*ppm;
