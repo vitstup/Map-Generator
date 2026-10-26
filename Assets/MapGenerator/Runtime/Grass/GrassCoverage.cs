@@ -13,7 +13,7 @@ namespace TacticalMaps.Grass
 
         internal void ExcludeAgriculture(AgricultureData agriculture, Vector2[] sizes)
         {
-            if (agriculture == null) return;
+            if (agriculture == null || agriculture.Fields.Length == 0 && agriculture.Farms.Length == 0 && agriculture.Tracks.Length == 0) return;
             for (int l = 0; l < 3; l++)
             {
                 int n = Resolutions[l];

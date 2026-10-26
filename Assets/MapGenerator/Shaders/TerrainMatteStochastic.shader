@@ -5,6 +5,13 @@ Shader "TacticalMaps/Terrain/MatteStochastic"
     Properties
     {
         [HideInInspector] _FarmMap("Farm parcels", 2D) = "black" {}
+        [HideInInspector] _FarmVersion("Farm layout version", Float) = 0
+        [HideInInspector] _FarmSoilNormal("Farm soil normals", 2D) = "bump" {}
+        [HideInInspector] _FarmPages("Farm distance pages", 2D) = "black" {}
+        [HideInInspector] _FarmProfiles("Farm parcel profiles", 2D) = "black" {}
+        [HideInInspector] _FarmDistances("Farm distance tiles", 2DArray) = "" {}
+        [HideInInspector] _FarmDetailGrid("Farm detail grid", Vector) = (0,0,1,1)
+        [HideInInspector] _FarmCenter("Farm center", Vector) = (0,0,0,0)
         [HideInInspector] _FarmSoil("Farm soil", 2D) = "gray" {}
         [HideInInspector] _FarmRect("Farm bounds", Vector) = (0,0,1,1)
         [HideInInspector] _FarmEnabled("Farm surface enabled", Float) = 0

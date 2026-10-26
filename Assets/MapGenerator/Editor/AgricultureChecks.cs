@@ -26,6 +26,7 @@ namespace TacticalMaps.Editor
                 Require(first.Fields.Length > 20 && first.Farms.Length > 0, "Populated flat agricultural landscape");
                 Require(first.Fields.SequenceEqual(second.Fields) && first.Farms.SequenceEqual(second.Farms), "Deterministic districts, fields and farms");
                 Require(first.Fields.Any(f => f.crop == 3) && first.Fields.Any(f => f.crop == 0), "Rice paddies and fallow fields");
+                Require(first.Fields.Max(f => f.halfSize.x * f.halfSize.y) > first.Fields.Min(f => f.halfSize.x * f.halfSize.y) * 2, "Substantial parcel size variation");
                 for (int l = 0; l < 3; l++) Require(first.Masks[l].SequenceEqual(second.Masks[l]), "Deterministic masks on terrain " + l);
                 input.Roads = new RoadData(new[] { new RoadSegment(new Vector2(-1024, 0), new Vector2(1024, 0), 8, 1) }, input.Sizes[2], 2, 2);
                 var roads = input.Render(CancellationToken.None);
@@ -33,8 +34,8 @@ namespace TacticalMaps.Editor
                 foreach (var f in roads.Farms) Require(!input.Roads.Blocks(f.center, 24), "Farmyard excludes roads");
                 foreach (var track in roads.Tracks)
                 {
-                    for (int s = 0; s <= 20; s++) Require(!roads.Fields.Any(f => f.Contains(Vector2.Lerp(track.a, track.b, s / 20f), 1)), "Access tracks avoid fields");
-                    Require(roads.Blocks((track.a + track.b) * .5f), "Access track exclusion query");
+                    for (int s = 0; s <= 20; s++) Require(!roads.Fields.Any(f => f.Contains(track.Point(s / 20f), 1)), "Access tracks avoid fields");
+                    Require(roads.Blocks(track.Point(.5f)), "Access track exclusion query");
                 }
                 var coverage = new TacticalMaps.Grass.GrassCoverage(new[] { Enumerable.Repeat(new Color32(255, 0, 0, 255), 256 * 256).ToArray(), Enumerable.Repeat(new Color32(255, 0, 0, 255), 256 * 256).ToArray(), Enumerable.Repeat(new Color32(255, 0, 0, 255), 256 * 256).ToArray() }, new[] { 256, 256, 256 });
                 coverage.ExcludeAgriculture(first, input.Sizes); Require(coverage.Pixels[0].Any(c => c.a == 0) && coverage.Pixels[0].Any(c => c.a == 255), "Fields exclude grass while meadows remain");
@@ -42,6 +43,7 @@ namespace TacticalMaps.Editor
                 var cts = new CancellationTokenSource(); cts.Cancel(); bool canceled = false;
                 try { input.Render(cts.Token); } catch (OperationCanceledException) { canceled = true; } finally { cts.Dispose(); }
                 Require(canceled, "Cancellation");
+                input.Density = Enumerable.Repeat((ushort)100, 65 * 65).ToArray(); Require(input.Render(CancellationToken.None).Fields.Length == 0, "Near-zero density is rejected before placement");
                 input.Density = new ushort[65 * 65]; Require(input.Render(CancellationToken.None).Fields.Length == 0, "Zero density");
                 input = Input(); for (int l = 0; l < 3; l++) Array.Clear(input.Pixels[l], 0, input.Pixels[l].Length);
                 Require(input.Render(CancellationToken.None).Fields.Length == 0, "Water exclusion");
@@ -72,7 +74,7 @@ namespace TacticalMaps.Editor
         private static AgricultureInput Input()
         {
             var input = new AgricultureInput { Density = Enumerable.Repeat((ushort)65535, 65 * 65).ToArray(), SourceWidth = 65, SourceHeight = 65, SourcePoint = new Vector2Int(32, 32), Radius = 20,
-                Height = 256, Sea = 10, Coverage = 1, District = 180, Slope = 9, FarmProbability = 1, Limit = 16000, Seed = 1467 };
+                Height = 256, Sea = 10, Coverage = 1, District = 180, Slope = 9, FarmProbability = 1, Limit = 2400, Seed = 1467 };
             for (int l = 0; l < 3; l++) { input.Pixels[l] = Enumerable.Repeat((ushort)16000, 65 * 65).ToArray(); input.Widths[l] = input.Heights[l] = 65; input.Sizes[l] = Vector2.one * (512 << l); }
             return input;
         }
@@ -135,7 +137,7 @@ namespace TacticalMaps.Editor
                     var p = house.transform.position + Vector3.up * 3; camera.transform.position = p + new Vector3(20, 15, -25); camera.transform.LookAt(p); Image("Logs/Agriculture/farmhouse.png");
                 }
                 report.AppendLine($"Fields {map.fields.Length}; farms {map.farms.Length}; access tracks {map.tracks?.Length}; resident crop patches {crops.PatchCount}; crop buffers {crops.BufferBytes / 1048576f:F2} MiB; focus {focus}; crop {chosen.crop}");
-                report.AppendLine("Three mipmapped RGBA32 2048-square field textures: approximately 64 MiB GPU payload. Whole-agriculture comparisons keep grass masks fixed.");
+                report.AppendLine("Mipmapped 1024-square far masks plus sparse full-precision distance tiles. Whole-agriculture comparisons keep grass masks fixed.");
                 report.AppendLine("Synchronized offscreen Editor render/readback timings include CPU and GPU work; these are not gameplay FPS or isolated GPU timings.");
                 crops.enabled = false; Require(crops.BufferBytes <= crops.PatchCount * 16L + map.fields.Length * 32L, "GPU cleanup after disable"); crops.enabled = true;
                 report.AppendLine("PASS: crop image differences, near/RTS/distant captures, valid grass preparation dispatch and GPU cleanup.");

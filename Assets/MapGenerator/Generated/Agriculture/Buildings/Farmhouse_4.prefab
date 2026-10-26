@@ -506,6 +506,7 @@ GameObject:
   - component: {fileID: 3369697752589622068}
   - component: {fileID: 1673829226109408841}
   - component: {fileID: 2740676795294902280}
+  - component: {fileID: 6069695103162794285}
   m_Layer: 0
   m_Name: Farmhouse_4
   m_TagString: Untagged
@@ -587,6 +588,29 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 6.4568524, y: 7.3344646, z: 7.827585}
   m_Center: {x: 0, y: 3.6672323, z: 0}
+--- !u!114 &6069695103162794285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3832763923203269770}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: daac7fa0035d6a446b3e0ea64ed2d3db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.FarmBuildingGrounding
+  halfFootprint: {x: 3.2284262, y: 3.9137926}
+  supports:
+  - {x: -2.2500024, y: 0.12856221, z: 4.5176797}
+  - {x: -2.5000024, y: 0.12856221, z: -3.7323198}
+  - {x: -2.5000024, y: 0.12856221, z: 2.5176802}
+  - {x: -2.2500024, y: 0.12856221, z: -1.2323198}
+  - {x: -0.25000244, y: 0.12856221, z: 4.5176797}
+  - {x: -0.25000244, y: 0.12856221, z: 2.5176802}
+  - {x: 2.4999976, y: 0.12856221, z: -3.7323198}
+  - {x: 2.4999976, y: 0.12856221, z: 2.5176802}
+  - {x: 2.2499976, y: 0.12856221, z: -0.4823199}
 --- !u!1 &3885040106929573090
 GameObject:
   m_ObjectHideFlags: 0

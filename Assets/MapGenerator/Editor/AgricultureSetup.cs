@@ -31,7 +31,7 @@ namespace TacticalMaps.Editor
             importer.SaveAndReimport();
             var library = AssetDatabase.LoadAssetAtPath<AgricultureLibrary>(Folder + "/AgricultureLibrary.asset");
             if (library == null) { library = ScriptableObject.CreateInstance<AgricultureLibrary>(); AssetDatabase.CreateAsset(library, Folder + "/AgricultureLibrary.asset"); }
-            library.bankMaterial = Material("FarmEarth", "TacticalMaps/Agriculture/Simple");
+            library.bankMaterial = Material("FarmEarth", "TacticalMaps/Agriculture/Banks");
             library.waterMaterial = Material("PaddyWater", "TacticalMaps/Agriculture/Water");
             library.cropMaterial = Material("Rice", "TacticalMaps/Agriculture/Rice");
             library.cropMaterial.enableInstancing = true;
@@ -43,8 +43,20 @@ namespace TacticalMaps.Editor
             var generator = Object.FindAnyObjectByType<MapGenerator>(); var builder = Object.FindAnyObjectByType<MapBuilder>();
             if (generator == null || builder == null) throw new InvalidOperationException("Open MainScene with the map workbench.");
             library.soilProfile = new SerializedObject(generator.GetComponent<BiomeGenerator>()).FindProperty("earth").objectReferenceValue as TerrainLayer; EditorUtility.SetDirty(library);
+            library.bankMaterial.SetTexture("_BaseMap", library.soilProfile.diffuseTexture);
+            library.bankMaterial.SetTexture("_NormalMap", library.soilProfile.normalMapTexture != null ? library.soilProfile.normalMapTexture : Texture2D.normalTexture);
             var agriculture = generator.GetComponent<AgricultureGenerator>(); if (agriculture == null) agriculture = Undo.AddComponent<AgricultureGenerator>(generator.gameObject);
             Set(agriculture, "densitySource", AssetDatabase.LoadAssetAtPath<Texture2D>(Source)); Set(generator, "agricultureGenerator", agriculture);
+            var configuration = new SerializedObject(agriculture);
+            if (configuration.FindProperty("layoutVersion").intValue < 4)
+            {
+                configuration.FindProperty("districtSize").floatValue = 600; configuration.FindProperty("coverage").floatValue = .9f;
+                configuration.FindProperty("maximumFields").intValue = 2400; configuration.FindProperty("maximumFarms").intValue = 500;
+                configuration.FindProperty("layoutVersion").intValue = 4;
+            }
+            var footprints = configuration.FindProperty("houseFootprints"); footprints.arraySize = library.houses.Length;
+            for (int i = 0; i < library.houses.Length; i++) footprints.GetArrayElementAtIndex(i).vector2Value = library.houses[i].GetComponent<FarmBuildingGrounding>().halfFootprint;
+            configuration.ApplyModifiedPropertiesWithoutUndo();
             var construction = builder.GetComponent<AgricultureBuilder>(); if (construction == null) construction = Undo.AddComponent<AgricultureBuilder>(builder.gameObject);
             Set(construction, "library", library); Set(builder, "agricultureBuilder", construction);
             ConfigureOverlay();
@@ -147,6 +159,24 @@ namespace TacticalMaps.Editor
                 var proxyRenderer = proxy.GetComponent<MeshRenderer>(); proxyRenderer.sharedMaterial = Material("DistantHouse", "TacticalMaps/Agriculture/Simple"); proxyRenderer.shadowCastingMode = ShadowCastingMode.Off;
                 var lod = root.AddComponent<LODGroup>(); lod.SetLODs(new[] { new LOD(.055f, closeRenderers.ToArray()), new LOD(.0008f, new Renderer[] { proxyRenderer }) }); lod.RecalculateBounds();
                 var collider = root.AddComponent<BoxCollider>(); collider.center = new Vector3(0, bounds.size.y * .4f, 0); collider.size = new Vector3(bounds.size.x * .78f, bounds.size.y * .8f, bounds.size.z * .78f);
+                var grounding = root.AddComponent<FarmBuildingGrounding>(); grounding.halfFootprint = new Vector2(collider.size.x, collider.size.z) * .5f;
+                var supports = new List<Vector3>();
+                foreach (var filter in prefab.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (filter.sharedMesh == null) continue;
+                    var sourceBounds = filter.sharedMesh.bounds; var matrix = prefab.transform.worldToLocalMatrix * filter.transform.localToWorldMatrix;
+                    Bounds box = default; bool initial = true;
+                    for (int corner = 0; corner < 8; corner++)
+                    {
+                        var p = matrix.MultiplyPoint3x4(sourceBounds.center + Vector3.Scale(sourceBounds.extents, new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1)));
+                        if (initial) { box = new Bounds(p, Vector3.zero); initial = false; } else box.Encapsulate(p);
+                    }
+                    if (box.min.y <= bounds.min.y + .8f && box.size.y > .8f && box.size.x < 1.5f && box.size.z < 1.5f)
+                        supports.Add(new Vector3(box.center.x, box.min.y, box.center.z) - pivot);
+                }
+                if (supports.Count == 0)
+                    for (int z = -1; z <= 1; z += 2) for (int x = -1; x <= 1; x += 2) supports.Add(new Vector3(x * grounding.halfFootprint.x, 0, z * grounding.halfFootprint.y));
+                grounding.supports = supports.ToArray();
                 return PrefabUtility.SaveAsPrefabAsset(root, Folder + "/Buildings/Farmhouse_" + index + ".prefab");
             }
             finally { Object.DestroyImmediate(root); }

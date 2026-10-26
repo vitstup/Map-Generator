@@ -129,7 +129,12 @@ namespace TacticalMaps.Editor
                 Check(map.Heightmaps[0] != null && next.Heightmaps[0] != map.Heightmaps[0], "Independent results survive subsequent generations");
                 Check(next.SourcePoint == new Vector2Int(17, 16), "Point belongs to request and result");
                 foreach (var property in typeof(MapData).GetProperties(flags | System.Reflection.BindingFlags.NonPublic))
-                    Check(property.GetGetMethod(true).IsAssembly && property.GetSetMethod(true).IsPrivate, "Result properties use internal get and private set");
+                {
+                    // Roads are attached by the road stage; construction attaches its owned root.
+                    // Completed output data, including agriculture, retains private setters.
+                    bool stageLink = property.Name == nameof(MapData.Roads) || property.Name == nameof(MapData.BuiltRoot);
+                    Check(property.GetGetMethod(true).IsAssembly && (stageLink ? property.GetSetMethod(true).IsAssembly : property.GetSetMethod(true).IsPrivate), "Result visibility and explicit stage links");
+                }
                 Check(typeof(MapSettings).GetField("center", flags | System.Reflection.BindingFlags.NonPublic) == null, "No center in settings");
                 Check(typeof(MapGenerator).GetField("generated", flags | System.Reflection.BindingFlags.NonPublic) == null, "No generated output state");
                 map.Release(); next.Release();

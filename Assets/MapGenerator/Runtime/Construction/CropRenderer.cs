@@ -38,7 +38,9 @@ namespace TacticalMaps.Construction
                 for (float z = -f.halfSize.y + 2; z <= f.halfSize.y - 2; z += 4)
                     for (float x = -f.halfSize.x + 2; x <= f.halfSize.x - 2; x += 4)
                     {
-                        var p = f.Point(x, z); var world = AgricultureBuilder.Ground(p, ground, center);
+                        var p = f.Point(x, z);
+                        if (f.SignedDistance(p) > -2) continue;
+                        var world = AgricultureBuilder.Ground(p, ground, center);
                         if (points.Count >= limit) throw new InvalidOperationException("Crop patch budget exceeded. Increase Maximum Crop Patches or lower agricultural coverage.");
                         points.Add(new Vector4(world.x, world.y, world.z, id));
                     }

@@ -1135,6 +1135,7 @@ GameObject:
   - component: {fileID: 1216430255839963503}
   - component: {fileID: 1656069151907317665}
   - component: {fileID: 1085836434277925223}
+  - component: {fileID: 5473156327681892562}
   m_Layer: 0
   m_Name: Farmhouse_1
   m_TagString: Untagged
@@ -1215,6 +1216,21 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 6.3562417, y: 8.247783, z: 8.047613}
   m_Center: {x: 0, y: 4.1238914, z: 0}
+--- !u!114 &5473156327681892562
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7733268060090385275}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: daac7fa0035d6a446b3e0ea64ed2d3db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.FarmBuildingGrounding
+  halfFootprint: {x: 3.1781209, y: 4.0238066}
+  supports:
+  - {x: -3.2653136, y: 0, z: -4.522646}
 --- !u!1 &8431543913158274388
 GameObject:
   m_ObjectHideFlags: 0

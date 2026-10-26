@@ -55,7 +55,7 @@ namespace TacticalMaps.Generation
             token.ThrowIfCancellationRequested();
             var field = new HeightField(heights, land, width, height, point, snapshot);
             var pixels = new ushort[3][];
-            for (int i = 0; i < 3; i++) pixels[i] = field.Render(i, token);
+            Parallel.For(0, 3, new ParallelOptions { CancellationToken = token, MaxDegreeOfParallelism = 3 }, i => pixels[i] = field.Render(i, token));
             return new HeightmapOutput(snapshot, pixels, field.Compression);
         }
         private static (Texture2D[] Textures, float Compression) CreateTextures(HeightmapOutput output)

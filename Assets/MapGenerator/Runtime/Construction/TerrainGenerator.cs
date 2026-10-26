@@ -38,6 +38,7 @@ namespace TacticalMaps.Construction
                 var collider = go.AddComponent<TerrainCollider>(); collider.terrainData = data;
                 data.size = new Vector3(sizes[level].x, heightMeters, sizes[level].y);
                 var heights = CreateHeights(heightmaps, sizes, level, resolution);
+                AgricultureTerrain.Apply(map, heights, level, overlapDepth);
                 data.SetHeights(0, 0, heights);
                 ApplySurface(data, map, level);
                 if (level > 0) CutInterior(data, sizes[level], sizes[level - 1]);
@@ -89,13 +90,15 @@ namespace TacticalMaps.Construction
             var raw = texture.GetPixelData<ushort>(0);
             var previous = level > 0 ? maps[level - 1] : null;
             var previousRaw = previous != null ? previous.GetPixelData<ushort>(0) : default;
+            int width = texture.width, height = texture.height, previousWidth = previous != null ? previous.width : 0, previousHeight = previous != null ? previous.height : 0;
+            bool direct = width == resolution && height == resolution;
             var result = new float[resolution, resolution];
             float cellX = sizes[level].x / (resolution - 1), cellZ = sizes[level].y / (resolution - 1);
             for (int z = 0; z < resolution; z++)
                 for (int x = 0; x < resolution; x++)
                 {
                     float u = (float)x / (resolution - 1), v = (float)z / (resolution - 1);
-                    float h = Sample(raw, texture.width, texture.height, u, v);
+                    float h = direct ? raw[z * resolution + x] / 65535f : Sample(raw, width, height, u, v);
                     if (level > 0)
                     {
                         float wx = (u - 0.5f) * sizes[level].x, wz = (v - 0.5f) * sizes[level].y;
@@ -103,7 +106,7 @@ namespace TacticalMaps.Construction
                         if (distance < -3 * Mathf.Max(cellX, cellZ)) h = 0;
                         else if (distance < seamBlendMeters || distance <= 0)
                         {
-                            float inner = Sample(previousRaw, previous.width, previous.height, wx / sizes[level - 1].x + 0.5f, wz / sizes[level - 1].y + 0.5f);
+                            float inner = Sample(previousRaw, previousWidth, previousHeight, wx / sizes[level - 1].x + 0.5f, wz / sizes[level - 1].y + 0.5f);
                             // Each background terrain is slightly lower, preventing coincident surfaces in the overlap.
                             float t = Mathf.SmoothStep(0, 1, Mathf.Clamp01(distance / Mathf.Max(0.001f, seamBlendMeters)));
                             h = Mathf.Lerp(inner, h, t);

@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace TacticalMaps.Generation
@@ -27,8 +28,7 @@ namespace TacticalMaps.Generation
             {
                 int n = level == 0 ? settings.MainResolution : settings.BackgroundResolution;
                 var weights = new float[n, n, 6]; result[level] = weights;
-                var values = new float[6];
-                for (int z = 0; z < n; z++)
+                Parallel.For(0, n, new ParallelOptions { CancellationToken = cancellation, MaxDegreeOfParallelism = System.Math.Max(1, System.Math.Min(4, System.Environment.ProcessorCount - 2)) }, () => new float[6], (z, loop, values) =>
                 {
                     cancellation.ThrowIfCancellationRequested();
                     for (int x = 0; x < n; x++)
@@ -38,7 +38,8 @@ namespace TacticalMaps.Generation
                         Evaluate(wx, wz, values);
                         for (int i = 0; i < 6; i++) weights[z, x, i] = values[i];
                     }
-                }
+                    return values;
+                }, values => { });
             }
             return result;
         }

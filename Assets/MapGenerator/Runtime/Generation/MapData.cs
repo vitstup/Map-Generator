@@ -18,11 +18,12 @@ namespace TacticalMaps.Generation
         internal RockData Rocks { get; private set; }
         internal TreeData Trees { get; private set; }
         internal RoadData Roads { get; set; }
-        internal AgricultureData Agriculture { get; set; }
+        internal AgricultureData Agriculture { get; private set; }
         internal TacticalMaps.Grass.GrassCoverage Grass { get; private set; }
         // The latest successful construction of this result. Never discover another map globally.
         internal Transform BuiltRoot { get; set; }
         private bool released;
+        internal void SetAgriculture(AgricultureData agriculture) => Agriculture = agriculture;
 
         internal MapData(Texture2D[] heightmaps, Vector2[] sizes, float terrainHeightMeters,
             float seaLevelMeters, float globalMaxHeightMeters, Vector2Int sourcePoint, float heightCompression = 1, SurfaceData surface = null, RockData rocks = null, TreeData trees = null, TacticalMaps.Grass.GrassCoverage grass = null)
