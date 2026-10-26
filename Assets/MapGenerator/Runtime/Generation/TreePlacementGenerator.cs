@@ -81,6 +81,7 @@ namespace TacticalMaps.Generation
             float spacing = treeSpacing * (level == 0 ? 1 : level == 1 ? backgroundSpacing.x : backgroundSpacing.y);
             var input = new ForestField
             {
+                Roads = map.Roads,
                 Prefabs = (GameObject[])treePrefabs.Clone(), Pixels = texture.GetPixelData<ushort>(0).ToArray(),
                 Width = texture.width, Height = texture.height, Size = map.Sizes[level], VerticalSize = map.TerrainHeightMeters,
                 Sea = map.SeaLevelMeters, Coverage = maximumCoverage, CellSize = zoneCellSize * groveScale,

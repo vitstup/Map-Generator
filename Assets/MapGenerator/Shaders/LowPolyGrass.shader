@@ -256,6 +256,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             if(part>.5&&flower) output.fade=(_GrassTransitionCheck&1)==0?1:GrassFieldFade(anchor,_GrassFocus.xz,fadeStart,_GrassLodDistances.x,_GrassWind.z);
             output.detail=detail;
             [branch] if(instance.variation.w<0) output.fade*=GroundPermission(anchor+root);
+            output.fade*=RoadGrassPermission(anchor+root);
             if(GRASS_POOL==1) output.fade*=saturate((_GrassProjection.z-instance.variation.z)*12);
             // Stable individual delays prevent an entire streamed cell blooming together.
             float delay=GrassHash(anchor+317.3)*.18;
@@ -273,6 +274,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             // Pixel coordinates are exact across topologies; interpolated positions amplified
             // subdivision roundoff into different clipping in the range-fade zone. No frame jitter.
             float noise=GrassHash(floor(input.positionCS.xy)+input.noiseSeed);
+            if(_GrassBakeMode<.5) clip(RoadGrassPermission(input.world.xz)-noise);
             clip(input.fade-noise);
         }
         half4 Shade(Varyings input)

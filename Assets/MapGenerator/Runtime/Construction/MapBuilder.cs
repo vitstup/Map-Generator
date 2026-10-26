@@ -14,6 +14,7 @@ namespace TacticalMaps.Construction
         [SerializeField] private WaterGenerator waterGenerator;
         [SerializeField] private RockBuilder rockBuilder;
         [SerializeField] private TreeBuilder treeBuilder;
+        [SerializeField] private RoadBuilder roadBuilder;
         [SerializeField, HideInInspector] private Transform builtRoot;
         [SerializeField, HideInInspector] private UnityEngine.Object[] builtResources;
 
@@ -24,6 +25,7 @@ namespace TacticalMaps.Construction
             if (waterGenerator == null) waterGenerator = GetComponent<WaterGenerator>();
             if (rockBuilder == null) rockBuilder = GetComponent<RockBuilder>();
             if (treeBuilder == null) treeBuilder = GetComponent<TreeBuilder>();
+            if (roadBuilder == null) roadBuilder = GetComponent<RoadBuilder>();
             if (treeBuilder == null) treeBuilder = gameObject.AddComponent<TreeBuilder>();
             if (terrainGenerator == null || waterGenerator == null || rockBuilder == null || terrainGenerator.gameObject != gameObject || waterGenerator.gameObject != gameObject || rockBuilder.gameObject != gameObject || treeBuilder.gameObject != gameObject)
                 throw new InvalidOperationException("Construction components must be on the MapBuilder object.");
@@ -33,6 +35,11 @@ namespace TacticalMaps.Construction
             {
                 terrainGenerator.Generate(data, next.transform, center);
                 waterGenerator.Generate(data, next.transform, center);
+                if (data.Roads != null)
+                {
+                    if (roadBuilder == null || roadBuilder.gameObject != gameObject) throw new InvalidOperationException("Assign RoadBuilder on the MapBuilder object.");
+                    roadBuilder.Generate(data, next.transform, center);
+                }
                 rockBuilder.Generate(data, next.transform, center);
                 treeBuilder.Generate(data, next.transform);
             }
@@ -50,6 +57,8 @@ namespace TacticalMaps.Construction
         private static UnityEngine.Object[] CollectResources(GameObject root)
         {
             var resources = new HashSet<UnityEngine.Object>();
+            var roads = root.GetComponent<RoadMap>();
+            if (roads != null) { resources.Add(roads.Pages); resources.Add(roads.Distances); resources.Add(roads.FarCoverage); }
             foreach (var terrain in root.GetComponentsInChildren<Terrain>(true))
             {
                 if (terrain.terrainData == null) continue;

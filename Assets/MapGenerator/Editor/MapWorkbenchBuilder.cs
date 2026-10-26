@@ -174,6 +174,7 @@ namespace TacticalMaps.Editor
             SetReference(w, "globalHeightInput", Field(parent, "Макс. высота глобальной карты, м", 700, 25, 280));
             SetReference(w, "seaLevelInput", Field(parent, "Уровень моря, м", 1000, 25, 280));
             w.SyncControls(); w.RefreshSelection();
+            RoadSetup.Install();
             var map = generator.Generate(w.SelectedPoint); w.DisplayResults(map);
             for (int i = 0; i < 3; i++) AssetDatabase.CreateAsset(map.Heightmaps[i], Root + "/Heightmap" + (i + 1) + ".asset");
             AssetDatabase.CreateAsset((Texture2D)cropImage.texture, Root + "/SelectedPixels.asset");

@@ -26,6 +26,14 @@ float4 _GrassRect, _GrassMeadow, _GrassDry, _GrassWind, _GrassOptions;
 float _GrassEnabled, _GrassTurfStrength;
 float _GrassBlueFlowerRetention;
 float4 _GrassFlowerLodFocus,_GrassFlowerLodRanges,_GrassFlowerLodStyle;
+// Road textures use the existing repeating turf sampler to stay within D3D11's 16 samplers.
+TEXTURE2D(_RoadLargeAlbedo);
+TEXTURE2D(_RoadMediumAlbedo);
+float4 _RoadLargeTint, _RoadMediumTint, _RoadTiling;
+TEXTURE2D(_RoadLargeNormal);
+TEXTURE2D(_RoadMediumNormal);
+float4 _RoadNormalScale;
+TEXTURE2D(_RoadFarCoverage);
 float4 TerrainFlowerStamp(float3 world,float permission)
 {
     float medium=1-GrassHandoffFade(world.xz,_GrassFlowerLodFocus.xz,_GrassFlowerLodRanges.z,_GrassFlowerLodRanges.w,_GrassWind.z);
@@ -154,7 +162,7 @@ half4 MatteFragment(Varyings input) : SV_Target
         float slopeNormal=abs(normalize(cross(ddy(input.positionWS),ddx(input.positionWS))).y);
         float suitable = smoothstep(_GrassOptions.z,_GrassOptions.z+1.2,input.positionWS.y)
                        * smoothstep(_GrassOptions.w,min(1,_GrassOptions.w+.08),slopeNormal);
-        half amount=saturate(grass.r*1.6)*grass.a*GrassPermission(grass.b)*patch*_GrassWind.w*suitable*_GrassTurfStrength;
+        half amount=saturate(grass.r*1.6)*grass.a*GrassPermission(grass.b)*RoadGrassPermission(input.positionWS.xz)*patch*_GrassWind.w*suitable*_GrassTurfStrength;
         half3 tint=GrassPalette(input.positionWS.xz,grass.g,_GrassWind.z,_GrassMeadow.rgb,_GrassDry.rgb);
         float2 turfUV=input.positionWS.xz/4;
         float2 otherUV=float2(-turfUV.y,turfUV.x)*.73+.371;
@@ -187,6 +195,45 @@ half4 MatteFragment(Varyings input) : SV_Target
             albedo=lerp(albedo,head.rgb,amount*head.a);
         }
         if (_GrassOptions.y > 2.5) albedo=lerp(albedo,half3(GrassHash(floor(input.positionWS.xz/_GrassOptions.x)),.3,.5),amount);
+    }
+    if (_RoadEnabled > .5 && input.positionWS.y > _RoadOptions.y + .05)
+    {
+        float4 road=RoadSample(input.positionWS.xz);
+        float2 d=road.rg*32-16;
+        if(min(d.x,d.y)<_RoadOptions.x+1.3)d+=RoadEdgeOffset(input.positionWS.xz);
+        float footprint=max(length(ddx(input.positionWS.xz)),length(ddy(input.positionWS.xz)));
+        // Bounded near filtering cannot turn the absent-distance sentinel into road coverage.
+        float aa=clamp(footprint*.5,.15,.7);
+        float2 nearAmount=1-smoothstep(-aa,_RoadOptions.x+aa,d);
+        float2 farUV=(input.positionWS.xz-_RoadGrid.xy)/(_RoadGrid.zw*128);
+        float2 farAmount=0;
+        if(all(farUV>=0)&&all(farUV<=1))farAmount=SAMPLE_TEXTURE2D(_RoadFarCoverage,sampler_GrassCoverage,farUV).rg;
+        // The distant mask is an area average, not an ever-widening signed-distance threshold.
+        float2 amount=lerp(nearAmount,farAmount,smoothstep(3,14,footprint));
+        float big=amount.x,small=amount.y*(1-big);
+        if(big+small>.001)
+        {
+            half3 a=SAMPLE_TEXTURE2D(_RoadLargeAlbedo,sampler_GrassTurf,input.positionWS.xz/max(_RoadTiling.xy,.1)).rgb*_RoadLargeTint.rgb;
+            half3 b=SAMPLE_TEXTURE2D(_RoadMediumAlbedo,sampler_GrassTurf,input.positionWS.xz/max(_RoadTiling.zw,.1)).rgb*_RoadMediumTint.rgb;
+            float angle=road.b*6.2831853;
+            float2 tangent=float2(cos(angle),sin(angle));
+            float2 across=float2(-tangent.y,tangent.x);
+            float2 roadUV=float2(dot(input.positionWS.xz,tangent),dot(input.positionWS.xz,across));
+            float grains=RoadNoise(input.positionWS.xz*4.5);
+            float streaks=RoadNoise(roadUV*float2(.08,1.7));
+            a*=lerp(.94,1.12,grains); // Dense fine gravel on the larger road.
+            b*=lerp(.77,1.12,streaks)*lerp(.92,1.05,RoadNoise(input.positionWS.xz/5));
+            b=lerp(b,dot(b,half3(.299,.587,.114))*half3(1.13,1.02,.87),.55);
+            float2 core=1-smoothstep(-.8,.15,d);
+            a=lerp(a*.85,a*1.1,core.x);
+            b=lerp(b*.9,b,core.y);
+            a=lerp(a,b,road.a*(1-smoothstep(3,14,footprint)));
+            albedo=albedo*(1-big-small)+a*big+b*small;
+            half3 na=UnpackNormalScale(SAMPLE_TEXTURE2D(_RoadLargeNormal,sampler_GrassTurf,input.positionWS.xz/max(_RoadTiling.xy,.1)),_RoadNormalScale.x);
+            half3 nb=UnpackNormalScale(SAMPLE_TEXTURE2D(_RoadMediumNormal,sampler_GrassTurf,input.positionWS.xz/max(_RoadTiling.zw,.1)),_RoadNormalScale.y);
+            na=normalize(lerp(na,nb,road.a));
+            normal=normalize(normal*(1-big-small)+na*big+nb*small);
+        }
     }
     InputData lighting; InitializeInputData(input,normal,lighting); InitializeBakedGIData(input,lighting);
     SurfaceData surface=(SurfaceData)0;

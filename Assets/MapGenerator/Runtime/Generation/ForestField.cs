@@ -16,6 +16,7 @@ namespace TacticalMaps.Generation
         internal float VerticalSize, Sea, Coverage, CellSize, MinimumRadius, MaximumRadius, MinimumArea,
             Spacing, SpacingRatio, Slope, Shore, WaterHeight;
         internal readonly List<Bounds> Rocks = new List<Bounds>();
+        internal RoadData Roads;
 
         internal TreeData Generate(CancellationToken token)
         {
@@ -136,6 +137,7 @@ namespace TacticalMaps.Generation
 
         private bool Suitable(float x, float z, float cellMargin)
         {
+            if (Roads != null && Roads.Blocks(new Vector2(x,z), cellMargin + 1.5f * ScaleRange.y)) return false;
             float edge = Mathf.Max(Shore, cellMargin);
             if (InnerSize.x > 0 && Mathf.Abs(x) < InnerSize.x * 0.5f + SeamClearance + cellMargin &&
                 Mathf.Abs(z) < InnerSize.y * 0.5f + SeamClearance + cellMargin) return false;

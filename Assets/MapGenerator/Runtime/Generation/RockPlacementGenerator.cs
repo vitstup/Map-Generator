@@ -26,14 +26,27 @@ namespace TacticalMaps.Generation
         internal RockData Generate(MapData map, CancellationToken token)
         {
             var input = Capture(map);
-            return new RockData(input.Prefabs, input.Render(token));
+            return new RockData(input.Prefabs, FilterRoads(input.Render(token), input, map.Roads));
         }
         internal async Task<RockData> GenerateAsync(MapData map, CancellationToken token)
         {
             var input = Capture(map);
             var placements = await Task.Run(() => input.Render(token), token);
             token.ThrowIfCancellationRequested();
-            return new RockData(input.Prefabs, placements);
+            return new RockData(input.Prefabs, FilterRoads(placements, input, map.Roads));
+        }
+        private static RockPlacement[] FilterRoads(RockPlacement[] placements, RockEscarpmentField input, RoadData roads)
+        {
+            if (roads == null) return placements;
+            var kept = new System.Collections.Generic.List<RockPlacement>();
+            foreach (var p in placements)
+            {
+                var bounds = input.Bounds[p.Prefab];
+                var extent = Vector3.Scale(bounds.extents, p.Scale);
+                var center = p.Position + p.Rotation * Vector3.Scale(bounds.center, p.Scale);
+                if (!roads.Blocks(new Vector2(center.x,center.z), extent.magnitude)) kept.Add(p);
+            }
+            return kept.ToArray();
         }
         private RockEscarpmentField Capture(MapData map)
         {

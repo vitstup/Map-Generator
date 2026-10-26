@@ -1,5 +1,6 @@
 #ifndef TACTICAL_GRASS_COMMON
 #define TACTICAL_GRASS_COMMON
+#include "RoadCommon.hlsl"
 float GrassHash(float2 p)
 {
     float3 q = frac(float3(p.xyx) * .1031);

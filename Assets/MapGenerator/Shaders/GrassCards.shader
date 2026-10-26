@@ -74,7 +74,7 @@ Shader "TacticalMaps/Grass/DistantCards"
                 level==1?SAMPLE_TEXTURE2D_LOD(_GroundCoverage1,sampler_GroundCoverage0,uv,0):SAMPLE_TEXTURE2D_LOD(_GroundCoverage2,sampler_GroundCoverage0,uv,0);
             float hole=level==0?SAMPLE_TEXTURE2D_LOD(_GroundHoles0,sampler_GroundHoles0,uv,0).r:
                 level==1?SAMPLE_TEXTURE2D_LOD(_GroundHoles1,sampler_GroundHoles0,uv,0).r:SAMPLE_TEXTURE2D_LOD(_GroundHoles2,sampler_GroundHoles0,uv,0).r;
-            return GrassPermission(cover.b)*cover.a*step(.5,hole)*step(0,min(min(uv.x,uv.y),min(1-uv.x,1-uv.y)));
+            return GrassPermission(cover.b)*cover.a*RoadGrassPermission(world)*step(.5,hole)*step(0,min(min(uv.x,uv.y),min(1-uv.x,1-uv.y)));
         }
         Varyings Vert(Attributes input)
         {
@@ -139,6 +139,7 @@ Shader "TacticalMaps/Grass/DistantCards"
 
             float fade=i.fade;
             [branch] if(i.edge>.5) fade*=Permission(i.world.xz);
+            fade*=RoadGrassPermission(i.world.xz);
             clip(fade-GrassHash(floor(i.positionCS.xy)+i.noiseSeed));
             flower=0;
             if(_GrassFlowers.x>0&&(_GrassOptions.y<.5||(_GrassOptions.y>1.5&&_GrassOptions.y<2.5)))

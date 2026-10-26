@@ -26,6 +26,11 @@ namespace TacticalMaps.Testing
         [SerializeField] private UnityEngine.UI.Slider overlaySlider, exposureSlider;
         [SerializeField] private MapSelectionGraphic globalSelection, cropSelection;
         [SerializeField] private Material previewMaterial;
+        [SerializeField] private UnityEngine.UI.RawImage roadOverlay;
+        [SerializeField] private UnityEngine.UI.Toggle showRoadsToggle;
+        [SerializeField] private Color largeRoadColor = new Color(.70f,.52f,.32f);
+        [SerializeField] private Color mediumRoadColor = new Color(.44f,.30f,.18f);
+        private Texture2D roadOverview;
         private Texture2D cropTexture;
         private Material runtimePreviewMaterial;
         private CancellationTokenSource cancellation;
@@ -45,6 +50,8 @@ namespace TacticalMaps.Testing
             runtimePreviewMaterial = new Material(previewMaterial);
             foreach (var image in results) image.material = runtimePreviewMaterial;
             SyncControls();
+            RefreshRoadOverlay();
+            if (showRoadsToggle != null) showRoadsToggle.onValueChanged.AddListener(value => { if(roadOverlay!=null)roadOverlay.enabled=value;RefreshSelection(); });
             generateButton.onClick.AddListener(Generate);
             buildTerrainButton.onClick.AddListener(BuildTerrains);
             overlaySlider.onValueChanged.AddListener(v => globalOverlay.color = new Color(1, 1, 1, v));
@@ -156,7 +163,7 @@ namespace TacticalMaps.Testing
                 mapBuilder.Build(currentMap);
                 grassSystem.Build(currentMap);
                 buildPending = false; hasBuiltTerrain = true;
-                status.text = "Карта построена: 3 Terrain, вода и трава · осмотр в Scene";
+                status.text = "Карта построена: 3 Terrain, вода и трава" + (currentMap.Roads != null ? $" · дороги: {currentMap.Roads.Segments.Length} сегм., непроходимых участков: {currentMap.Roads.RejectedSections}" : "") + " · осмотр в Scene";
             }
             catch (Exception e) { buildPending = false; status.text = "Ошибка построения: " + e.Message; Debug.LogException(e); }
         }
@@ -197,6 +204,11 @@ namespace TacticalMaps.Testing
                 Color color = new Color(0.035f, 0.11f, 0.17f);
                 if (generator.TryReadSource(sx, sy, out float height, out bool land) && land)
                     color = Color.Lerp(new Color(0.22f, 0.36f, 0.26f), new Color(0.92f, 0.93f, 0.82f), Mathf.Sqrt(height));
+                if (generator.Roads != null && (showRoadsToggle == null || showRoadsToggle.isOn))
+                {
+                    byte type=generator.Roads.ReadType(sx,sy);
+                    if(type>0)color=type==1?largeRoadColor:mediumRoadColor;
+                }
                 pixels[y * n + x] = color;
             }
             cropTexture.SetPixels32(pixels); cropTexture.Apply(); cropImage.texture = cropTexture;
@@ -212,10 +224,37 @@ namespace TacticalMaps.Testing
 #endif
             if (Application.isPlaying) Destroy(cropTexture); else DestroyImmediate(cropTexture);
         }
+        internal void RefreshRoadOverlay()
+        {
+            if(roadOverlay==null||generator.Roads==null||generator.Roads.Source==null)return;
+            ReleaseRoadOverview();
+            var source=generator.Roads.Source;int n=Mathf.Min(1024,source.width),scale=source.width/n;
+            var sourceTypes=generator.Roads.SourceTypes;int sourceWidth=source.width;
+            roadOverview=new Texture2D(n,n,TextureFormat.RGBA32,false,true){name="RoadOverview",filterMode=FilterMode.Bilinear,wrapMode=TextureWrapMode.Clamp};
+            var pixels=new Color32[n*n];
+            for(int y=0;y<n;y++)for(int x=0;x<n;x++)
+            {
+                byte type=0;
+                for(int dy=0;dy<scale;dy++)for(int dx=0;dx<scale;dx++)
+                {byte t=sourceTypes[(y*scale+dy)*sourceWidth+x*scale+dx];if(t>0&&(type==0||t<type))type=t;}
+                pixels[y*n+x]=type==0?new Color32(0,0,0,0):(Color32)(type==1?largeRoadColor:mediumRoadColor);
+            }
+            roadOverview.SetPixels32(pixels);roadOverview.Apply(false,true);roadOverlay.texture=roadOverview;
+            roadOverlay.enabled=showRoadsToggle==null||showRoadsToggle.isOn;
+        }
+        private void ReleaseRoadOverview()
+        {
+            if(roadOverview==null)return;
+#if UNITY_EDITOR
+            if(UnityEditor.EditorUtility.IsPersistent(roadOverview)){roadOverview=null;return;}
+#endif
+            if(Application.isPlaying)Destroy(roadOverview);else DestroyImmediate(roadOverview);roadOverview=null;
+        }
         private void OnDestroy()
         {
             cancellation?.Cancel(); cancellation?.Dispose();
             ReleaseCrop();
+            ReleaseRoadOverview();
             if (job != null && job.Status == TaskStatus.RanToCompletion && job.Result != currentMap) job.Result.Release();
             currentMap?.Release();
             if (runtimePreviewMaterial != null) Destroy(runtimePreviewMaterial);
