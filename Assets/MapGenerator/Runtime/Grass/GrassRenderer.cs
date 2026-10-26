@@ -76,7 +76,9 @@ namespace TacticalMaps.Grass
                     sparseMaterial.EnableKeyword("GRASS_SPARSE");
                     prepared=new GraphicsBuffer(GraphicsBuffer.Target.Structured,capacity*perSlot,16);
                     frameCounts=new GraphicsBuffer(GraphicsBuffer.Target.Raw,3,4);
-                    frameDispatch=new GraphicsBuffer(GraphicsBuffer.Target.Raw|GraphicsBuffer.Target.IndirectArguments,3,4);
+                    // IndirectArguments is a typed R32_UInt UAV. Combining it with Raw is rejected
+                    // by Unity and leaves a ByteAddressBuffer writer unable to initialize dispatch counts.
+                    frameDispatch=new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments,3,4);
                     frameKernel=compute.FindKernel("PrepareFrame");frameArgsKernel=compute.FindKernel("FrameArguments");
                     renderMeshes[0]=GrassLibrary.CreatePartMesh(library.Mesh(0),false);
                     renderMeshes[1]=GrassLibrary.CreatePartMesh(pool==0?library.Simplified:library.Mesh(1),false);
@@ -341,6 +343,13 @@ namespace TacticalMaps.Grass
             var args=new GraphicsBuffer.IndirectDrawIndexedArgs[1];arguments[2].GetData(args);return args[0].instanceCount;
         }
 #if UNITY_EDITOR
+        internal void VerifyPreparedDispatchForChecks()
+        {
+            if (pool >= 2 || frameCounts == null) return;
+            var counts = new uint[3]; var dispatch = new uint[3]; frameCounts.GetData(counts); frameDispatch.GetData(dispatch);
+            if (counts[0] + counts[1] + counts[2] > 0 && (dispatch[0] == 0 || dispatch[1] != 1 || dispatch[2] != 1))
+                throw new InvalidOperationException("Visible grass has uninitialized GPU preparation dispatch arguments.");
+        }
         [StructLayout(LayoutKind.Sequential)]
         private struct FlowerCheckInstance { public Vector4 position,variation; }
         internal Vector3? FindFlowerForChecks()

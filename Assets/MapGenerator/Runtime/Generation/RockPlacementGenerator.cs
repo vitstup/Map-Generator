@@ -26,25 +26,33 @@ namespace TacticalMaps.Generation
         internal RockData Generate(MapData map, CancellationToken token)
         {
             var input = Capture(map);
-            return new RockData(input.Prefabs, FilterRoads(input.Render(token), input, map.Roads));
+            return new RockData(input.Prefabs, FilterRoads(input.Render(token), input, map.Roads, map.Agriculture));
         }
         internal async Task<RockData> GenerateAsync(MapData map, CancellationToken token)
         {
             var input = Capture(map);
             var placements = await Task.Run(() => input.Render(token), token);
             token.ThrowIfCancellationRequested();
-            return new RockData(input.Prefabs, FilterRoads(placements, input, map.Roads));
+            return new RockData(input.Prefabs, FilterRoads(placements, input, map.Roads, map.Agriculture));
         }
-        private static RockPlacement[] FilterRoads(RockPlacement[] placements, RockEscarpmentField input, RoadData roads)
+        private static RockPlacement[] FilterRoads(RockPlacement[] placements, RockEscarpmentField input, RoadData roads, AgricultureData agriculture)
         {
-            if (roads == null) return placements;
+            if (roads == null && agriculture == null) return placements;
             var kept = new System.Collections.Generic.List<RockPlacement>();
             foreach (var p in placements)
             {
                 var bounds = input.Bounds[p.Prefab];
                 var extent = Vector3.Scale(bounds.extents, p.Scale);
                 var center = p.Position + p.Rotation * Vector3.Scale(bounds.center, p.Scale);
-                if (!roads.Blocks(new Vector2(center.x,center.z), extent.magnitude)) kept.Add(p);
+                bool blocked = roads != null && roads.Blocks(new Vector2(center.x,center.z), extent.magnitude);
+                if (!blocked && agriculture != null)
+                {
+                    var rock = new Bounds(center, Vector3.one * (extent.magnitude * 2));
+                    foreach (var field in agriculture.Fields) if (field.Bounds().Intersects(rock)) { blocked = true; break; }
+                    if (!blocked) foreach (var farm in agriculture.Farms) if (Vector2.Distance(new Vector2(center.x, center.z), farm.center) < extent.magnitude + 24) { blocked = true; break; }
+                    if (!blocked) foreach (var track in agriculture.Tracks) if (RoadData.Distance(new Vector2(center.x, center.z), track.a, track.b) < extent.magnitude + 3) { blocked = true; break; }
+                }
+                if (!blocked) kept.Add(p);
             }
             return kept.ToArray();
         }

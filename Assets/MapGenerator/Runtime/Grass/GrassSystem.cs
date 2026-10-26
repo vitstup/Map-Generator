@@ -299,6 +299,9 @@ namespace TacticalMaps.Grass
         internal Vector3? FindFlowerForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.FindFlowerForChecks():null;
 #endif
         internal uint[] ReadDrawCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadDrawCounts():new uint[4];
+#if UNITY_EDITOR
+        internal void VerifyPreparedDispatchForChecks(Camera camera) { if (views.TryGetValue(camera.GetInstanceID(), out var view)) view.VerifyPreparedDispatchForChecks(); }
+#endif
         internal uint[] ReadHeadCountsForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadHeadCounts():new uint[2];
         internal Dictionary<uint,int> ReadLodMembershipForChecks(Camera camera) => views.TryGetValue(camera.GetInstanceID(),out var v)?v.ReadLodMembershipForChecks():new Dictionary<uint,int>();
         private void ReleaseFlowerFields() {foreach(var field in flowerFields.Values)field.Dispose();flowerFields.Clear();}
@@ -354,6 +357,9 @@ namespace TacticalMaps.Grass
 #endif
         internal uint[] ReadDrawCounts() {var n=near.ReadCounts();return new[]{n[0],n[1],meadow.ReadCounts()[1],cards?.ReadCounts()[1] ?? 0};}
         internal uint[] ReadHeadCounts()=>new[]{near.ReadHeadCount(),meadow.ReadHeadCount()};
+#if UNITY_EDITOR
+        internal void VerifyPreparedDispatchForChecks() { near.VerifyPreparedDispatchForChecks(); meadow.VerifyPreparedDispatchForChecks(); }
+#endif
         internal uint[] ReadCounts() {var n=ReadDrawCounts();return new[]{n[0]+n[1],n[2]+n[3]};}
         public void Dispose() { near.Dispose(); meadow.Dispose(); cards?.Dispose(); }
     }

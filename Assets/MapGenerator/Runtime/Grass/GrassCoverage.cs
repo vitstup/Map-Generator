@@ -11,6 +11,21 @@ namespace TacticalMaps.Grass
         internal readonly int[] Resolutions;
         internal GrassCoverage(Color32[][] pixels, int[] resolutions) { Pixels = pixels; Resolutions = resolutions; }
 
+        internal void ExcludeAgriculture(AgricultureData agriculture, Vector2[] sizes)
+        {
+            if (agriculture == null) return;
+            for (int l = 0; l < 3; l++)
+            {
+                int n = Resolutions[l];
+                for (int z = 0; z < n; z++) for (int x = 0; x < n; x++)
+                {
+                    var p = new Vector2(((x + .5f) / n - .5f) * sizes[l].x, ((z + .5f) / n - .5f) * sizes[l].y);
+                    // Expand by half a mask texel so large distant footprints cannot leak meadow into fields.
+                    if (agriculture.Blocks(p, Mathf.Max(sizes[l].x, sizes[l].y) / n * .72f)) Pixels[l][z * n + x].a = 0;
+                }
+            }
+        }
+
         internal static GrassCoverage Generate(SurfaceData surface, CancellationToken token)
         {
             if (surface == null) return null;

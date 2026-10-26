@@ -22,6 +22,7 @@ TEXTURE2D(_GrassTurfFlowers);
 TEXTURE2D(_GrassCoverage); SAMPLER(sampler_GrassCoverage);
 TEXTURE2D(_GrassTurf); SAMPLER(sampler_GrassTurf);
 TEXTURE2D(_GrassTurfNormal); SAMPLER(sampler_GrassTurfNormal);
+#include "FarmSurface.hlsl"
 float4 _GrassRect, _GrassMeadow, _GrassDry, _GrassWind, _GrassOptions;
 float _GrassEnabled, _GrassTurfStrength;
 float _GrassBlueFlowerRetention;
@@ -196,6 +197,7 @@ half4 MatteFragment(Varyings input) : SV_Target
         }
         if (_GrassOptions.y > 2.5) albedo=lerp(albedo,half3(GrassHash(floor(input.positionWS.xz/_GrassOptions.x)),.3,.5),amount);
     }
+    FarmSurface(input.positionWS, albedo, normal);
     if (_RoadEnabled > .5 && input.positionWS.y > _RoadOptions.y + .05)
     {
         float4 road=RoadSample(input.positionWS.xz);

@@ -18,6 +18,7 @@ namespace TacticalMaps.Generation
         [SerializeField] private RockPlacementGenerator rockPlacementGenerator;
         [SerializeField] private TreePlacementGenerator treePlacementGenerator;
         [SerializeField] private RoadGenerator roadGenerator;
+        [SerializeField] private AgricultureGenerator agricultureGenerator;
         internal RoadGenerator Roads => roadGenerator != null ? roadGenerator : GetComponent<RoadGenerator>();
         private CancellationTokenSource activeGeneration;
 
@@ -72,14 +73,19 @@ namespace TacticalMaps.Generation
             {
                 var roads = Roads != null ? Roads.Generate(map, snapshot.SourceRadius, heightSource.width, heightSource.height, CancellationToken.None) : null;
                 map.Roads = roads;
+                var agriculture = agricultureGenerator != null ? agricultureGenerator.Generate(map, snapshot.SourceRadius, CancellationToken.None) : null;
+                map.Agriculture = agriculture;
                 var surface = ResolveBiomeGenerator().Generate(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, CancellationToken.None);
                 var rocks = ResolveRockGenerator().Generate(map, CancellationToken.None);
                 var withRocks = CreateResult(point, snapshot, textures, compression, surface, rocks);
                 withRocks.Roads = roads;
+                withRocks.Agriculture = agriculture;
                 var trees = ResolveTreeGenerator().Generate(withRocks, CancellationToken.None);
                 var grass = TacticalMaps.Grass.GrassCoverage.Generate(surface, CancellationToken.None);
+                grass?.ExcludeAgriculture(agriculture, ToSizes(snapshot));
                 var result = CreateResult(point, snapshot, textures, compression, surface, rocks, trees, grass);
                 result.Roads = roads;
+                result.Agriculture = agriculture;
                 return result;
             }
             catch { map.Release(); throw; }
@@ -91,14 +97,19 @@ namespace TacticalMaps.Generation
             {
                 var roads = Roads != null ? await Roads.GenerateAsync(map, snapshot.SourceRadius, heightSource.width, heightSource.height, cancellation) : null;
                 map.Roads = roads;
+                var agriculture = agricultureGenerator != null ? await agricultureGenerator.GenerateAsync(map, snapshot.SourceRadius, cancellation) : null;
+                map.Agriculture = agriculture;
                 var surface = await ResolveBiomeGenerator().GenerateAsync(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, cancellation);
                 var rocks = await ResolveRockGenerator().GenerateAsync(map, cancellation);
                 var withRocks = CreateResult(point, snapshot, textures, compression, surface, rocks);
                 withRocks.Roads = roads;
+                withRocks.Agriculture = agriculture;
                 var trees = await ResolveTreeGenerator().GenerateAsync(withRocks, cancellation);
                 var grass = await Task.Run(() => TacticalMaps.Grass.GrassCoverage.Generate(surface, cancellation), cancellation);
+                if (grass != null) await Task.Run(() => grass.ExcludeAgriculture(agriculture, ToSizes(snapshot)), cancellation);
                 var result = CreateResult(point, snapshot, textures, compression, surface, rocks, trees, grass);
                 result.Roads = roads;
+                result.Agriculture = agriculture;
                 return result;
             }
             catch { map.Release(); throw; }

@@ -163,7 +163,8 @@ namespace TacticalMaps.Testing
                 mapBuilder.Build(currentMap);
                 grassSystem.Build(currentMap);
                 buildPending = false; hasBuiltTerrain = true;
-                status.text = "Карта построена: 3 Terrain, вода и трава" + (currentMap.Roads != null ? $" · дороги: {currentMap.Roads.Segments.Length} сегм., непроходимых участков: {currentMap.Roads.RejectedSections}" : "") + " · осмотр в Scene";
+                status.text = "Карта построена: 3 Terrain, вода и трава" + (currentMap.Roads != null ? $" · дороги: {currentMap.Roads.Segments.Length}" : "") +
+                    (currentMap.Agriculture != null ? $" · поля: {currentMap.Agriculture.Fields.Length} · хозяйства: {currentMap.Agriculture.Farms.Length}" : "") + " · осмотр в Scene";
             }
             catch (Exception e) { buildPending = false; status.text = "Ошибка построения: " + e.Message; Debug.LogException(e); }
         }

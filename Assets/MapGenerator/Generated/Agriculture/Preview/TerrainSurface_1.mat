@@ -1,0 +1,159 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: TerrainSurface_1
+  m_Shader: {fileID: 4800000, guid: e5b46ed612db0944e83f1c0c6bb6446b, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - _ALPHATEST_ON
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Control:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FarmMap:
+        m_Texture: {fileID: 2800000, guid: 57316f1e4707efc4c8a5257b92d02d3e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _FarmSoil:
+        m_Texture: {fileID: 2800000, guid: ea94767cf953fc740a93ddab39cd38ed, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GrassCoverage:
+        m_Texture: {fileID: 2800000, guid: 05ec00017effad746b7e04d17b791356, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GrassTurf:
+        m_Texture: {fileID: 2800000, guid: c07300977f169b24a9d102c7bb9f8e6a, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GrassTurfFlowers:
+        m_Texture: {fileID: 2800000, guid: 5382855f248946244a4ba03067f9ea0b, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _GrassTurfNormal:
+        m_Texture: {fileID: 2800000, guid: 497876075cd1cf14a92452978d648b1f, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Mask3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normal0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normal1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normal2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Normal3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat0:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Splat3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TerrainHolesTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AntiTileFadeEnd: 3000
+    - _AntiTileFadeStart: 1200
+    - _DetailNormalStrength: 0.5
+    - _EnableHeightBlend: 0
+    - _EnableInstancedPerPixelNormal: 1
+    - _FarmEnabled: 1
+    - _GrassEnabled: 1
+    - _GrassFlowerCount: 4
+    - _GrassTurfStrength: 1
+    - _HeightTransition: 0
+    - _Metallic0: 0
+    - _Metallic1: 0
+    - _Metallic2: 0
+    - _Metallic3: 0
+    - _NumLayersCount: 1
+    - _Smoothness0: 0.5
+    - _Smoothness1: 0.5
+    - _Smoothness2: 0.5
+    - _Smoothness3: 0.5
+    - _StochasticBlendSharpness: 3
+    - _StochasticPatchTiles: 2
+    - _StochasticSeed: 137
+    - _StochasticStrength: 1
+    m_Colors:
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _FarmRect: {r: -4048, g: -4048, b: 8096, a: 8096}
+    - _GrassDry: {r: 0.49, g: 0.45, b: 0.25, a: 1}
+    - _GrassFlowerColor0: {r: 0.83, g: 0.84, b: 0.72, a: 1}
+    - _GrassFlowerColor1: {r: 0.76, g: 0.51, b: 0.13, a: 0.9}
+    - _GrassFlowerColor2: {r: 0.4, g: 0.31, b: 0.65, a: 1.1}
+    - _GrassFlowerColor3: {r: 0.65, g: 0.12, b: 0.1, a: 1}
+    - _GrassFlowerColor4: {r: 0, g: 0, b: 0, a: 1}
+    - _GrassFlowerColor5: {r: 0, g: 0, b: 0, a: 1}
+    - _GrassFlowerColor6: {r: 0, g: 0, b: 0, a: 1}
+    - _GrassFlowerColor7: {r: 0, g: 0, b: 0, a: 1}
+    - _GrassFlowerForms0: {r: 0, g: 1, b: 2, a: 3}
+    - _GrassFlowerForms1: {r: 1, g: 1, b: 1, a: 1}
+    - _GrassFlowerWeights0: {r: 0.5, g: 0.74, b: 0.92, a: 1}
+    - _GrassFlowerWeights1: {r: 0, g: 0, b: 0, a: 0}
+    - _GrassFlowers: {r: 0.035, g: 12, b: 0.095, a: 0}
+    - _GrassMeadow: {r: 0.32, g: 0.43, b: 0.19, a: 1}
+    - _GrassOptions: {r: 16, g: 0, b: 50.4, a: 0.81915206}
+    - _GrassRect: {r: -4048, g: -4048, b: 8096, a: 8096}
+    - _GrassWind: {r: 0.22, g: 1.2, b: 7819, a: 0.9}
+    - _TacticalTerrainSize: {r: 8096, g: 8096, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

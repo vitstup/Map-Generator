@@ -41,15 +41,20 @@ namespace TacticalMaps.Editor
             // Save dependencies first: importing a native asset drops references to unsaved objects.
             ordered.Sort((a, b) => Priority(a).CompareTo(Priority(b)));
             int depth = 0;
-            foreach (var asset in ordered)
+            AssetDatabase.StartAssetEditing();
+            try
             {
-                if (asset == null || AssetDatabase.Contains(asset)) continue;
-                string extension = asset is Material ? ".mat" : ".asset";
-                string name = asset.name == "WaterDepth" ? asset.name + depth++ : asset.name;
-                string path = folder + "/" + name + extension;
-                if (replace && AssetDatabase.LoadMainAssetAtPath(path) != null) AssetDatabase.DeleteAsset(path);
-                AssetDatabase.CreateAsset(asset, replace ? path : AssetDatabase.GenerateUniqueAssetPath(path));
+                foreach (var asset in ordered)
+                {
+                    if (asset == null || AssetDatabase.Contains(asset)) continue;
+                    string extension = asset is Material ? ".mat" : ".asset";
+                    string name = asset.name == "WaterDepth" ? asset.name + depth++ : asset.name;
+                    string path = folder + "/" + name + extension;
+                    if (replace && AssetDatabase.LoadMainAssetAtPath(path) != null) AssetDatabase.DeleteAsset(path);
+                    AssetDatabase.CreateAsset(asset, replace ? path : AssetDatabase.GenerateUniqueAssetPath(path));
+                }
             }
+            finally { AssetDatabase.StopAssetEditing(); }
         }
         private static int Priority(UnityEngine.Object asset) => asset is Texture ? 0 : asset is TerrainLayer ? 1 : asset is Material ? 2 : 3;
     }

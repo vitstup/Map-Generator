@@ -29,14 +29,17 @@ uint _Axis, _PerSlot, _Slot, _ActiveCount;
 float _ChunkSize;
 RWStructuredBuffer<uint4> _Prepared;
 StructuredBuffer<uint> _FrameNear, _FrameMiddle, _FrameSparse;
-RWByteAddressBuffer _FrameCounts, _FrameDispatch;
+RWByteAddressBuffer _FrameCounts;
+RWBuffer<uint> _FrameDispatch;
 float4 _FrameWind, _FrameMeadow, _FrameDry, _FrameNearRange;
 
 [numthreads(1,1,1)]
 void FrameArguments(uint3 dispatch:SV_DispatchThreadID)
 {
     uint count=_FrameCounts.Load(0)+_FrameCounts.Load(4)+_FrameCounts.Load(8);
-    _FrameDispatch.Store3(0,uint3(max(1u,(count+63)/64),1,1));
+    _FrameDispatch[0]=max(1u,(count+63)/64);
+    _FrameDispatch[1]=1;
+    _FrameDispatch[2]=1;
 }
 [numthreads(64,1,1)]
 void PrepareFrame(uint3 dispatch:SV_DispatchThreadID)

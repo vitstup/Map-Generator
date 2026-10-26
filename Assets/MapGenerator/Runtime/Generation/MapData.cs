@@ -18,6 +18,7 @@ namespace TacticalMaps.Generation
         internal RockData Rocks { get; private set; }
         internal TreeData Trees { get; private set; }
         internal RoadData Roads { get; set; }
+        internal AgricultureData Agriculture { get; set; }
         internal TacticalMaps.Grass.GrassCoverage Grass { get; private set; }
         // The latest successful construction of this result. Never discover another map globally.
         internal Transform BuiltRoot { get; set; }
@@ -47,6 +48,7 @@ namespace TacticalMaps.Generation
             Rocks = null;
             Trees = null;
             Roads = null;
+            Agriculture = null;
             Grass = null;
             foreach (var texture in Heightmaps)
             {

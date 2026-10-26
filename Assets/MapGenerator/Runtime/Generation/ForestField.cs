@@ -17,6 +17,7 @@ namespace TacticalMaps.Generation
             Spacing, SpacingRatio, Slope, Shore, WaterHeight;
         internal readonly List<Bounds> Rocks = new List<Bounds>();
         internal RoadData Roads;
+        internal AgricultureData Agriculture;
 
         internal TreeData Generate(CancellationToken token)
         {
@@ -153,6 +154,7 @@ namespace TacticalMaps.Generation
             float gx = (Sample(x + step, z) - Sample(x - step, z)) / (2 * step);
             float gz = (Sample(x, z + step) - Sample(x, z - step)) / (2 * step);
             if (Mathf.Atan(Mathf.Sqrt(gx * gx + gz * gz)) * Mathf.Rad2Deg > Slope) return false;
+            if (Agriculture != null && Agriculture.Blocks(new Vector2(x, z), cellMargin + 2)) return false;
             foreach (var rock in Rocks)
                 if (x >= rock.min.x - cellMargin && x <= rock.max.x + cellMargin && z >= rock.min.z - cellMargin && z <= rock.max.z + cellMargin && h < rock.max.y) return false;
             return true;

@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: WaterSurface
+  m_Shader: {fileID: 4800000, guid: d8b5f3de1fd95224eb3409252877b505, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Depth0:
+        m_Texture: {fileID: 2800000, guid: dee0f25605ec2ca4cb2cbde35f12b0c0, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Depth1:
+        m_Texture: {fileID: 2800000, guid: 64325347a03c98542ac2ba48aa9cb301, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Depth2:
+        m_Texture: {fileID: 2800000, guid: 57345994299f2c8408cb4eb3334703dd, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AbsorptionDepth: 18
+    - _DeepOpacity: 0.88
+    - _DepthColorDistance: 22
+    - _FlowSpeed: 1.8
+    - _FoamDepth: 0.7
+    - _FoamStrength: 0.35
+    - _GlintStrength: 0.55
+    - _HeightRange: 2000
+    - _RippleHighlights: 0.25
+    - _RippleSize: 18
+    - _RippleStrength: 0.16
+    - _ShallowOpacity: 0.12
+    - _SurfaceLift: 0.2
+    - _WaterLevel: 50
+    - _WaveAmplitude: 1.2
+    - _WaveLength: 100
+    - _WaveSpeed: 1.3
+    m_Colors:
+    - _DeepColor: {r: 0.025, g: 0.28, b: 0.4, a: 1}
+    - _FoamColor: {r: 0.78, g: 0.92, b: 0.87, a: 1}
+    - _MapCenter: {r: 0, g: 0, b: 0, a: 0}
+    - _MapSize0: {r: 2048, g: 2048, b: 0.00048828125, a: 0.00048828125}
+    - _MapSize1: {r: 8096, g: 8096, b: 0.00012351779, a: 0.00012351779}
+    - _MapSize2: {r: 20000, g: 20000, b: 0.00005, a: 0.00005}
+    - _ShallowColor: {r: 0.1, g: 0.55, b: 0.62, a: 1}
+    - _SkyColor: {r: 0.47999996, g: 0.72, b: 0.8, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

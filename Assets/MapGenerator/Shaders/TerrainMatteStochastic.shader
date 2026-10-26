@@ -4,6 +4,10 @@ Shader "TacticalMaps/Terrain/MatteStochastic"
 {
     Properties
     {
+        [HideInInspector] _FarmMap("Farm parcels", 2D) = "black" {}
+        [HideInInspector] _FarmSoil("Farm soil", 2D) = "gray" {}
+        [HideInInspector] _FarmRect("Farm bounds", Vector) = (0,0,1,1)
+        [HideInInspector] _FarmEnabled("Farm surface enabled", Float) = 0
         [HideInInspector] _GrassTurfFlowers("Flower petal mask", 2D) = "black" {}
         [HideInInspector] _GrassFlowers("Flower settings", Vector) = (0,12,.095,0)
         [HideInInspector] _GrassFlowerForms0("Flower forms 0", Vector) = (0,1,2,3)
