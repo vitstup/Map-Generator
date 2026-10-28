@@ -40,11 +40,6 @@ namespace TacticalMaps.Generation
         {
             var list = new List<FarmSurfacePrimitive>();
             foreach (var f in fields) list.Add(new FarmSurfacePrimitive { Shape = new Vector4(f.center.x, f.center.y, f.halfSize.x, f.halfSize.y), Style = new Vector4(Mathf.Cos(f.angle), Mathf.Sin(f.angle), f.crop, f.variation), Detail = new Vector4(f.CornerRadius, 0, 0, 0) });
-            foreach (var f in farms)
-            {
-                var a = new Vector2(Mathf.Cos(f.angle), Mathf.Sin(f.angle)); var p = f.center + a * 8;
-                list.Add(new FarmSurfacePrimitive { Shape = new Vector4(p.x, p.y, 24, 16), Style = new Vector4(a.x, a.y, 4, .45f), Detail = new Vector4(5, 0, 0, 0) });
-            }
             foreach (var track in tracks)
             {
                 int n = Mathf.CeilToInt(Vector2.Distance(track.a, track.b) / 10); var start = track.a;

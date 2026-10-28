@@ -74,6 +74,7 @@ namespace TacticalMaps.Generation
                 var roads = Roads != null ? Roads.Generate(map, snapshot.SourceRadius, heightSource.width, heightSource.height, CancellationToken.None) : null;
                 map.Roads = roads;
                 var agriculture = agricultureGenerator != null ? agricultureGenerator.Generate(map, snapshot.SourceRadius, CancellationToken.None) : null;
+                roads = agriculture?.CombinedRoads ?? roads; map.Roads=roads;
                 map.SetAgriculture(agriculture);
                 var surface = ResolveBiomeGenerator().Generate(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, CancellationToken.None);
                 var rocks = ResolveRockGenerator().Generate(map, CancellationToken.None);
@@ -98,6 +99,7 @@ namespace TacticalMaps.Generation
                 var roads = Roads != null ? await Roads.GenerateAsync(map, snapshot.SourceRadius, heightSource.width, heightSource.height, cancellation) : null;
                 map.Roads = roads;
                 var agriculture = agricultureGenerator != null ? await agricultureGenerator.GenerateAsync(map, snapshot.SourceRadius, cancellation) : null;
+                roads = agriculture?.CombinedRoads ?? roads; map.Roads=roads;
                 map.SetAgriculture(agriculture);
                 var surface = await ResolveBiomeGenerator().GenerateAsync(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, cancellation);
                 var rocks = await ResolveRockGenerator().GenerateAsync(map, cancellation);

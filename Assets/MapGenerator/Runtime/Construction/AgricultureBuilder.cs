@@ -15,6 +15,8 @@ namespace TacticalMaps.Construction
         [SerializeField, Min(100)] private float cropDistance = 330;
         [SerializeField, Min(0)] private float detailedBuildingMargin = 200;
         [SerializeField, Min(1)] private int maximumCropPatches = 450000;
+        [SerializeField, Min(30)] private float propDrawDistance=180;
+        [SerializeField, Min(0)] private int maximumProps=1600;
         internal double LastBuildMilliseconds { get; private set; }
         private static Terrain[] cachedGround;
         private static Vector3[] cachedOrigins, cachedSizes;
@@ -76,41 +78,41 @@ namespace TacticalMaps.Construction
                     for (int i = 0; i < contour.Count; i++)
                     {
                         var a = contour[i]; var b = contour[(i + 1) % contour.Count]; var p = a.Position - a.Normal * .22f; var q = b.Position - b.Normal * .22f;
-                        g.Triangle(middle, new Vector3(q.x + center.x, middle.y, q.y + center.z), new Vector3(p.x + center.x, middle.y, p.y + center.z), Color.white);
+                        g.WaterTriangle(middle, new Vector3(q.x + center.x, middle.y, q.y + center.z), new Vector3(p.x + center.x, middle.y, p.y + center.z), field.variation);
                     }
                 }
             }
             foreach (var farm in map.Agriculture.Farms)
             {
                 bool detailed = Mathf.Abs(farm.center.x) < map.Sizes[0].x / 2 + detailedBuildingMargin && Mathf.Abs(farm.center.y) < map.Sizes[0].y / 2 + detailedBuildingMargin;
-                var house = library.houses[farm.variant % library.houses.Length];
-                for (int i = 0; i < 2; i++)
+                foreach (var building in farm.Buildings)
                 {
-                    float angle = farm.angle + (i == 0 ? 0 : Mathf.PI / 2); var offset = i == 0 ? Vector2.zero : new Vector2(Mathf.Cos(farm.angle), Mathf.Sin(farm.angle)) * 20;
+                    var house = library.houses[building.variant % library.houses.Length];
                     GameObject go;
                     if (detailed) go = Instantiate(house, group.transform);
                     else
                     {
-                        var proxy = house.transform.Find("Distant"); go = new GameObject("DistantFarm", typeof(MeshFilter), typeof(MeshRenderer)); go.transform.SetParent(group.transform, false);
-                        go.GetComponent<MeshFilter>().sharedMesh = proxy.GetComponent<MeshFilter>().sharedMesh;
-                        var renderer = go.GetComponent<MeshRenderer>(); renderer.sharedMaterial = proxy.GetComponent<MeshRenderer>().sharedMaterial; renderer.shadowCastingMode = ShadowCastingMode.Off;
-                        var lod = go.AddComponent<LODGroup>(); lod.SetLODs(new[] { new LOD(.0008f, new Renderer[] { renderer }) }); lod.RecalculateBounds();
+                        go = new GameObject("DistantFarm"); go.transform.SetParent(group.transform, false);
+                        Instantiate(house.transform.Find("Distant").gameObject, go.transform, false);
+                        var renderers = go.GetComponentsInChildren<Renderer>();
+                        foreach (var renderer in renderers) renderer.shadowCastingMode = ShadowCastingMode.Off;
+                        var lod = go.AddComponent<LODGroup>(); lod.SetLODs(new[] { new LOD(.0004f, renderers) }); lod.RecalculateBounds();
                     }
-                    go.name = i == 0 ? "Farmhouse" : "Storehouse";
-                    go.transform.position = Ground(farm.center + offset, terrains, center, -.035f); go.transform.rotation = Quaternion.Euler(0, -angle * Mathf.Rad2Deg, 0);
-                    if (i == 1) go.transform.localScale = Vector3.one * .65f;
-                    if (detailed)
+                    go.name = "FarmBuilding_" + building.variant;
+                    go.transform.position = Ground(building.center, terrains, center, -.035f); go.transform.rotation = Quaternion.Euler(0, -building.angle * Mathf.Rad2Deg, 0);
+                    go.transform.localScale = Vector3.one * building.scale;
+                    if (Mathf.Abs(building.center.x)<map.Sizes[0].x/2+600 && Mathf.Abs(building.center.y)<map.Sizes[0].y/2+600)
                     {
-                        var grounding = go.GetComponent<FarmBuildingGrounding>(); var geometry = BankAt(farm.center + offset);
-                        if (grounding != null && grounding.supports != null)
-                            foreach (var support in grounding.supports)
-                            {
-                                var p = go.transform.TransformPoint(support); var floor = Ground(new Vector2(p.x - center.x, p.z - center.z), terrains, center);
-                                if (p.y > floor.y + .015f) geometry.Box(p, floor.y - .12f, p.y + .04f, .32f * go.transform.lossyScale.x, new Color(.48f, .46f, .39f, .5f));
-                            }
+                        var supports=FarmSupportBuilder.Build(go,house.GetComponent<FarmBuildingGrounding>(),library.supportMaterial,terrains,center);
+                        if(supports!=null){supports.name="FarmSupports_"+owned.SupportCount++;owned.AddMesh(supports);}
                     }
                 }
             }
+            var props=FarmPropBuilder.Place(map,library,terrains,center,maximumProps);
+            // Placement positions are local to GeneratedMap; it is normally at world identity.
+            for(int i=0;i<props.Length;i++)props[i].position=group.transform.InverseTransformPoint(props[i].position);
+            group.AddComponent<FarmPropRenderer>().Configure(library,props,propDrawDistance);
+            FarmFenceBuilder.Build(map.Agriculture.Farms, library, terrains, center, map.Sizes[0], group.transform, owned);
             foreach (var pair in banks) owned.AddMesh(pair.Value.Build(group.transform, "FieldBanks_" + pair.Key, library.bankMaterial, true));
             foreach (var pair in water) owned.AddMesh(pair.Value.Build(group.transform, "PaddyWater_" + pair.Key, library.waterMaterial, false));
             LastBuildMilliseconds = clock.Elapsed.TotalMilliseconds;
@@ -151,6 +153,8 @@ namespace TacticalMaps.Construction
         private sealed class Geometry
         {
             private readonly List<Vector3> vertices = new List<Vector3>(); private readonly List<int> indices = new List<int>(); private readonly List<Color> colors = new List<Color>();
+            internal void WaterTriangle(Vector3 a,Vector3 b,Vector3 c,float variation)
+            {int n=vertices.Count;vertices.AddRange(new[]{a,b,c});colors.AddRange(new[]{new Color(1,variation,0,1),new Color(0,variation,0,1),new Color(0,variation,0,1)});indices.AddRange(new[]{n,n+1,n+2});}
             internal void Triangle(Vector3 a, Vector3 b, Vector3 c, Color color)
             { int n = vertices.Count; color = Linear(color); vertices.AddRange(new[] { a, b, c }); colors.AddRange(new[] { color, color, color }); indices.AddRange(new[] { n, n + 1, n + 2 }); }
             internal void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color color)

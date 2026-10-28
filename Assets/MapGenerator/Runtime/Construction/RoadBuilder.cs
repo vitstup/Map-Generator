@@ -16,7 +16,7 @@ namespace TacticalMaps.Construction
         {
             var roads=data.Roads;if(roads==null||roads.Tiles.Count==0)return;
             var watch=System.Diagnostics.Stopwatch.StartNew();
-            if(roads.Tiles.Count>SystemInfo.maxTextureArraySlices)throw new InvalidOperationException("Too many road tiles for this graphics device.");
+            if(roads.Tiles.Count>Mathf.Min(2048,SystemInfo.maxTextureArraySlices)*2)throw new InvalidOperationException("Too many road tiles for this graphics device.");
             var owned=parent.gameObject.AddComponent<RoadMap>();
             owned.Configure(roads,center,data.SeaLevelMeters,largeSurface,mediumSurface,largeTint,mediumTint);
             LastBuildMilliseconds=watch.Elapsed.TotalMilliseconds;

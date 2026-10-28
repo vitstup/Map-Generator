@@ -11,6 +11,7 @@ namespace TacticalMaps.Generation
         public float angle, height, variation;
         // 0 fallow, 1 green rice, 2 ripe rice, 3 flooded young rice.
         public int crop;
+        public int groupId;
         internal Vector2 Axis => new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
         internal Vector2 Point(float x, float z) { var a = Axis; return center + a * x + new Vector2(-a.y, a.x) * z; }
         internal bool Contains(Vector2 p, float margin = 0)
@@ -32,14 +33,45 @@ namespace TacticalMaps.Generation
     {
         public Vector2 center;
         public float angle;
-        public int variant;
+        public int variant, groupId;
         public float houseHeight, storeHeight;
         public Vector2 halfFootprint;
+        public FarmBuilding[] buildings;
+        public Vector2 yardHalfSize;
+        public int fenceStyle;
+        public bool embedded;
+        public Vector2 parcelCenter, parcelHalfSize;
+        public float parcelAngle, gateHalfWidth, gateLead;
+        internal float GateLead => gateLead>0?gateLead:8;
+        internal Vector2 Axis => new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+        internal float GateHalfWidth => gateHalfWidth > 0 ? gateHalfWidth : 4.5f;
+        internal Vector2 Local(Vector2 p) { var d=p-center;var a=Axis;return new Vector2(Vector2.Dot(d,a),Vector2.Dot(d,new Vector2(-a.y,a.x))); }
+        internal bool ContainsYard(Vector2 p,float margin=0) { var q=Local(p);return Mathf.Abs(q.x)<=yardHalfSize.x+margin && Mathf.Abs(q.y)<=yardHalfSize.y+margin; }
+        internal bool GateCorridor(Vector2 p,float margin=0) {var q=Local(p);return q.x>=yardHalfSize.x-4-margin && q.x<=yardHalfSize.x+GateLead+1+margin && Mathf.Abs(q.y)<=GateHalfWidth-margin;}
+        internal bool IntersectsYard(Vector2 start,Vector2 end,float margin)
+        {
+            var a=Local(start);var d=Local(end)-a;var half=yardHalfSize+Vector2.one*margin;float lo=0,hi=1;
+            for(int i=0;i<2;i++){if(Mathf.Abs(d[i])<.00001f){if(Mathf.Abs(a[i])>half[i])return false;}else{float u=(-half[i]-a[i])/d[i],v=(half[i]-a[i])/d[i];if(u>v){float t=u;u=v;v=t;}lo=Mathf.Max(lo,u);hi=Mathf.Min(hi,v);if(lo>hi)return false;}}return true;
+        }
+        internal Vector2 Gate => center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (yardHalfSize.x > 0 ? yardHalfSize.x + GateLead : 25);
+        internal FarmBuilding[] Buildings => buildings ?? new[] {
+            new FarmBuilding { center = center, angle = angle, variant = variant, height = houseHeight, halfSize = halfFootprint, scale = 1 },
+            new FarmBuilding { center = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * 20, angle = angle + Mathf.PI / 2, variant = variant, height = storeHeight, halfSize = halfFootprint * .65f, scale = .65f } };
+    }
+    [Serializable]
+    internal struct FarmBuilding
+    {
+        public Vector2 center, halfSize;
+        public float angle, height, scale;
+        public int variant;
+        internal bool Contains(Vector2 p, float margin)
+        { var d = p - center; float c = Mathf.Cos(angle), s = Mathf.Sin(angle); return Mathf.Abs(d.x*c+d.y*s) <= halfSize.x+margin && Mathf.Abs(-d.x*s+d.y*c) <= halfSize.y+margin; }
     }
     [Serializable]
     internal struct FarmTrack
     {
         public Vector2 a, b, controlA, controlB;
+        public int ownerGroup;
         internal Vector2 Point(float t)
         {
             if (controlA == Vector2.zero && controlB == Vector2.zero) return Vector2.Lerp(a, b, t);
@@ -57,6 +89,8 @@ namespace TacticalMaps.Generation
         internal int[] Resolutions;
         internal AgricultureSurfaceData Surface;
         internal double PlanningMilliseconds, SurfaceMilliseconds;
+        internal int AccessRequested, AccessConnected;
+        internal RoadData CombinedRoads;
         private readonly Dictionary<Vector2Int, List<int>> bins = new Dictionary<Vector2Int, List<int>>();
         internal AgricultureData(FarmField[] fields, Farmstead[] farms, Color32[][] masks, int[] resolutions, FarmTrack[] tracks = null)
         {
@@ -80,13 +114,15 @@ namespace TacticalMaps.Generation
                 { var key = new Vector2Int(x, z); if (!bins.TryGetValue(key, out var list)) bins.Add(key, list = new List<int>()); list.Add(-Farms.Length - i - 1); }
             }
             for (int i = 0; i < farms.Length; i++)
-                for (int z = Mathf.FloorToInt((farms[i].center.y - 34) / 128); z <= Mathf.FloorToInt((farms[i].center.y + 34) / 128); z++)
-                    for (int x = Mathf.FloorToInt((farms[i].center.x - 34) / 128); x <= Mathf.FloorToInt((farms[i].center.x + 34) / 128); x++)
-                    {
-                        var key = new Vector2Int(x, z); if (!bins.TryGetValue(key, out var list)) bins.Add(key, list = new List<int>()); list.Add(-i - 1);
-                    }
+            {
+                float radius = farms[i].yardHalfSize.magnitude + 4;
+                if (radius < 35) radius = 35;
+                for (int z = Mathf.FloorToInt((farms[i].center.y - radius) / 128); z <= Mathf.FloorToInt((farms[i].center.y + radius) / 128); z++)
+                    for (int x = Mathf.FloorToInt((farms[i].center.x - radius) / 128); x <= Mathf.FloorToInt((farms[i].center.x + radius) / 128); x++)
+                    { var key = new Vector2Int(x, z); if (!bins.TryGetValue(key, out var list)) bins.Add(key, list = new List<int>()); list.Add(-i - 1); }
+            }
         }
-        internal bool Blocks(Vector2 p, float margin = 0)
+        internal bool Blocks(Vector2 p, float margin = 0, bool buildings = true)
         {
             for (int z = Mathf.FloorToInt((p.y - margin) / 128); z <= Mathf.FloorToInt((p.y + margin) / 128); z++)
                 for (int x = Mathf.FloorToInt((p.x - margin) / 128); x <= Mathf.FloorToInt((p.x + margin) / 128); x++)
@@ -97,15 +133,23 @@ namespace TacticalMaps.Generation
                             else
                             {
                                 int index = -i - 1;
-                                if (index < Farms.Length) { if ((p - Farms[index].center).sqrMagnitude < (32 + margin) * (32 + margin)) return true; }
+                                if (index < Farms.Length) { if (buildings) foreach (var building in Farms[index].Buildings) if (building.Contains(p, margin + .35f)) return true; }
                                 else if (Tracks[index - Farms.Length].Distance(p) <= 1.8f + margin) return true;
                             }
                         }
             return false;
         }
+        internal bool YardsBlockSegment(Vector2 a,Vector2 b,float margin,int? ignoreGroup=null)
+        {
+            var lo=Vector2.Min(a,b)-Vector2.one*margin;var hi=Vector2.Max(a,b)+Vector2.one*margin;
+            for(int y=Mathf.FloorToInt(lo.y/128);y<=Mathf.FloorToInt(hi.y/128);y++)for(int x=Mathf.FloorToInt(lo.x/128);x<=Mathf.FloorToInt(hi.x/128);x++)
+                if(bins.TryGetValue(new Vector2Int(x,y),out var list))foreach(int item in list)
+                {int farm=-item-1;if(item<0 && farm<Farms.Length && (!ignoreGroup.HasValue||Farms[farm].groupId!=ignoreGroup.Value) && Farms[farm].IntersectsYard(a,b,margin))return true;}
+            return false;
+        }
         internal void BuildSurfaces(Vector2[] sizes, System.Threading.CancellationToken token)
         {
-            var primitives = AgricultureSurfaceData.Describe(Fields, Farms, Tracks);
+            var primitives = AgricultureSurfaceData.Describe(Fields, Farms, CombinedRoads != null ? Array.Empty<FarmTrack>() : Tracks);
             Surface = AgricultureSurfaceData.Build(primitives, sizes[0], token);
             if (Fields.Length == 0 && Farms.Length == 0) Resolutions = new[] { 32, 32, 32 };
             Masks = new Color32[3][];

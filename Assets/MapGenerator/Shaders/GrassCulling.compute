@@ -22,6 +22,18 @@ float4 _Planes[6];
 float4 _Focus;
 float4 _MeadowRange;
 uint _Pool;
+int _BuildingCount;
+float4 _BuildingRects[64], _BuildingAxes[64];
+bool BuildingAt(float2 p)
+{
+    for(int i=0;i<_BuildingCount;i++)
+    {
+        float2 d=p-_BuildingRects[i].xy, a=_BuildingAxes[i].xy;
+        float2 q=abs(float2(dot(d,a),dot(d,float2(-a.y,a.x))));
+        if(all(q <= _BuildingRects[i].zw + (_Pool==0?.35:_Pool==1?1:2)))return true;
+    }
+    return false;
+}
 int _TopologyCheck;
 int _TransitionCheck;
 int _ReferenceGeometry;
@@ -102,7 +114,7 @@ void Generate(uint3 dispatch : SV_DispatchThreadID)
         float suitability = smoothstep(_PlantRules.y, min(1, _PlantRules.y + .08), slope) * smoothstep(_PlantRules.z, _PlantRules.z + 1.2, height);
         float probability = saturate(cover.r*1.45) * cover.a * GrassPermission(cover.b) * GrassPatch(world, _PlantRules.w) * _PlantRules.x * suitability;
         float pick = GrassHash(key + 191.7 + _PlantRules.w);
-        if (pick < probability && hole > .5)
+        if (pick < probability && hole > .5 && !BuildingAt(world))
         {
             float h = lerp(_HeightRange.x, _HeightRange.y, random) * lerp(.8, 1.2, GrassNoise(world / 7 + _PlantRules.w));
             if (_Pool == 1) h=lerp(.16,.28,random);

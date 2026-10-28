@@ -11,6 +11,8 @@ namespace TacticalMaps.Grass
     {
         private readonly GrassLibrary library;
         private readonly GrassMap map;
+        private readonly Dictionary<Vector2Int, List<TacticalMaps.Generation.FarmBuilding>> buildingChunks = new Dictionary<Vector2Int, List<TacticalMaps.Generation.FarmBuilding>>();
+        private readonly Vector4[] buildingRects = new Vector4[64], buildingAxes = new Vector4[64];
         private readonly ComputeShader compute;
         private readonly GraphicsBuffer instances, activeSlots, births;
         private readonly GraphicsBuffer prepared, frameCounts, frameDispatch;
@@ -54,6 +56,19 @@ namespace TacticalMaps.Grass
             pool = poolIndex;
             library = assets; map = source; cell = Mathf.Clamp(chunk, 16, 128); axis = Mathf.Clamp(samples, 16, 64);
             capacity = Mathf.Clamp(maximum, 32, 512); perSlot = axis * axis; active = new int[capacity]; Revision = revision;
+            var agriculture = source.GetComponent<TacticalMaps.Construction.AgricultureMap>();
+            if (agriculture != null && agriculture.farms != null)
+            {
+                var terrain = source.Terrains[0]; var origin = terrain.transform.position + terrain.terrainData.size * .5f;
+                foreach (var farm in agriculture.farms) foreach (var original in farm.Buildings)
+                {
+                    var building = original; building.center += new Vector2(origin.x, origin.z);
+                    float radius = building.halfSize.magnitude + 4;
+                    for (int y = Mathf.FloorToInt((building.center.y-radius)/cell); y <= Mathf.FloorToInt((building.center.y+radius)/cell); y++)
+                        for (int x = Mathf.FloorToInt((building.center.x-radius)/cell); x <= Mathf.FloorToInt((building.center.x+radius)/cell); x++)
+                        { var key = new Vector2Int(x,y); if (!buildingChunks.TryGetValue(key, out var list)) buildingChunks[key] = list = new List<TacticalMaps.Generation.FarmBuilding>(); list.Add(building); }
+                }
+            }
             minY = float.PositiveInfinity; maxY = float.NegativeInfinity;
             foreach (var t in map.Terrains) { minY = Mathf.Min(minY, t.transform.position.y); maxY = Mathf.Max(maxY, t.transform.position.y + t.terrainData.size.y); }
             try
@@ -325,6 +340,16 @@ namespace TacticalMaps.Grass
                 int slot = free.Dequeue(); slots.Add(key, slot);
                 birthUpload[0]=Time.realtimeSinceStartup;births.SetData(birthUpload,0,slot,1);
                 compute.SetInt("_Slot", slot); compute.SetVector("_ChunkOrigin", new Vector4(key.x * cell, key.y * cell, 0, 0));
+                int buildingCount = 0;
+                if (buildingChunks.TryGetValue(key, out var chunkBuildings))
+                    foreach (var building in chunkBuildings)
+                    {
+                        if (buildingCount == 64) throw new InvalidOperationException("Grass chunk exceeds the building footprint limit.");
+                        buildingRects[buildingCount] = new Vector4(building.center.x, building.center.y, building.halfSize.x, building.halfSize.y);
+                        buildingAxes[buildingCount++] = new Vector4(Mathf.Cos(building.angle), Mathf.Sin(building.angle), 0, 0);
+                    }
+                compute.SetInt("_BuildingCount", buildingCount);
+                if (buildingCount > 0) { compute.SetVectorArray("_BuildingRects", buildingRects); compute.SetVectorArray("_BuildingAxes", buildingAxes); }
                 compute.Dispatch(generateKernel, (perSlot + 63) / 64, 1, 1); changed = true;
             }
             return changed;

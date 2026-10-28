@@ -24,7 +24,12 @@ Material:
     serializedVersion: 3
     m_TexEnvs: []
     m_Ints: []
-    m_Floats: []
-    m_Colors: []
+    m_Floats:
+    - _Opacity: 0.72
+    - _RippleStrength: 0.055
+    m_Colors:
+    - _DeepColor: {r: 0.13, g: 0.3, b: 0.34, a: 1}
+    - _ShallowColor: {r: 0.34, g: 0.39, b: 0.28, a: 1}
+    - _SkyTint: {r: 0.45, g: 0.61, b: 0.68, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

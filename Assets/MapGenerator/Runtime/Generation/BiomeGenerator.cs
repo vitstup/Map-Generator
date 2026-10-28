@@ -30,6 +30,7 @@ namespace TacticalMaps.Generation
             var weights = await Task.Run(() => field.Render(cancellation), cancellation);
             return new SurfaceData(layers, weights, field.TextureOrigin);
         }
+        internal float BeachHeight => settings.BeachHeight;
         private TerrainLayer[] Layers()
         {
             var layers = new[] { meadow, dryGrass, earth, rock, sand, silt };

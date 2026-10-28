@@ -19,9 +19,8 @@ namespace TacticalMaps.Construction
             foreach (var farm in data.Farms)
             {
                 if (Mathf.Abs(farm.center.x) > map.Sizes[0].x / 2 + 300 || Mathf.Abs(farm.center.y) > map.Sizes[0].y / 2 + 300) continue;
-                Stamp(farm.center, farm.halfFootprint + Vector2.one * .5f, farm.angle, 1, farm.houseHeight, -.2f, 2.5f);
-                var axis = new Vector2(Mathf.Cos(farm.angle), Mathf.Sin(farm.angle));
-                Stamp(farm.center + axis * 20, farm.halfFootprint * .65f + Vector2.one * .5f, farm.angle + Mathf.PI / 2, 1, farm.storeHeight, -.2f, 2.5f);
+                foreach (var building in farm.Buildings)
+                    Stamp(building.center, building.halfSize + Vector2.one * .35f, building.angle, 1, building.height, -.2f, 1.2f);
             }
             void Stamp(Vector2 center, Vector2 half, float angle, float radius, float elevation, float inner, float outer)
             {

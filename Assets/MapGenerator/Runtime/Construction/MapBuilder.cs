@@ -67,7 +67,7 @@ namespace TacticalMaps.Construction
             var agriculture = root.GetComponent<AgricultureMap>();
             if (agriculture != null) foreach (var item in agriculture.Resources) resources.Add(item);
             var roads = root.GetComponent<RoadMap>();
-            if (roads != null) { resources.Add(roads.Pages); resources.Add(roads.Distances); resources.Add(roads.FarCoverage); }
+            if (roads != null) { resources.Add(roads.Pages); resources.Add(roads.Distances); if(roads.ExtraDistances!=null)resources.Add(roads.ExtraDistances); resources.Add(roads.FarCoverage); }
             foreach (var terrain in root.GetComponentsInChildren<Terrain>(true))
             {
                 if (terrain.terrainData == null) continue;

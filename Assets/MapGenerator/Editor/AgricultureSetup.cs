@@ -32,13 +32,23 @@ namespace TacticalMaps.Editor
             var library = AssetDatabase.LoadAssetAtPath<AgricultureLibrary>(Folder + "/AgricultureLibrary.asset");
             if (library == null) { library = ScriptableObject.CreateInstance<AgricultureLibrary>(); AssetDatabase.CreateAsset(library, Folder + "/AgricultureLibrary.asset"); }
             library.bankMaterial = Material("FarmEarth", "TacticalMaps/Agriculture/Banks");
+            library.supportMaterial = Material("FarmSupports", "TacticalMaps/Agriculture/Simple");
             library.waterMaterial = Material("PaddyWater", "TacticalMaps/Agriculture/Water");
+            if(library.waterVersion<1)
+            {
+                library.waterMaterial.SetColor("_ShallowColor",new Color(.34f,.39f,.28f));
+                library.waterMaterial.SetColor("_DeepColor",new Color(.13f,.30f,.34f));
+                library.waterMaterial.SetColor("_SkyTint",new Color(.45f,.61f,.68f));
+                library.waterMaterial.SetFloat("_RippleStrength",.055f);library.waterMaterial.SetFloat("_Opacity",.72f);library.waterVersion=1;EditorUtility.SetDirty(library.waterMaterial);
+            }
             library.cropMaterial = Material("Rice", "TacticalMaps/Agriculture/Rice");
             library.cropMaterial.enableInstancing = true;
             library.culling = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/CropCulling.compute");
             library.closeRice = SaveMesh(RiceMesh(false), Folder + "/RiceClose.asset"); library.distantRice = SaveMesh(RiceMesh(true), Folder + "/RiceDistant.asset");
             library.houses = new GameObject[5];
             for (int i = 0; i < 5; i++) library.houses[i] = BakeHouse(i);
+            library.fences = new[] { AgricultureLodBaker.Fence(0), AgricultureLodBaker.Fence(1) };
+            FarmPropBaker.Install(library);
             EditorUtility.SetDirty(library);
             var generator = Object.FindAnyObjectByType<MapGenerator>(); var builder = Object.FindAnyObjectByType<MapBuilder>();
             if (generator == null || builder == null) throw new InvalidOperationException("Open MainScene with the map workbench.");
@@ -54,6 +64,16 @@ namespace TacticalMaps.Editor
                 configuration.FindProperty("maximumFields").intValue = 2400; configuration.FindProperty("maximumFarms").intValue = 500;
                 configuration.FindProperty("layoutVersion").intValue = 4;
             }
+            if (configuration.FindProperty("layoutVersion").intValue < 5)
+            {
+                configuration.FindProperty("fieldAreaScale").floatValue = .45f;
+                configuration.FindProperty("connectionRadius").floatValue = 6000;
+                configuration.FindProperty("maximumAccessLength").floatValue = 1800;
+                configuration.FindProperty("beachClearance").floatValue = 8;
+                configuration.FindProperty("layoutVersion").intValue = 5;
+            }
+            if (configuration.FindProperty("layoutVersion").intValue < 6)
+            { configuration.FindProperty("fieldBuildingsChance").floatValue=.18f; configuration.FindProperty("layoutVersion").intValue=6; }
             var footprints = configuration.FindProperty("houseFootprints"); footprints.arraySize = library.houses.Length;
             for (int i = 0; i < library.houses.Length; i++) footprints.GetArrayElementAtIndex(i).vector2Value = library.houses[i].GetComponent<FarmBuildingGrounding>().halfFootprint;
             configuration.ApplyModifiedPropertiesWithoutUndo();
@@ -61,7 +81,7 @@ namespace TacticalMaps.Editor
             Set(construction, "library", library); Set(builder, "agricultureBuilder", construction);
             ConfigureOverlay();
             AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(generator.gameObject.scene); EditorSceneManager.SaveScene(generator.gameObject.scene);
-            Debug.Log("Agriculture installed: linear R16 density, five combined houses with proxy LODs, rice patches and field materials.");
+            Debug.Log("Agriculture installed: linear R16 density, five individual houses with three LODs and Synty fences, rice patches and field materials.");
         }
         internal static void Set(Object owner, string name, Object value)
         { var s = new SerializedObject(owner); s.FindProperty(name).objectReferenceValue = value; s.ApplyModifiedPropertiesWithoutUndo(); EditorUtility.SetDirty(owner); }
@@ -149,55 +169,23 @@ namespace TacticalMaps.Editor
                     string materialPath = Folder + "/Buildings/HouseMaterial_" + AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(pair.Key)) + ".mat";
                     var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
                     if (material == null) { material = new Material(pair.Key) { enableInstancing = true }; AssetDatabase.CreateAsset(material, materialPath); }
+                    material.CopyPropertiesFromMaterial(pair.Key); material.shader = AgricultureLodBaker.WithCrossFade(pair.Key.shader); material.enableInstancing = true; EditorUtility.SetDirty(material);
                     var go = new GameObject("Part_" + part++, typeof(MeshFilter), typeof(MeshRenderer)); go.transform.SetParent(detailed.transform, false);
                     go.GetComponent<MeshFilter>().sharedMesh = mesh; var renderer = go.GetComponent<MeshRenderer>(); renderer.sharedMaterial = material; closeRenderers.Add(renderer);
                 }
                 Vector3 pivot = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z); detailed.transform.localPosition = -pivot;
-                var proxy = new GameObject("Distant", typeof(MeshFilter), typeof(MeshRenderer)); proxy.transform.SetParent(root.transform, false);
-                var meshProxy = HouseProxy(bounds.size);
-                proxy.GetComponent<MeshFilter>().sharedMesh = SaveMesh(meshProxy, Folder + "/Buildings/House" + index + "_Proxy.asset");
-                var proxyRenderer = proxy.GetComponent<MeshRenderer>(); proxyRenderer.sharedMaterial = Material("DistantHouse", "TacticalMaps/Agriculture/Simple"); proxyRenderer.shadowCastingMode = ShadowCastingMode.Off;
-                var lod = root.AddComponent<LODGroup>(); lod.SetLODs(new[] { new LOD(.055f, closeRenderers.ToArray()), new LOD(.0008f, new Renderer[] { proxyRenderer }) }); lod.RecalculateBounds();
+                var medium = AgricultureLodBaker.Bake(root.transform, detailed.transform, groups, index, pivot, false);
+                var distant = AgricultureLodBaker.Bake(root.transform, detailed.transform, groups, index, pivot, true);
+                closeRenderers.Clear(); closeRenderers.Add(AgricultureLodBaker.Merge(detailed.transform,"House"+index+"_CloseCombined"));
+                var lod = root.AddComponent<LODGroup>(); lod.fadeMode = LODFadeMode.CrossFade; lod.animateCrossFading = true;
+                lod.SetLODs(new[] { new LOD(.09f, closeRenderers.ToArray()), new LOD(.025f, medium), new LOD(.0004f, distant) }); lod.RecalculateBounds();
                 var collider = root.AddComponent<BoxCollider>(); collider.center = new Vector3(0, bounds.size.y * .4f, 0); collider.size = new Vector3(bounds.size.x * .78f, bounds.size.y * .8f, bounds.size.z * .78f);
-                var grounding = root.AddComponent<FarmBuildingGrounding>(); grounding.halfFootprint = new Vector2(collider.size.x, collider.size.z) * .5f;
-                var supports = new List<Vector3>();
-                foreach (var filter in prefab.GetComponentsInChildren<MeshFilter>(true))
-                {
-                    if (filter.sharedMesh == null) continue;
-                    var sourceBounds = filter.sharedMesh.bounds; var matrix = prefab.transform.worldToLocalMatrix * filter.transform.localToWorldMatrix;
-                    Bounds box = default; bool initial = true;
-                    for (int corner = 0; corner < 8; corner++)
-                    {
-                        var p = matrix.MultiplyPoint3x4(sourceBounds.center + Vector3.Scale(sourceBounds.extents, new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1)));
-                        if (initial) { box = new Bounds(p, Vector3.zero); initial = false; } else box.Encapsulate(p);
-                    }
-                    if (box.min.y <= bounds.min.y + .8f && box.size.y > .8f && box.size.x < 1.5f && box.size.z < 1.5f)
-                        supports.Add(new Vector3(box.center.x, box.min.y, box.center.z) - pivot);
-                }
-                if (supports.Count == 0)
-                    for (int z = -1; z <= 1; z += 2) for (int x = -1; x <= 1; x += 2) supports.Add(new Vector3(x * grounding.halfFootprint.x, 0, z * grounding.halfFootprint.y));
-                grounding.supports = supports.ToArray();
+                var grounding = root.AddComponent<FarmBuildingGrounding>(); grounding.halfFootprint = new Vector2(bounds.size.x, bounds.size.z) * .5f;
+                grounding.supports = FarmFoundationBaker.Anchors(prefab,pivot,bounds);
+                grounding.supportHalfWidth = Mathf.Clamp(Mathf.Max(bounds.size.x,bounds.size.z)/65,.14f,.24f);
                 return PrefabUtility.SaveAsPrefabAsset(root, Folder + "/Buildings/Farmhouse_" + index + ".prefab");
             }
             finally { Object.DestroyImmediate(root); }
-        }
-        private static Mesh HouseProxy(Vector3 size)
-        {
-            var vertices = new List<Vector3>(); var colors = new List<Color>(); var triangles = new List<int>();
-            void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color color)
-            { int n = vertices.Count; color = color.linear; vertices.AddRange(new[] { a, b, c, d }); colors.AddRange(new[] { color, color, color, color }); triangles.AddRange(new[] { n, n + 1, n + 2, n, n + 2, n + 3 }); }
-            float x = size.x * .4f, z = size.z * .4f, h = size.y * .6f, top = size.y;
-            Color wall = new Color(.46f, .36f, .23f), roof = new Color(.27f, .25f, .22f);
-            Quad(new Vector3(-x, 0, -z), new Vector3(-x, h, -z), new Vector3(x, h, -z), new Vector3(x, 0, -z), wall);
-            Quad(new Vector3(x, 0, z), new Vector3(x, h, z), new Vector3(-x, h, z), new Vector3(-x, 0, z), wall);
-            Quad(new Vector3(-x, 0, z), new Vector3(-x, h, z), new Vector3(-x, h, -z), new Vector3(-x, 0, -z), wall);
-            Quad(new Vector3(x, 0, -z), new Vector3(x, h, -z), new Vector3(x, h, z), new Vector3(x, 0, z), wall);
-            x *= 1.25f; z *= 1.25f;
-            Quad(new Vector3(-x, h, -z), new Vector3(-x * .64f, top, 0), new Vector3(x * .64f, top, 0), new Vector3(x, h, -z), roof);
-            Quad(new Vector3(x, h, z), new Vector3(x * .64f, top, 0), new Vector3(-x * .64f, top, 0), new Vector3(-x, h, z), roof);
-            Quad(new Vector3(-x, h, z), new Vector3(-x * .64f, top, 0), new Vector3(-x * .64f, top, 0), new Vector3(-x, h, -z), roof);
-            Quad(new Vector3(x, h, -z), new Vector3(x * .64f, top, 0), new Vector3(x * .64f, top, 0), new Vector3(x, h, z), roof);
-            var mesh = new Mesh { name = "FarmhouseProxy" }; mesh.SetVertices(vertices); mesh.SetColors(colors); mesh.SetTriangles(triangles, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds(); return mesh;
         }
         private static Mesh RiceMesh(bool distant)
         {

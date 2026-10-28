@@ -6,5 +6,6 @@ namespace TacticalMaps.Construction
     {
         [SerializeField] internal Vector2 halfFootprint = new Vector2(8, 8);
         [SerializeField] internal Vector3[] supports;
+        [SerializeField] internal float supportHalfWidth = .2f;
     }
 }

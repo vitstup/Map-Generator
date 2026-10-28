@@ -14,6 +14,7 @@ namespace TacticalMaps.Construction
         [SerializeField] internal FarmField[] fields;
         [SerializeField] internal Farmstead[] farms;
         [SerializeField] internal FarmTrack[] tracks;
+        internal int SupportCount;
         internal Texture2D[] Masks => masks;
         internal void AddMesh(Mesh mesh) => meshes.Add(mesh);
         internal IEnumerable<Object> Resources { get { foreach (var t in masks) yield return t; foreach (var m in meshes) yield return m; yield return pages; yield return profiles; yield return distances; } }

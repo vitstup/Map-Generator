@@ -21,6 +21,7 @@ namespace TacticalMaps.Generation
         internal double RoutingMilliseconds, RasterMilliseconds, CaptureMilliseconds, TopologyMilliseconds;
         internal string Timings => $"capture {CaptureMilliseconds:F0}; topology wait {TopologyMilliseconds:F0}; routing {RoutingMilliseconds:F0}; masks {RasterMilliseconds:F0} ms";
         internal int RejectedSections;
+        internal int GlobalSegmentCount;
 
         internal RoadData(RoadSegment[] segments, Vector2 size, float shoulder, float clearance)
         {

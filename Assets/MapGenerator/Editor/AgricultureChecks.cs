@@ -24,7 +24,7 @@ namespace TacticalMaps.Editor
             {
                 var input = Input(); var first = input.Render(CancellationToken.None); var second = input.Render(CancellationToken.None);
                 Require(first.Fields.Length > 20 && first.Farms.Length > 0, "Populated flat agricultural landscape");
-                Require(first.Fields.SequenceEqual(second.Fields) && first.Farms.SequenceEqual(second.Farms), "Deterministic districts, fields and farms");
+                Require(first.Fields.SequenceEqual(second.Fields) && first.Farms.Select(f => JsonUtility.ToJson(f)).SequenceEqual(second.Farms.Select(f => JsonUtility.ToJson(f))), "Deterministic districts, fields and farms");
                 Require(first.Fields.Any(f => f.crop == 3) && first.Fields.Any(f => f.crop == 0), "Rice paddies and fallow fields");
                 Require(first.Fields.Max(f => f.halfSize.x * f.halfSize.y) > first.Fields.Min(f => f.halfSize.x * f.halfSize.y) * 2, "Substantial parcel size variation");
                 for (int l = 0; l < 3; l++) Require(first.Masks[l].SequenceEqual(second.Masks[l]), "Deterministic masks on terrain " + l);
@@ -61,17 +61,17 @@ namespace TacticalMaps.Editor
                 Require(library != null && library.houses.Length == 5, "Prepared house library");
                 foreach (var house in library.houses)
                 {
-                    Require(house.GetComponent<LODGroup>()?.GetLODs().Length == 2, "Detailed and proxy house LODs");
-                    var proxy = house.transform.Find("Distant").GetComponent<MeshFilter>().sharedMesh;
-                    Require(proxy.GetIndexCount(0) / 3 <= 32, "Bounded far-house triangles");
+                    Require(house.GetComponent<LODGroup>()?.GetLODs().Length == 3, "Three individual house LODs");
+                    var lods = house.GetComponent<LODGroup>().GetLODs();
+                    Require(lods[2].renderers.Sum(r => r.GetComponent<MeshFilter>().sharedMesh.triangles.Length) < lods[0].renderers.Sum(r => r.GetComponent<MeshFilter>().sharedMesh.triangles.Length), "Individual far mesh is simplified");
                     Require(house.GetComponentsInChildren<Collider>().Length == 1, "One simplified house collider");
                 }
-                report.AppendLine("PASS: five house variants, two LODs, <=32 proxy triangles, one collider per detailed house.");
+                report.AppendLine("PASS: five house variants, three individual LODs, one collider per detailed house.");
                 File.WriteAllText("Logs/Agriculture/checks.txt", report.ToString()); UnityEngine.Debug.Log(report.ToString());
             }
             catch (Exception e) { File.WriteAllText("Logs/Agriculture/checks.txt", report + "FAIL: " + e); throw; }
         }
-        private static AgricultureInput Input()
+        internal static AgricultureInput Input()
         {
             var input = new AgricultureInput { Density = Enumerable.Repeat((ushort)65535, 65 * 65).ToArray(), SourceWidth = 65, SourceHeight = 65, SourcePoint = new Vector2Int(32, 32), Radius = 20,
                 Height = 256, Sea = 10, Coverage = 1, District = 180, Slope = 9, FarmProbability = 1, Limit = 2400, Seed = 1467 };
@@ -128,7 +128,7 @@ namespace TacticalMaps.Editor
                     finally { agricultureGroup.SetActive(true); foreach (var terrain in ground) terrain.materialTemplate.SetFloat("_FarmEnabled", 1); }
                     double diff = 0; for (int i = 0; i < with.Length; i++) diff += Math.Abs(with[i].r - without[i].r) + Math.Abs(with[i].g - without[i].g) + Math.Abs(with[i].b - without[i].b);
                     diff /= with.Length * 3;
-                    report.AppendLine($"{names[v]}: crops enabled {withTime:F2} ms, crops disabled {withoutTime:F2} ms, all agriculture rendering disabled {baseline:F2} ms; pixel difference {diff:F4}/255");
+                    report.AppendLine($"{names[v]}: crops enabled {withTime:F2} ms, crops disabled {withoutTime:F2} ms, farm geometry/surfaces disabled (shared roads retained) {baseline:F2} ms; pixel difference {diff:F4}/255");
                     if (v < 2) Require(diff > .02, "Visible rice geometry in " + names[v]);
                 }
                 var house = map.GetComponentsInChildren<LODGroup>().OrderBy(g => (g.transform.position - focus).sqrMagnitude).FirstOrDefault();
@@ -137,7 +137,7 @@ namespace TacticalMaps.Editor
                     var p = house.transform.position + Vector3.up * 3; camera.transform.position = p + new Vector3(20, 15, -25); camera.transform.LookAt(p); Image("Logs/Agriculture/farmhouse.png");
                 }
                 report.AppendLine($"Fields {map.fields.Length}; farms {map.farms.Length}; access tracks {map.tracks?.Length}; resident crop patches {crops.PatchCount}; crop buffers {crops.BufferBytes / 1048576f:F2} MiB; focus {focus}; crop {chosen.crop}");
-                report.AppendLine("Mipmapped 1024-square far masks plus sparse full-precision distance tiles. Whole-agriculture comparisons keep grass masks fixed.");
+                report.AppendLine("Mipmapped 1024-square far masks plus sparse full-precision distance tiles. Farm comparisons keep grass masks, prepared terrain and shared roads fixed.");
                 report.AppendLine("Synchronized offscreen Editor render/readback timings include CPU and GPU work; these are not gameplay FPS or isolated GPU timings.");
                 crops.enabled = false; Require(crops.BufferBytes <= crops.PatchCount * 16L + map.fields.Length * 32L, "GPU cleanup after disable"); crops.enabled = true;
                 report.AppendLine("PASS: crop image differences, near/RTS/distant captures, valid grass preparation dispatch and GPU cleanup.");

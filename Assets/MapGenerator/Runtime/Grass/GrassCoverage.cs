@@ -21,7 +21,7 @@ namespace TacticalMaps.Grass
                 {
                     var p = new Vector2(((x + .5f) / n - .5f) * sizes[l].x, ((z + .5f) / n - .5f) * sizes[l].y);
                     // Expand by half a mask texel so large distant footprints cannot leak meadow into fields.
-                    if (agriculture.Blocks(p, Mathf.Max(sizes[l].x, sizes[l].y) / n * .72f)) Pixels[l][z * n + x].a = 0;
+                    if (agriculture.Blocks(p, Mathf.Max(sizes[l].x, sizes[l].y) / n * .72f, false)) Pixels[l][z * n + x].a = 0;
                 }
             }
         }
