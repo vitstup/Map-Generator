@@ -11,11 +11,6 @@ namespace TacticalMaps.Construction
         {
             var data = map.Agriculture; if (data == null) return;
             Vector2 size = map.Sizes[level]; int n = heights.GetLength(0);
-            foreach (var field in data.Fields)
-            {
-                if (field.crop != 3 || Mathf.Abs(field.center.x) > map.Sizes[0].x / 2 + 600 || Mathf.Abs(field.center.y) > map.Sizes[0].y / 2 + 600) continue;
-                Stamp(field.center, field.halfSize, field.angle, field.CornerRadius, field.height - .14f, -.6f, 1.7f);
-            }
             foreach (var farm in data.Farms)
             {
                 if (Mathf.Abs(farm.center.x) > map.Sizes[0].x / 2 + 300 || Mathf.Abs(farm.center.y) > map.Sizes[0].y / 2 + 300) continue;

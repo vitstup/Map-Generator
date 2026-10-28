@@ -13,6 +13,6 @@ void Cull(uint3 id:SV_DispatchThreadID)
     float d=distance(p,_Camera);
     if(d>_Ranges.y+6)return;
     for(int i=0;i<6;i++)if(dot(_Planes[i].xyz,p)+_Planes[i].w < -7)return;
-    if(d<_Ranges.x+12)_Near.Append(id.x);
-    if(d>_Ranges.x-12)_Far.Append(id.x);
+    if(d<_Ranges.x+32)_Near.Append(id.x);
+    if(d>_Ranges.x-32)_Far.Append(id.x);
 }

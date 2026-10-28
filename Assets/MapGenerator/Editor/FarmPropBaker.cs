@@ -11,7 +11,7 @@ namespace TacticalMaps.Editor
     {
         internal static void Install(AgricultureLibrary library)
         {
-            string[] names={"Props/SM_Prop_Barrel_01","Props/SM_Prop_Basket_01","Props/SM_Prop_Bucket_01","Props/SM_Prop_Wood_01","Props/SM_Prop_WinnowingBasket_01","Vehicles/SM_Veh_Cart_01","Props/SM_Prop_Well_01"};
+            string[] names={"Props/SM_Prop_Barrel_01","Props/SM_Prop_Basket_01","Props/SM_Prop_Bucket_01","Props/SM_Prop_Wood_01","Props/SM_Prop_WinnowingBasket_01","Vehicles/SM_Veh_Cart_01","Props/SM_Prop_Well_01","Props/SM_Prop_Barrel_02","Props/SM_Prop_Basket_02","Props/SM_Prop_Basket_03","Props/SM_Prop_Pot_01","Props/SM_Prop_Pot_02","Props/SM_Prop_Stool_01"};
             library.props=new GameObject[names.Length];library.propRadii=new float[names.Length];
             for(int i=0;i<names.Length;i++)
             {

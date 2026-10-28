@@ -9,8 +9,10 @@ namespace TacticalMaps.Generation
     {
         public Vector2 center, halfSize;
         public float angle, height, variation;
-        // 0 fallow, 1 green rice, 2 ripe rice, 3 flooded young rice.
+        // 0 fallow, 1 green rice, 2 ripe rice. Fields are always dry.
         public int crop;
+        // Rectangle in the parcel's local axes, shared by plant clipping and collision queries.
+        public Vector4 cropExclusion;
         public int groupId;
         internal Vector2 Axis => new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
         internal Vector2 Point(float x, float z) { var a = Axis; return center + a * x + new Vector2(-a.y, a.x) * z; }
@@ -19,6 +21,21 @@ namespace TacticalMaps.Generation
             return SignedDistance(p) <= margin;
         }
         internal float CornerRadius => Mathf.Min(3, Mathf.Max(2.2f, Mathf.Min(halfSize.x, halfSize.y) * .12f));
+        internal bool ExcludesCrops(Vector2 p, float margin = 0)
+        {
+            if(cropExclusion.z<=0 || cropExclusion.w<=0)return false;
+            var d=p-center;var axis=Axis;var side=new Vector2(-axis.y,axis.x);
+            return Mathf.Abs(Vector2.Dot(d,axis)-cropExclusion.x)<=cropExclusion.z+margin && Mathf.Abs(Vector2.Dot(d,side)-cropExclusion.y)<=cropExclusion.w+margin;
+        }
+        internal void ReserveYard(Farmstead farm)
+        {
+            var delta=farm.center-center;var axis=Axis;var side=new Vector2(-axis.y,axis.x);
+            // Extend outside the parcel far enough that inflated road collision tests can cross its edge.
+            // Only the intersection with the parcel affects plants or terrain shading.
+            float x=Vector2.Dot(delta,axis),y=Vector2.Dot(delta,side);
+            float top=y+farm.yardHalfSize.x+1.2f,bottom=-halfSize.y-16;
+            cropExclusion=new Vector4(x,(bottom+top)*.5f,farm.yardHalfSize.y+1.2f,(top-bottom)*.5f);
+        }
         internal float SignedDistance(Vector2 p)
         { var a = Axis; var d = p - center; var q = new Vector2(Mathf.Abs(Vector2.Dot(d, a)), Mathf.Abs(Vector2.Dot(d, new Vector2(-a.y, a.x)))) - halfSize + Vector2.one * CornerRadius; return Vector2.Max(q, Vector2.zero).magnitude + Mathf.Min(Mathf.Max(q.x, q.y), 0) - CornerRadius; }
         internal Bounds Bounds(float margin = 0)
@@ -129,7 +146,7 @@ namespace TacticalMaps.Generation
                     if (bins.TryGetValue(new Vector2Int(x, z), out var list))
                         foreach (int i in list)
                         {
-                            if (i >= 0) { if (Fields[i].Contains(p, margin)) return true; }
+                            if (i >= 0) { if (Fields[i].Contains(p, margin) && !Fields[i].ExcludesCrops(p,-margin)) return true; }
                             else
                             {
                                 int index = -i - 1;

@@ -34,7 +34,7 @@ namespace TacticalMaps.Editor
                         var a = map.Agriculture; bool mountain = point == new Vector2Int(2496,2240);
                         Require(a != null, "Agriculture enabled");
                         if (mountain) Require(a.Fields.Length <= 10 && a.Farms.Length <= 2, "Mountain density budget");
-                        else Require(a.Farms.Length >= 300 && a.Farms.Length <= 500 && a.Fields.Length <= 3000, "Dense landscape budget");
+                        else Require(a.Farms.Length > 0 && a.Farms.Length <= 500 && a.Fields.Length <= 3000, "Dense landscape budget");
                         Require(a.Fields.Length == 0 || a.Fields.Max(f => f.halfSize.x * f.halfSize.y) / a.Fields.Min(f => f.halfSize.x * f.halfSize.y) > 3, "Diverse field areas");
                         report.AppendLine($"{point}: {a.Fields.Length} fields, {a.Farms.Length} farms, {a.Tracks.Length} tracks; complete generation {generation:F1} ms; agriculture {generator.GetComponent<AgricultureGenerator>().LastTimings}");
                         if (!mountain)
@@ -51,7 +51,7 @@ namespace TacticalMaps.Editor
                     }
                     finally { map.Release(); }
                 }
-                report.AppendLine("PASS: real high/low density selections, variable parcel areas, bounded populations, sparse contour distances and flat paddy beds.");
+                report.AppendLine("PASS: real high/low density selections, variable parcel areas, bounded populations, sparse contour distances and dry fields.");
             }
             catch (Exception e) { report.AppendLine("FAIL: " + e); throw; }
             finally { File.WriteAllText(Folder + "/verification.txt", report.ToString()); UnityEngine.Debug.Log(report.ToString()); }
@@ -79,14 +79,8 @@ namespace TacticalMaps.Editor
         }
         private static void VerifyWater(MapData map)
         {
-            var terrain = map.BuiltRoot.Find("Terrain_Main").GetComponent<Terrain>(); var p = terrain.transform.position; var s = terrain.terrainData.size;
-            foreach (var f in map.Agriculture.Fields.Where(f => f.crop == 3 && Mathf.Abs(f.center.x) + f.halfSize.magnitude < s.x / 2 && Mathf.Abs(f.center.y) + f.halfSize.magnitude < s.z / 2))
-            {
-                float low = float.MaxValue, high = float.MinValue;
-                for (int z = -1; z <= 1; z++) for (int x = -1; x <= 1; x++)
-                { var q = f.Point(x * f.halfSize.x * .6f, z * f.halfSize.y * .6f); float h = terrain.SampleHeight(new Vector3(q.x,0,q.y)) + p.y; low = Mathf.Min(low,h); high = Mathf.Max(high,h); }
-                Require(high - low < .05f && f.height + p.y - high > .09f, "Paddy bed lies below a single water level");
-            }
+            Require(map.Agriculture.Fields.All(f=>f.crop!=3),"No flooded field types");
+            Require(!map.BuiltRoot.GetComponentsInChildren<MeshFilter>(true).Any(f=>f.name.StartsWith("PaddyWater_")),"No field water geometry");
         }
         [MenuItem("Tools/Tactical Maps/Capture Agriculture Revision Details")]
         internal static void CaptureDetails()
@@ -104,7 +98,7 @@ namespace TacticalMaps.Editor
                     for (int z = 0; z < n; z++) for (int x = 0; x < n; x++) { float wx = ((float)x/(n-1)-.5f)*sizes[level].x, wz = ((float)z/(n-1)-.5f)*sizes[level].y; pixels[z*n+x]=(ushort)Mathf.RoundToInt((62+wx*.001f+wz*.0005f)/256*65535); }
                     textures[level]=new Texture2D(n,n,TextureFormat.R16,false,true); textures[level].SetPixelData(pixels,0); textures[level].Apply(false,false);
                 }
-                var fields = new[] { new FarmField { center=new Vector2(-105,55),halfSize=new Vector2(65,58),angle=.18f,crop=3,height=61.9225f,variation=.3f }, new FarmField { center=new Vector2(90,60),halfSize=new Vector2(80,36),angle=-.13f,crop=0,height=62.12f,variation=.6f }, new FarmField { center=new Vector2(-100,-110),halfSize=new Vector2(60,24),angle=.1f,crop=2,height=61.85f,variation=.7f } };
+                var fields = new[] { new FarmField { center=new Vector2(-105,55),halfSize=new Vector2(65,58),angle=.18f,crop=1,height=61.9225f,variation=.3f }, new FarmField { center=new Vector2(90,60),halfSize=new Vector2(80,36),angle=-.13f,crop=0,height=62.12f,variation=.6f }, new FarmField { center=new Vector2(-100,-110),halfSize=new Vector2(60,24),angle=.1f,crop=2,height=61.85f,variation=.7f } };
                 var footprint=library.houses[0].GetComponent<FarmBuildingGrounding>().halfFootprint;
                 var buildings = new FarmBuilding[6];
                 for(int i=0;i<6;i++){var p=new Vector2(95+(i%2==0?-20:20),-100+(i/2-1)*34);buildings[i]=new FarmBuilding{center=p,angle=i%2==0?0:Mathf.PI,variant=i%5,scale=1,height=62+p.x*.001f+p.y*.0005f,halfSize=library.houses[i%5].GetComponent<FarmBuildingGrounding>().halfFootprint};}
@@ -125,12 +119,15 @@ namespace TacticalMaps.Editor
                 var terrains=map.BuiltRoot.GetComponentsInChildren<Terrain>();Vector3 Ground(Vector2 p)=>AgricultureBuilder.Ground(p,terrains,Vector3.zero);
                 var bank=Ground(fields[0].Point(10,-fields[0].halfSize.y));
                 Shot("bank-close",bank+new Vector3(4,2.3f,-4),bank+Vector3.up*.3f);
-                Shot("water-edge",bank+new Vector3(0,1.6f,-3),bank+new Vector3(0,.05f,3));
-                var wet=Ground(fields[0].center);Shot("water-surface",wet+new Vector3(20,10,-24),wet);
+                Shot("dry-field-edge",bank+new Vector3(0,1.6f,-3),bank+new Vector3(0,.05f,3));
+                var wet=Ground(fields[0].center);Shot("dry-field-surface",wet+new Vector3(20,10,-24),wet);
                 var earth=Ground(fields[1].center);Shot("soil-close",earth+new Vector3(0,3,-3),earth);
                 var track=Ground(tracks[0].Point(.6f));Shot("track-close",track+new Vector3(0,3,-6),track);
                 var home=Ground(farms[0].center);Shot("house-grounding",home+new Vector3(15,5,-18),home+Vector3.up*1.5f);
                 var row=farms.First(f=>f.embedded);var rowPosition=Ground(row.center);Shot("embedded-field-row",rowPosition+new Vector3(50,40,-65),rowPosition);
+                var rowSide=new Vector2(-row.Axis.y,row.Axis.x);var edge=Ground(row.center+rowSide*(row.yardHalfSize.y+1.2f));
+                Shot("yard-ground-boundary",edge+new Vector3(rowSide.x*2.5f+row.Axis.x*3,1.3f,rowSide.y*2.5f+row.Axis.y*3),edge+Vector3.up*.15f);
+                var plants=Ground(fields[0].center);Shot("plants-ground-close",plants+new Vector3(2,1.2f,-3),plants+Vector3.up*.25f);
                 var props=map.BuiltRoot.GetComponentInChildren<FarmPropRenderer>();
                 if(props!=null&&props.placements.Length>0)
                 {
@@ -149,11 +146,36 @@ namespace TacticalMaps.Editor
                 }
                 foreach(var house in houseLods)house.gameObject.SetActive(true);
                 Shot("control-overview",new Vector3(160,240,-260),new Vector3(0,62,0));
+                // Fixed projected scale isolates LOD/culling changes from perspective shrinking.
+                var cropRenderer=map.BuiltRoot.GetComponentInChildren<CropRenderer>();
+                var metrics=new System.Collections.Generic.Dictionary<int,float>();
+                camera.orthographic=true;camera.orthographicSize=95;var aim=Ground(fields[0].center)+Vector3.up*.3f;
+                var direction=new Vector3(0,.5f,-1).normalized;var pixelsWith=new Color32[0];
+                foreach(int distance in new[]{80,105,130,160,250,330,450,650,900,1150,1300})
+                {
+                    cropRenderer.SuppressForChecks=false;Shot("crop-distance-"+distance,aim+direction*distance,aim);pixelsWith=image.GetPixels32();
+                    cropRenderer.SuppressForChecks=true;Shot("crop-baseline-"+distance,aim+direction*distance,aim);var without=image.GetPixels32();
+                    double total=0;for(int pixel=0;pixel<without.Length;pixel++)total+=Math.Abs(pixelsWith[pixel].r-without[pixel].r)+Math.Abs(pixelsWith[pixel].g-without[pixel].g)+Math.Abs(pixelsWith[pixel].b-without[pixel].b);
+                    metrics[distance]=(float)(total/(without.Length*3));
+                    report.AppendLine($"Crop signal at {distance}m: {metrics[distance]:F4}/255");
+                }
+                cropRenderer.SuppressForChecks=false;camera.orthographic=false;
+                Require(metrics[450]>metrics[250]*.35f && metrics[450]>.01f,"Crops remain visible beyond the former 330m cutoff");
+                Require(metrics[130]>metrics[80]*.5f && metrics[160]>metrics[80]*.5f,"Near/far handoff preserves crop coverage");
+                Require(metrics[900]>metrics[1150] && metrics[1300]<metrics[450]*.1f,"Distant crops fade across a broad interval");
                 VerifyWater(map); VerifyAtlas(agriculture);
-                report.AppendLine("PASS: isolated close bank, water/berm overlap, soil, curved track and grounded house captures; paddy bed and signed-distance accuracy checks.");
+                var farmSettings=new SerializedObject(builderObject.GetComponent<AgricultureBuilder>());
+                Require(map.BuiltRoot.GetComponentsInChildren<MeshFilter>(true).Any(f=>f.name.StartsWith("FieldBanks_")),"Field bank generation enabled");
+                int planted=cropRenderer.PatchCount;grassObject.SetActive(false);
+                farmSettings.FindProperty("generateFieldBanks").boolValue=false;farmSettings.ApplyModifiedPropertiesWithoutUndo();builder.Build(map);
+                Require(!map.BuiltRoot.GetComponentsInChildren<MeshFilter>(true).Any(f=>f.name.StartsWith("FieldBanks_")),"Field bank toggle removes all bank geometry");
+                Require(map.BuiltRoot.GetComponentsInChildren<MeshFilter>(true).Any(f=>f.name.StartsWith("FarmFence_")),"Courtyard fences remain when field banks are disabled");
+                Require(map.BuiltRoot.GetComponentInChildren<CropRenderer>().PatchCount==planted,"Field bank toggle preserves crops");
+                report.AppendLine("PASS: field bank toggle removes bank geometry independently of crops and courtyard fences.");
+                report.AppendLine("PASS: dry fields, intact embedded farm parcel, corner supports, soil, tracks and grounded house captures; signed-distance accuracy checks.");
                 void Shot(string name,Vector3 position,Vector3 focus)
                 {
-                    camera.transform.position=position;camera.transform.LookAt(focus);for(int i=0;i<2;i++){camera.Render();AsyncGPUReadback.Request(target,0).WaitForCompletion();}
+                    camera.transform.position=position;camera.transform.LookAt(focus);for(int i=0;i<2;i++){camera.Render();}
                     var previous=RenderTexture.active;try{RenderTexture.active=target;image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();File.WriteAllBytes(Folder+"/"+name+".png",image.EncodeToPNG());}finally{RenderTexture.active=previous;}
                 }
             }

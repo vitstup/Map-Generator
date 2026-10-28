@@ -14,11 +14,12 @@ namespace TacticalMaps.Construction
         [SerializeField] private Vector4[] patches = Array.Empty<Vector4>();
         [SerializeField] private Vector4[] fieldShapes = Array.Empty<Vector4>(), fieldStyles = Array.Empty<Vector4>();
         [SerializeField] private Vector3 mapCenter;
-        [SerializeField] private float nearDistance = 110, farDistance = 330;
-        private ComputeBuffer patchBuffer, shapeBuffer, styleBuffer;
+        [SerializeField] private Vector4[] fieldExclusions = Array.Empty<Vector4>();
+        [SerializeField] private float nearDistance = 110, farDistance = 1200;
+        private ComputeBuffer patchBuffer, shapeBuffer, styleBuffer, exclusionBuffer;
         private readonly Dictionary<int, View> views = new Dictionary<int, View>();
         internal int PatchCount => patches.Length;
-        internal long BufferBytes => (patchBuffer != null ? patches.Length * 16L + fieldShapes.Length * 32L : 0) + views.Count * (patches.Length * 8L + 40);
+        internal long BufferBytes => (patchBuffer != null ? patches.Length * 16L + fieldShapes.Length * 48L : 0) + views.Count * (patches.Length * 8L + 40);
         internal bool SuppressForChecks { get; set; }
         private sealed class View : IDisposable
         {
@@ -30,11 +31,11 @@ namespace TacticalMaps.Construction
         internal void Configure(AgricultureLibrary resources, FarmField[] fields, Terrain[] ground, Vector3 center, Vector2 mainSize, float near, float far, int limit)
         {
             Release(); library = resources; terrains = ground; mapCenter = center; nearDistance = near; farDistance = far;
-            var points = new List<Vector4>(); var shapes = new List<Vector4>(); var styles = new List<Vector4>();
+            var points = new List<Vector4>(); var shapes = new List<Vector4>(); var styles = new List<Vector4>(); var exclusions = new List<Vector4>();
             foreach (var f in fields)
             {
                 if (f.crop == 0 || Mathf.Abs(f.center.x) > mainSize.x / 2 + far + 100 || Mathf.Abs(f.center.y) > mainSize.y / 2 + far + 100) continue;
-                int id = shapes.Count; shapes.Add(new Vector4(f.center.x + center.x, f.center.y + center.z, f.halfSize.x, f.halfSize.y)); styles.Add(new Vector4(f.angle, f.crop, f.variation, 0));
+                int id = shapes.Count; shapes.Add(new Vector4(f.center.x + center.x, f.center.y + center.z, f.halfSize.x, f.halfSize.y)); styles.Add(new Vector4(f.angle, f.crop, f.variation, 0)); exclusions.Add(f.cropExclusion);
                 for (float z = -f.halfSize.y + 2; z <= f.halfSize.y - 2; z += 4)
                     for (float x = -f.halfSize.x + 2; x <= f.halfSize.x - 2; x += 4)
                     {
@@ -45,7 +46,7 @@ namespace TacticalMaps.Construction
                         points.Add(new Vector4(world.x, world.y, world.z, id));
                     }
             }
-            patches = points.ToArray(); fieldShapes = shapes.ToArray(); fieldStyles = styles.ToArray();
+            patches = points.ToArray(); fieldShapes = shapes.ToArray(); fieldStyles = styles.ToArray(); fieldExclusions = exclusions.ToArray();
         }
         private void OnEnable() => RenderPipelineManager.beginCameraRendering += Render;
         private void OnDisable() { RenderPipelineManager.beginCameraRendering -= Render; Release(); }
@@ -53,7 +54,7 @@ namespace TacticalMaps.Construction
         private void Release()
         {
             foreach (var v in views.Values) v.Dispose(); views.Clear();
-            patchBuffer?.Release(); shapeBuffer?.Release(); styleBuffer?.Release(); patchBuffer = shapeBuffer = styleBuffer = null;
+            patchBuffer?.Release(); shapeBuffer?.Release(); styleBuffer?.Release(); exclusionBuffer?.Release(); patchBuffer = shapeBuffer = styleBuffer = exclusionBuffer = null;
         }
         private void Render(ScriptableRenderContext context, Camera camera)
         {
@@ -66,6 +67,8 @@ namespace TacticalMaps.Construction
                 patchBuffer = new ComputeBuffer(patches.Length, 16); patchBuffer.SetData(patches);
                 shapeBuffer = new ComputeBuffer(fieldShapes.Length, 16); shapeBuffer.SetData(fieldShapes);
                 styleBuffer = new ComputeBuffer(fieldStyles.Length, 16); styleBuffer.SetData(fieldStyles);
+                exclusionBuffer = new ComputeBuffer(fieldShapes.Length, 16);
+                exclusionBuffer.SetData(fieldExclusions.Length == fieldShapes.Length ? fieldExclusions : new Vector4[fieldShapes.Length]);
             }
             int id = camera.GetInstanceID();
             if (!views.TryGetValue(id, out var view))
@@ -96,7 +99,7 @@ namespace TacticalMaps.Construction
         private static uint[] Args(Mesh mesh) => new[] { mesh.GetIndexCount(0), 0u, mesh.GetIndexStart(0), (uint)mesh.GetBaseVertex(0), 0u };
         private void Draw(Camera camera, Mesh mesh, ComputeBuffer visible, ComputeBuffer args, int lod)
         {
-            var block = new MaterialPropertyBlock(); block.SetBuffer("_CropPatches", patchBuffer); block.SetBuffer("_CropShapes", shapeBuffer); block.SetBuffer("_CropStyles", styleBuffer); block.SetBuffer("_VisibleCrops", visible);
+            var block = new MaterialPropertyBlock(); block.SetBuffer("_CropPatches", patchBuffer); block.SetBuffer("_CropShapes", shapeBuffer); block.SetBuffer("_CropStyles", styleBuffer); block.SetBuffer("_CropExclusions",exclusionBuffer); block.SetBuffer("_VisibleCrops", visible);
             block.SetVector("_CropRanges", new Vector4(nearDistance, farDistance, lod, 0));
             for (int l = 0; l < 3; l++)
             {

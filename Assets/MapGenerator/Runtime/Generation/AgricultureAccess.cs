@@ -34,10 +34,11 @@ namespace TacticalMaps.Generation
             if(input.Roads==null || input.Roads.Segments.Length==0 || input.ConnectionRadius<=0)return Array.Empty<FarmTrack>();
             var roads=new RoadIndex(input.Roads);var obstacles=new AgricultureData(fields,farms,null,null);
             var groups=new Dictionary<int,List<Vector2>>();
+            float fieldApproach=input.AccessWidth*.5f+(input.Roads?.Shoulder ?? 1)+2.5f;
             foreach(var f in fields)
             {
                 if(!groups.TryGetValue(f.groupId,out var points))groups[f.groupId]=points=new List<Vector2>();
-                points.Add(f.Point(f.halfSize.x+4,0));points.Add(f.Point(-f.halfSize.x-4,0));points.Add(f.Point(0,f.halfSize.y+4));points.Add(f.Point(0,-f.halfSize.y-4));
+                points.Add(f.Point(f.halfSize.x+fieldApproach,0));points.Add(f.Point(-f.halfSize.x-fieldApproach,0));points.Add(f.Point(0,f.halfSize.y+fieldApproach));points.Add(f.Point(0,-f.halfSize.y-fieldApproach));
             }
             var owners=new Dictionary<int,Farmstead>();foreach(var farm in farms){groups[farm.groupId]=new List<Vector2>{farm.Gate};owners[farm.groupId]=farm;}
             var tracks=new List<FarmTrack>();var shared=new List<Vector2>();int requested=0,connected=0;

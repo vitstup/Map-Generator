@@ -27,15 +27,15 @@ namespace TacticalMaps.Construction
             if (surface.Tiles.Length == 0) distances.SetPixelData(new Color32[130 * 130], 0, 0);
             for (int i = 0; i < surface.Tiles.Length; i++) distances.SetPixelData(surface.Tiles[i], 0, i);
             distances.Apply(false, false);
-            profiles = new Texture2D(2048, Mathf.Max(1, (surface.Primitives.Length + 2047) / 2048) * 3, TextureFormat.RGBAFloat, false, true) { name = "FarmProfiles", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            profiles = new Texture2D(2048, Mathf.Max(1, (surface.Primitives.Length + 2047) / 2048) * 4, TextureFormat.RGBAFloat, false, true) { name = "FarmProfiles", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             var parameters = new Vector4[profiles.width * profiles.height];
-            for (int i = 0; i < surface.Primitives.Length; i++) { int at = i % 2048 + i / 2048 * 2048 * 3; parameters[at] = surface.Primitives[i].Shape; parameters[at + 2048] = surface.Primitives[i].Style; parameters[at + 4096] = surface.Primitives[i].Detail; }
+            for (int i = 0; i < surface.Primitives.Length; i++) { int at = i % 2048 + i / 2048 * 2048 * 4; parameters[at] = surface.Primitives[i].Shape; parameters[at + 2048] = surface.Primitives[i].Style; parameters[at + 4096] = surface.Primitives[i].Detail; parameters[at+6144]=surface.Primitives[i].Exclusion; }
             profiles.SetPixelData(parameters, 0); profiles.Apply(false, false);
             foreach (var terrain in terrains)
             {
                 var material = terrain.materialTemplate; material.SetTexture("_FarmPages", pages); material.SetTexture("_FarmDistances", distances); material.SetTexture("_FarmProfiles", profiles);
                 material.SetVector("_FarmDetailGrid", new Vector4(surface.Origin.x, surface.Origin.y, surface.Columns, surface.Rows));
-                material.SetVector("_FarmCenter", new Vector4(center.x, center.z, 0, 0)); material.SetFloat("_FarmVersion", 3);
+                material.SetVector("_FarmCenter", new Vector4(center.x, center.z, 0, 0)); material.SetFloat("_FarmVersion", 4);
             }
         }
     }

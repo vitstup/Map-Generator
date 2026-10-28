@@ -24,8 +24,9 @@ namespace TacticalMaps.Editor
             {
                 var input = Input(); var first = input.Render(CancellationToken.None); var second = input.Render(CancellationToken.None);
                 Require(first.Fields.Length > 20 && first.Farms.Length > 0, "Populated flat agricultural landscape");
+                Require(first.Farms.All(f=>f.Buildings.Length>=1 && f.Buildings.Length<=2) && first.Farms.Any(f=>f.embedded) && first.Farms.Any(f=>!f.embedded),"Mixed compact field and standalone yards");
                 Require(first.Fields.SequenceEqual(second.Fields) && first.Farms.Select(f => JsonUtility.ToJson(f)).SequenceEqual(second.Farms.Select(f => JsonUtility.ToJson(f))), "Deterministic districts, fields and farms");
-                Require(first.Fields.Any(f => f.crop == 3) && first.Fields.Any(f => f.crop == 0), "Rice paddies and fallow fields");
+                Require(first.Fields.All(f => f.crop != 3) && first.Fields.Any(f => f.crop == 0) && first.Fields.Any(f=>f.crop==1), "Dry rice and fallow fields");
                 Require(first.Fields.Max(f => f.halfSize.x * f.halfSize.y) > first.Fields.Min(f => f.halfSize.x * f.halfSize.y) * 2, "Substantial parcel size variation");
                 for (int l = 0; l < 3; l++) Require(first.Masks[l].SequenceEqual(second.Masks[l]), "Deterministic masks on terrain " + l);
                 input.Roads = new RoadData(new[] { new RoadSegment(new Vector2(-1024, 0), new Vector2(1024, 0), 8, 1) }, input.Sizes[2], 2, 2);
@@ -34,7 +35,7 @@ namespace TacticalMaps.Editor
                 foreach (var f in roads.Farms) Require(!input.Roads.Blocks(f.center, 24), "Farmyard excludes roads");
                 foreach (var track in roads.Tracks)
                 {
-                    for (int s = 0; s <= 20; s++) Require(!roads.Fields.Any(f => f.Contains(track.Point(s / 20f), 1)), "Access tracks avoid fields");
+                    for (int s = 0; s <= 20; s++) Require(!roads.Fields.Any(f => f.Contains(track.Point(s / 20f), 1) && !f.ExcludesCrops(track.Point(s / 20f),-1)), "Access tracks avoid fields");
                     Require(roads.Blocks(track.Point(.5f)), "Access track exclusion query");
                 }
                 var coverage = new TacticalMaps.Grass.GrassCoverage(new[] { Enumerable.Repeat(new Color32(255, 0, 0, 255), 256 * 256).ToArray(), Enumerable.Repeat(new Color32(255, 0, 0, 255), 256 * 256).ToArray(), Enumerable.Repeat(new Color32(255, 0, 0, 255), 256 * 256).ToArray() }, new[] { 256, 256, 256 });
@@ -74,8 +75,8 @@ namespace TacticalMaps.Editor
         internal static AgricultureInput Input()
         {
             var input = new AgricultureInput { Density = Enumerable.Repeat((ushort)65535, 65 * 65).ToArray(), SourceWidth = 65, SourceHeight = 65, SourcePoint = new Vector2Int(32, 32), Radius = 20,
-                Height = 256, Sea = 10, Coverage = 1, District = 180, Slope = 9, FarmProbability = 1, Limit = 2400, Seed = 1467 };
-            for (int l = 0; l < 3; l++) { input.Pixels[l] = Enumerable.Repeat((ushort)16000, 65 * 65).ToArray(); input.Widths[l] = input.Heights[l] = 65; input.Sizes[l] = Vector2.one * (512 << l); }
+                Height = 256, Sea = 10, Coverage = 1, District = 600, Slope = 9, FarmProbability = 1, Limit = 2400, Seed = 1467 };
+            for (int l = 0; l < 3; l++) { input.Pixels[l] = Enumerable.Repeat((ushort)16000, 65 * 65).ToArray(); input.Widths[l] = input.Heights[l] = 65; input.Sizes[l] = Vector2.one * (1024 << l); }
             return input;
         }
         private static void Require(bool condition, string description) { if (!condition) throw new InvalidOperationException("Agriculture check failed: " + description); }

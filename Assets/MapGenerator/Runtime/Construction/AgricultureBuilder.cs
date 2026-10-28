@@ -12,11 +12,12 @@ namespace TacticalMaps.Construction
     {
         [SerializeField] private AgricultureLibrary library;
         [SerializeField, Min(50)] private float detailedCropDistance = 110;
-        [SerializeField, Min(100)] private float cropDistance = 330;
+        [SerializeField, Min(100)] private float cropDistance = 1200;
+        [SerializeField, Tooltip("Generate earthen borders around fields. Courtyard fences are independent.")] private bool generateFieldBanks = true;
         [SerializeField, Min(0)] private float detailedBuildingMargin = 200;
         [SerializeField, Min(1)] private int maximumCropPatches = 450000;
         [SerializeField, Min(30)] private float propDrawDistance=180;
-        [SerializeField, Min(0)] private int maximumProps=1600;
+        [SerializeField, Min(0)] private int maximumProps=2400;
         internal double LastBuildMilliseconds { get; private set; }
         private static Terrain[] cachedGround;
         private static Vector3[] cachedOrigins, cachedSizes;
@@ -42,22 +43,26 @@ namespace TacticalMaps.Construction
             owned.BuildSurface(map.Agriculture.Surface, terrains, center);
             var group = new GameObject("Agriculture"); group.transform.SetParent(root, false);
             var render = group.AddComponent<CropRenderer>(); render.Configure(library, map.Agriculture.Fields, terrains, center, map.Sizes[0], detailedCropDistance, cropDistance, maximumCropPatches);
-            var banks = new Dictionary<Vector2Int, Geometry>(); var water = new Dictionary<Vector2Int, Geometry>();
+            var banks = new Dictionary<Vector2Int, Geometry>();
             Geometry BankAt(Vector2 p)
             { var key = new Vector2Int(Mathf.FloorToInt(p.x / 256), Mathf.FloorToInt(p.y / 256)); if (!banks.TryGetValue(key, out var g)) banks.Add(key, g = new Geometry()); return g; }
-            foreach (var field in map.Agriculture.Fields)
+            if(generateFieldBanks)foreach (var field in map.Agriculture.Fields)
             {
                 if (Mathf.Abs(field.center.x) > map.Sizes[0].x / 2 + 600 || Mathf.Abs(field.center.y) > map.Sizes[0].y / 2 + 600) continue;
-                var geometry = BankAt(field.center); var contour = Contour(field); float[] offsets = { -1.65f, -.5f, .5f, 1.7f };
+                var geometry = BankAt(field.center); float[] offsets = { -1.65f, -.5f, .5f, 1.7f };
+                Farmstead? fieldFarm=null;
+                if(field.cropExclusion.z>0)foreach(var farm in map.Agriculture.Farms)
+                    if(farm.embedded && (farm.parcelCenter-field.center).sqrMagnitude<.01f){fieldFarm=farm;break;}
+                var contour=Contour(field,fieldFarm);
                 var rings = new Vector3[contour.Count * 4];
                 for (int i = 0; i < contour.Count; i++)
                 {
                     var p = contour[i]; var middle = Ground(p.Position, terrains, center);
                     float variation = .04f * Mathf.Sin(p.Position.x * .11f + p.Position.y * .07f);
-                    float crest = Mathf.Max(middle.y + .48f + variation, field.crop == 3 ? field.height + center.y + .38f : float.MinValue);
+                    float crest = middle.y + (.48f + variation)*Mathf.Lerp(.65f,1,p.Width);
                     for (int ring = 0; ring < 4; ring++)
                     {
-                        var q = p.Position + p.Normal * offsets[ring];
+                        var q = p.Position + p.Normal * (offsets[ring]*p.Width);
                         rings[i * 4 + ring] = ring == 0 || ring == 3 ? Ground(q, terrains, center, -.13f) : new Vector3(q.x + center.x, crest, q.y + center.z);
                     }
                 }
@@ -70,17 +75,7 @@ namespace TacticalMaps.Construction
                         var p = rings[a + 2]; geometry.Tuft(p, .18f + .1f * Mathf.Abs(Mathf.Sin(p.x)), new Color(.28f, .37f, .14f));
                     }
                 }
-                if (field.crop == 3)
-                {
-                    var key = new Vector2Int(Mathf.FloorToInt(field.center.x / 256), Mathf.FloorToInt(field.center.y / 256));
-                    if (!water.TryGetValue(key, out var g)) water.Add(key, g = new Geometry());
-                    var middle = new Vector3(field.center.x + center.x, field.height + center.y, field.center.y + center.z);
-                    for (int i = 0; i < contour.Count; i++)
-                    {
-                        var a = contour[i]; var b = contour[(i + 1) % contour.Count]; var p = a.Position - a.Normal * .22f; var q = b.Position - b.Normal * .22f;
-                        g.WaterTriangle(middle, new Vector3(q.x + center.x, middle.y, q.y + center.z), new Vector3(p.x + center.x, middle.y, p.y + center.z), field.variation);
-                    }
-                }
+
             }
             foreach (var farm in map.Agriculture.Farms)
             {
@@ -99,7 +94,9 @@ namespace TacticalMaps.Construction
                         var lod = go.AddComponent<LODGroup>(); lod.SetLODs(new[] { new LOD(.0004f, renderers) }); lod.RecalculateBounds();
                     }
                     go.name = "FarmBuilding_" + building.variant;
-                    go.transform.position = Ground(building.center, terrains, center, -.035f); go.transform.rotation = Quaternion.Euler(0, -building.angle * Mathf.Rad2Deg, 0);
+                    var grounding = house.GetComponent<FarmBuildingGrounding>();
+                    float offset = grounding != null ? FarmBuildingGrounding.PlatformClearance - grounding.platformHeight * building.scale : -.035f;
+                    go.transform.position = Ground(building.center, terrains, center, offset); go.transform.rotation = Quaternion.Euler(0, -building.angle * Mathf.Rad2Deg, 0);
                     go.transform.localScale = Vector3.one * building.scale;
                     if (Mathf.Abs(building.center.x)<map.Sizes[0].x/2+600 && Mathf.Abs(building.center.y)<map.Sizes[0].y/2+600)
                     {
@@ -114,26 +111,44 @@ namespace TacticalMaps.Construction
             group.AddComponent<FarmPropRenderer>().Configure(library,props,propDrawDistance);
             FarmFenceBuilder.Build(map.Agriculture.Farms, library, terrains, center, map.Sizes[0], group.transform, owned);
             foreach (var pair in banks) owned.AddMesh(pair.Value.Build(group.transform, "FieldBanks_" + pair.Key, library.bankMaterial, true));
-            foreach (var pair in water) owned.AddMesh(pair.Value.Build(group.transform, "PaddyWater_" + pair.Key, library.waterMaterial, false));
             LastBuildMilliseconds = clock.Elapsed.TotalMilliseconds;
         }
-        private struct ContourPoint { internal Vector2 Position, Normal; }
-        private static List<ContourPoint> Contour(FarmField field)
+        internal struct ContourPoint { internal Vector2 Position, Normal; internal float Width; }
+        internal static List<ContourPoint> Contour(FarmField field, Farmstead? farm = null)
         {
             var local = new List<ContourPoint>(); float r = field.CornerRadius;
             for (int corner = 0; corner < 4; corner++)
             {
                 var origin = new Vector2(corner == 0 || corner == 3 ? field.halfSize.x - r : -field.halfSize.x + r, corner < 2 ? field.halfSize.y - r : -field.halfSize.y + r);
-                for (int i = 0; i <= 3; i++) { float angle = (corner * 90 + i * 30) * Mathf.Deg2Rad; var normal = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)); local.Add(new ContourPoint { Position = origin + normal * r, Normal = normal }); }
+                for (int i = 0; i <= 3; i++) { float angle = (corner * 90 + i * 30) * Mathf.Deg2Rad; var normal = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)); local.Add(new ContourPoint { Position = origin + normal * r, Normal = normal, Width=1 }); }
             }
-            var result = new List<ContourPoint>(); var axis = field.Axis; var side = new Vector2(-axis.y, axis.x);
+            var axis = field.Axis; var side = new Vector2(-axis.y, axis.x);
+            if(farm.HasValue)
+            {
+                var yard=farm.Value;var delta=yard.center-field.center;
+                float x=Vector2.Dot(delta,axis),y=Vector2.Dot(delta,side);
+                // The narrow bank's outer toe meets the actual fence, not the inflated crop/road mask.
+                float left=x-yard.yardHalfSize.y-.6f,right=x+yard.yardHalfSize.y+.6f,top=y+yard.yardHalfSize.x+.6f,bottom=-field.halfSize.y;
+                for(int i=0;i<local.Count;i++)
+                {
+                    var a=local[i].Position;var b=local[(i+1)%local.Count].Position;
+                    if(Mathf.Abs(a.y-bottom)>.01f || Mathf.Abs(b.y-bottom)>.01f || left<=a.x || right>=b.x || top>=field.halfSize.y-r)continue;
+                    ContourPoint P(float px,float py,Vector2 normal,float width)=>new ContourPoint{Position=new Vector2(px,py),Normal=normal,Width=width};
+                    local.InsertRange(i+1,new[]{P(Mathf.Max(a.x,left-3),bottom,Vector2.down,1),
+                        P(left,bottom,new Vector2(1,-1),.35f),P(left,top,new Vector2(1,-1),.35f),
+                        P(right,top,new Vector2(-1,-1),.35f),P(right,bottom,new Vector2(-1,-1),.35f),
+                        P(Mathf.Min(b.x,right+3),bottom,Vector2.down,1)});
+                    break;
+                }
+            }
+            var result = new List<ContourPoint>();
             for (int i = 0; i < local.Count; i++)
             {
                 var a = local[i]; var b = local[(i + 1) % local.Count]; int steps = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(a.Position, b.Position) / 3));
                 for (int j = 0; j < steps; j++)
                 {
-                    float t = (float)j / steps; var p = Vector2.Lerp(a.Position, b.Position, t); var n = Vector2.Lerp(a.Normal, b.Normal, t).normalized;
-                    result.Add(new ContourPoint { Position = field.center + axis * p.x + side * p.y, Normal = axis * n.x + side * n.y });
+                    float t = (float)j / steps; var p = Vector2.Lerp(a.Position, b.Position, t); var n = Vector2.Lerp(a.Normal, b.Normal, t);
+                    result.Add(new ContourPoint { Position = field.center + axis * p.x + side * p.y, Normal = axis * n.x + side * n.y, Width=Mathf.Lerp(a.Width,b.Width,t) });
                 }
             }
             return result;
@@ -153,8 +168,6 @@ namespace TacticalMaps.Construction
         private sealed class Geometry
         {
             private readonly List<Vector3> vertices = new List<Vector3>(); private readonly List<int> indices = new List<int>(); private readonly List<Color> colors = new List<Color>();
-            internal void WaterTriangle(Vector3 a,Vector3 b,Vector3 c,float variation)
-            {int n=vertices.Count;vertices.AddRange(new[]{a,b,c});colors.AddRange(new[]{new Color(1,variation,0,1),new Color(0,variation,0,1),new Color(0,variation,0,1)});indices.AddRange(new[]{n,n+1,n+2});}
             internal void Triangle(Vector3 a, Vector3 b, Vector3 c, Color color)
             { int n = vertices.Count; color = Linear(color); vertices.AddRange(new[] { a, b, c }); colors.AddRange(new[] { color, color, color }); indices.AddRange(new[] { n, n + 1, n + 2 }); }
             internal void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color color)

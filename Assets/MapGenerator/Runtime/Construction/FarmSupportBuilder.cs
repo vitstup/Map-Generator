@@ -7,7 +7,7 @@ namespace TacticalMaps.Construction
     {
         internal static Mesh Build(GameObject house,FarmBuildingGrounding data,Material material,Terrain[] terrains,Vector3 center)
         {
-            if(data==null || data.supports==null || data.supports.Length<4)return null;
+            if(data==null || data.supports==null || data.supports.Length!=4)return null;
             var vertices=new List<Vector3>();var colors=new List<Color>();var triangles=new List<int>();
             var color=new Color(.24f,.17f,.11f).linear;float half=data.supportHalfWidth;
             foreach(var anchor in data.supports)

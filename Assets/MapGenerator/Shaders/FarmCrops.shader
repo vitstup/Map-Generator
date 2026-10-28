@@ -9,7 +9,7 @@ Shader "TacticalMaps/Agriculture/Rice"
         #pragma target 4.5
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-        StructuredBuffer<float4> _CropPatches, _CropShapes, _CropStyles;
+        StructuredBuffer<float4> _CropPatches, _CropShapes, _CropStyles, _CropExclusions;
         StructuredBuffer<uint> _VisibleCrops;
         TEXTURE2D(_CropHeight0); SAMPLER(sampler_CropHeight0);
         TEXTURE2D(_CropHeight1); TEXTURE2D(_CropHeight2);
@@ -32,6 +32,9 @@ Shader "TacticalMaps/Agriculture/Rice"
             float4 shape=_CropShapes[(uint)patch.w];
             float2 axis=float2(cos(style.x),sin(style.x)), side=float2(-axis.y,axis.x);
             float2 root=patch.xz+axis*a.root.x+side*a.root.y;
+            // World-anchored, time-independent jitter, shared by near and distant clumps.
+            float2 offset=(float2(Hash(root+float2(37.1,style.z*19)),Hash(root+float2(style.z*23,83.7)))-.5)*.13;
+            root+=axis*offset.x+side*offset.y;
             float noise=Hash(root); float height=lerp(.65,1.0,noise)*(style.y>2.5?.58:1);
             float3 p=a.p; p.y*=height;
             float2 local=p.xz-a.root;
@@ -47,7 +50,10 @@ Shader "TacticalMaps/Agriculture/Rice"
             float radius=min(3,max(2.2,min(shape.z,shape.w)*.12));
             float2 q=abs(float2(dot(delta,axis),dot(delta,side)))-shape.zw+radius;
             float sd=length(max(q,0))+min(max(q.x,q.y),0)-radius;
-            o.permission=step(sd,-2.05);
+            float4 exclusion=_CropExclusions[(uint)patch.w];
+            float2 fieldLocal=float2(dot(delta,axis),dot(delta,side));
+            bool yard=exclusion.z>0 && exclusion.w>0 && all(abs(fieldLocal-exclusion.xy)<=exclusion.zw);
+            o.permission=yard?0:step(sd,-2.05);
             o.fog=ComputeFogFactor(o.p.z); return o;
         }
         half4 Frag(V i):SV_Target
@@ -58,7 +64,7 @@ Shader "TacticalMaps/Agriculture/Rice"
             float regional=sin(i.world.x*.013+sin(i.world.z*.017)) * 6;
             float nearFade=smoothstep(_CropRanges.x-16+regional,_CropRanges.x+16+regional,d);
             float fade=_CropRanges.z<.5?1-nearFade:nearFade;
-            fade*=1-smoothstep(_CropRanges.y*.75,_CropRanges.y,d);
+            fade*=1-smoothstep(_CropRanges.y*.55,_CropRanges.y,d);
             // Complementary pixel ranks replace close plants with the simplified patch.
             if(_CropRanges.z<.5)clip(fade-rank);else clip(rank-(1-fade));
             Light sun=GetMainLight(TransformWorldToShadowCoord(i.world));

@@ -15,7 +15,7 @@ namespace TacticalMaps.Construction
             var batches=new Dictionary<(Vector2Int,Material),Batch>();
             foreach(var farm in farms)
             {
-                if(farm.embedded || farm.buildings==null || Mathf.Abs(farm.center.x)>mainSize.x/2+300 || Mathf.Abs(farm.center.y)>mainSize.y/2+300)continue;
+                if(farm.buildings==null || Mathf.Abs(farm.center.x)>mainSize.x/2+300 || Mathf.Abs(farm.center.y)>mainSize.y/2+300)continue;
                 var prefab=library.fences[farm.fenceStyle%library.fences.Length];if(prefab==null)continue;
                 var filters=prefab.GetComponentsInChildren<MeshFilter>();float section=prefab.GetComponent<FenceSection>().length;
                 var axis=new Vector2(Mathf.Cos(farm.angle),Mathf.Sin(farm.angle));var side=new Vector2(-axis.y,axis.x);var h=farm.yardHalfSize;

@@ -33,14 +33,7 @@ namespace TacticalMaps.Editor
             if (library == null) { library = ScriptableObject.CreateInstance<AgricultureLibrary>(); AssetDatabase.CreateAsset(library, Folder + "/AgricultureLibrary.asset"); }
             library.bankMaterial = Material("FarmEarth", "TacticalMaps/Agriculture/Banks");
             library.supportMaterial = Material("FarmSupports", "TacticalMaps/Agriculture/Simple");
-            library.waterMaterial = Material("PaddyWater", "TacticalMaps/Agriculture/Water");
-            if(library.waterVersion<1)
-            {
-                library.waterMaterial.SetColor("_ShallowColor",new Color(.34f,.39f,.28f));
-                library.waterMaterial.SetColor("_DeepColor",new Color(.13f,.30f,.34f));
-                library.waterMaterial.SetColor("_SkyTint",new Color(.45f,.61f,.68f));
-                library.waterMaterial.SetFloat("_RippleStrength",.055f);library.waterMaterial.SetFloat("_Opacity",.72f);library.waterVersion=1;EditorUtility.SetDirty(library.waterMaterial);
-            }
+            library.waterMaterial = null;
             library.cropMaterial = Material("Rice", "TacticalMaps/Agriculture/Rice");
             library.cropMaterial.enableInstancing = true;
             library.culling = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/CropCulling.compute");
@@ -74,11 +67,18 @@ namespace TacticalMaps.Editor
             }
             if (configuration.FindProperty("layoutVersion").intValue < 6)
             { configuration.FindProperty("fieldBuildingsChance").floatValue=.18f; configuration.FindProperty("layoutVersion").intValue=6; }
+            bool upgradeDetails=configuration.FindProperty("layoutVersion").intValue<8;
+            if(upgradeDetails && Mathf.Approximately(configuration.FindProperty("fieldBuildingsChance").floatValue,.18f))configuration.FindProperty("fieldBuildingsChance").floatValue=1;
+            if(configuration.FindProperty("layoutVersion").intValue<9)configuration.FindProperty("fieldBuildingsChance").floatValue=.4f;
+            bool upgradeCropVisibility=configuration.FindProperty("layoutVersion").intValue<10;
+            configuration.FindProperty("layoutVersion").intValue=10;
             var footprints = configuration.FindProperty("houseFootprints"); footprints.arraySize = library.houses.Length;
             for (int i = 0; i < library.houses.Length; i++) footprints.GetArrayElementAtIndex(i).vector2Value = library.houses[i].GetComponent<FarmBuildingGrounding>().halfFootprint;
             configuration.ApplyModifiedPropertiesWithoutUndo();
             var construction = builder.GetComponent<AgricultureBuilder>(); if (construction == null) construction = Undo.AddComponent<AgricultureBuilder>(builder.gameObject);
             Set(construction, "library", library); Set(builder, "agricultureBuilder", construction);
+            if(upgradeDetails){var settings=new SerializedObject(construction);if(settings.FindProperty("maximumProps").intValue==1600)settings.FindProperty("maximumProps").intValue=2400;settings.ApplyModifiedPropertiesWithoutUndo();}
+            if(upgradeCropVisibility){var settings=new SerializedObject(construction);if(Mathf.Approximately(settings.FindProperty("cropDistance").floatValue,330))settings.FindProperty("cropDistance").floatValue=1200;settings.ApplyModifiedPropertiesWithoutUndo();}
             ConfigureOverlay();
             AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(generator.gameObject.scene); EditorSceneManager.SaveScene(generator.gameObject.scene);
             Debug.Log("Agriculture installed: linear R16 density, five individual houses with three LODs and Synty fences, rice patches and field materials.");
@@ -182,6 +182,7 @@ namespace TacticalMaps.Editor
                 var collider = root.AddComponent<BoxCollider>(); collider.center = new Vector3(0, bounds.size.y * .4f, 0); collider.size = new Vector3(bounds.size.x * .78f, bounds.size.y * .8f, bounds.size.z * .78f);
                 var grounding = root.AddComponent<FarmBuildingGrounding>(); grounding.halfFootprint = new Vector2(bounds.size.x, bounds.size.z) * .5f;
                 grounding.supports = FarmFoundationBaker.Anchors(prefab,pivot,bounds);
+                grounding.platformHeight = grounding.supports[0].y;
                 grounding.supportHalfWidth = Mathf.Clamp(Mathf.Max(bounds.size.x,bounds.size.z)/65,.14f,.24f);
                 return PrefabUtility.SaveAsPrefabAsset(root, Folder + "/Buildings/Farmhouse_" + index + ".prefab");
             }
@@ -190,15 +191,15 @@ namespace TacticalMaps.Editor
         private static Mesh RiceMesh(bool distant)
         {
             var vertices = new List<Vector3>(); var normals = new List<Vector3>(); var uv = new List<Vector2>(); var roots = new List<Vector2>(); var triangles = new List<int>();
-            int n = distant ? 3 : 5;
+            int n = 5;
             for (int z = 0; z < n; z++) for (int x = 0; x < n; x++)
             {
-                var root = new Vector2((x + .5f) * 4 / n - 2, (z + .5f) * 4 / n - 2);
+                var root = new Vector2((x-2)*.8f, (z-2)*.8f);
                 int blades = distant ? 3 : 5;
                 for (int b = 0; b < blades; b++)
                 {
                     float a = b * 2.399963f + x * .17f + z * .33f; var axis = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
-                    float width = distant ? .2f : .08f, height = .65f + .1f * (b % 3); int k = vertices.Count;
+                    float width = distant ? .13f : .08f, height = .65f + .1f * (b % 3); int k = vertices.Count;
                     Vector3 P(float w, float h, float bend) => new Vector3(root.x + axis.x * w + axis.y * bend, h, root.y + axis.y * w - axis.x * bend);
                     vertices.AddRange(new[] { P(-width, 0, 0), P(width, 0, 0), P(0, height, .25f) });
                     var normal = new Vector3(-axis.y * .7f, .45f, axis.x * .7f).normalized;

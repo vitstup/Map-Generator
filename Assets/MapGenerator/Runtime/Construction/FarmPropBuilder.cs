@@ -10,18 +10,27 @@ namespace TacticalMaps.Construction
         internal static FarmPropInstance[] Place(MapData map,AgricultureLibrary library,Terrain[] terrains,Vector3 center,int maximum)
         {
             var result=new List<FarmPropInstance>();if(library.props==null||library.propRadii==null)return result.ToArray();var a=map.Agriculture;
+            int[][] sets={new[]{0,1,2,7,8,9},new[]{3,2,0,10,11,12},new[]{4,1,8,9,10,12}};
             foreach(var farm in a.Farms)
             {
                 if(Mathf.Abs(farm.center.x)>map.Sizes[0].x/2+250||Mathf.Abs(farm.center.y)>map.Sizes[0].y/2+250)continue;
-                var buildings=farm.Buildings;int count=farm.embedded?2:Mathf.Min(12,buildings.Length*2+2);var occupied=new List<Vector3>();
+                var buildings=farm.Buildings;int count=Mathf.Min(18,buildings.Length*3+3+(int)(Hash(farm.groupId,0,300)*3));var occupied=new List<Vector3>();
                 for(int i=0;i<count&&result.Count<maximum;i++)
                 {
-                    int variant=!farm.embedded&&i==0&&buildings.Length>=4?6:!farm.embedded&&i==1&&buildings.Length>=2?5:Mathf.Min(4,(int)(Hash(farm.groupId,i,1)*5));
+                    // Several seeded sets keep neighbouring yards from repeating the same collection.
+                    var set=sets[Mathf.Min(sets.Length-1,(int)(Hash(farm.groupId,0,301)*sets.Length))];
+                    int variant=i==0&&buildings.Length>=2&&Hash(farm.groupId,0,302)<.2f?6:i==1&&buildings.Length>=2&&Hash(farm.groupId,0,303)<.65f?5:set[Mathf.Min(set.Length-1,(int)(Hash(farm.groupId,i,1)*set.Length))];
+                    if(variant>=library.props.Length || variant>=library.propRadii.Length)continue;
                     float scale=Mathf.Lerp(.9f,1.1f,Hash(farm.groupId,i,2)),radius=library.propRadii[variant]*scale;
                     for(int attempt=0;attempt<32;attempt++)
                     {
                         Vector2 p;
-                        if(attempt<20&&variant<5)
+                        if(i%3!=0 && occupied.Count>0 && attempt<8 && variant!=5 && variant!=6)
+                        {
+                            var previous=occupied[occupied.Count-1];float turn=Hash(farm.groupId,i,20+attempt)*Mathf.PI*2;
+                            p=new Vector2(previous.x,previous.y)+new Vector2(Mathf.Cos(turn),Mathf.Sin(turn))*(previous.z+radius+.6f);
+                        }
+                        else if(attempt<20&&variant!=5&&variant!=6)
                         {
                             var building=buildings[(i+attempt)%buildings.Length];var axis=new Vector2(Mathf.Cos(building.angle),Mathf.Sin(building.angle));var side=new Vector2(-axis.y,axis.x);
                             float sign=Hash(farm.groupId,i,10+attempt)<.5f?-1:1;
@@ -32,7 +41,7 @@ namespace TacticalMaps.Construction
                         bool free=true;foreach(var other in occupied)if((p-new Vector2(other.x,other.y)).magnitude<radius+other.z+.5f){free=false;break;}if(!free)continue;
                         var ground=AgricultureBuilder.Ground(p,terrains,center,-.025f);float low=ground.y,high=ground.y;
                         foreach(var d in new[]{Vector2.right,Vector2.left,Vector2.up,Vector2.down}){float y=AgricultureBuilder.Ground(p+d*radius*.65f,terrains,center).y;low=Mathf.Min(low,y);high=Mathf.Max(high,y);}if(high-low>.25f)continue;
-                        result.Add(new FarmPropInstance{position=ground,angle=Hash(farm.groupId,i,200)*360,scale=scale,variant=variant});occupied.Add(new Vector3(p.x,p.y,radius));break;
+                        result.Add(new FarmPropInstance{position=ground,angle=-farm.angle*Mathf.Rad2Deg+Mathf.Round(Hash(farm.groupId,i,200)*3)*90+Mathf.Lerp(-12,12,Hash(farm.groupId,i,201)),scale=scale,variant=variant});occupied.Add(new Vector3(p.x,p.y,radius));break;
                     }
                 }
             }

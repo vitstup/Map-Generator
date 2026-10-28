@@ -20,14 +20,9 @@ namespace TacticalMaps.Editor
             {
                 float level=float.MaxValue;foreach(var f in floors)level=Mathf.Min(level,f.min.y);
                 Bounds platform=default;bool first=true;foreach(var f in floors)if(f.min.y<=level+.25f){if(first){platform=f;first=false;}else platform.Encapsulate(f);}
-                int nx=Mathf.Max(1,Mathf.CeilToInt((platform.size.x-.5f)/3)),nz=Mathf.Max(1,Mathf.CeilToInt((platform.size.z-.5f)/3));
-                for(int z=0;z<=nz;z++)for(int x=0;x<=nx;x++)
-                {
-                    var p=new Vector3(Mathf.Lerp(platform.min.x+.24f,platform.max.x-.24f,x/(float)nx),level,Mathf.Lerp(platform.min.z+.24f,platform.max.z-.24f,z/(float)nz));
-                    foreach(var f in floors)if(f.min.y<=level+.25f && p.x>=f.min.x+.04f && p.x<=f.max.x-.04f && p.z>=f.min.z+.04f && p.z<=f.max.z-.04f){Add(p-pivot);break;}
-                }
-                foreach(var f in floors)if(f.min.y<=level+.25f)for(int z=-1;z<=1;z+=2)for(int x=-1;x<=1;x+=2)
-                    Add(new Vector3(f.center.x+x*Mathf.Max(.1f,f.extents.x-.25f),f.min.y,f.center.z+z*Mathf.Max(.1f,f.extents.z-.25f))-pivot);
+                // Only the four outer corners, never a grid or the corners of each floor module.
+                for(int z=-1;z<=1;z+=2)for(int x=-1;x<=1;x+=2)
+                    Add(new Vector3(platform.center.x+x*Mathf.Max(.1f,platform.extents.x-.25f),level,platform.center.z+z*Mathf.Max(.1f,platform.extents.z-.25f))-pivot);
             }
             if(anchors.Count<4)
             {

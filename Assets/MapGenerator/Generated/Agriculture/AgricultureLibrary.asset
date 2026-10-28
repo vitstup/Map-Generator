@@ -25,7 +25,7 @@ MonoBehaviour:
   distantRice: {fileID: 4300000, guid: 92d0a8ab90d67204099e6025dd35165b, type: 2}
   cropMaterial: {fileID: 2100000, guid: aeb5079d53a244b4e8a1b7e76833810d, type: 2}
   bankMaterial: {fileID: 2100000, guid: ec7905c5427dea748b9a943c023e6a52, type: 2}
-  waterMaterial: {fileID: 2100000, guid: a8fb272e324044140acbb3f354aa8081, type: 2}
+  waterMaterial: {fileID: 0}
   supportMaterial: {fileID: 2100000, guid: 860fa390a7200304dad0fb4cb51c2d6f, type: 2}
   props:
   - {fileID: 3642666180336181426, guid: 363ee39a26c9f2c42a9f625c28ce5a63, type: 3}
@@ -35,6 +35,12 @@ MonoBehaviour:
   - {fileID: 9012486915603583551, guid: 26c740d59a8a8e3438a8708c5767f736, type: 3}
   - {fileID: 986556051118114154, guid: d1515a2ef32d07e4a95bab34d7e883fe, type: 3}
   - {fileID: 3585181035772409429, guid: def667aa2c5393d46956cd5e2963a2f0, type: 3}
+  - {fileID: 3412858668398828491, guid: c1569b43ed6ad4d45b78ee1a6289645c, type: 3}
+  - {fileID: 4955369253584008386, guid: e16ec5bfb858cae4cbe5137b620fa65e, type: 3}
+  - {fileID: 7016254592551701291, guid: 3da438e80d2b90341b96dccba551c2dc, type: 3}
+  - {fileID: 4921645582985870292, guid: a7fe588216daeca4c9f1e4479518c109, type: 3}
+  - {fileID: 2118712910133374715, guid: 73ea33926ddee8349962b50883993dba, type: 3}
+  - {fileID: 3518727990278803490, guid: b28b2570e48ac51499d6cf22d741fe49, type: 3}
   propRadii:
   - 0.54333764
   - 0.38484472
@@ -43,6 +49,12 @@ MonoBehaviour:
   - 0.46742913
   - 1.8613753
   - 1.0670284
+  - 0.49591857
+  - 0.43920508
+  - 0.21925102
+  - 0.40440091
+  - 0.28967464
+  - 0.39915502
   waterVersion: 1
   culling: {fileID: 7200000, guid: 06bd03fad8f240e42afe61c0b66e47db, type: 3}
   soilProfile: {fileID: 8574412962073106934, guid: 8cc3077ce7fe9424b8686e4116432eaf, type: 2}

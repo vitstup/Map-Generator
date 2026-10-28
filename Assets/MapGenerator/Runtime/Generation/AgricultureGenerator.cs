@@ -25,7 +25,7 @@ namespace TacticalMaps.Generation
         [SerializeField, Min(0)] private float connectionRadius = 6000;
         [SerializeField, Min(100)] private float maximumAccessLength = 1800;
         [SerializeField, Min(0)] private float beachClearance = 8;
-        [SerializeField, Range(0,.5f)] private float fieldBuildingsChance = .18f;
+        [SerializeField, Range(0,1)] private float fieldBuildingsChance = .4f;
         [SerializeField] private int seed = 1467;
         [SerializeField, HideInInspector] private Vector2[] houseFootprints;
         [SerializeField, HideInInspector] private int layoutVersion;
@@ -85,14 +85,14 @@ namespace TacticalMaps.Generation
         internal float Threshold = .04f, FullDensity = .6f, Exponent = 1.6f;
         internal RoadData Roads;
         internal Vector2[] Footprints;
-        internal float FieldBuildingsChance = .18f, AccessWidth = 3;
+        internal float FieldBuildingsChance = .4f, AccessWidth = 3;
         internal float AreaScale = .45f, ConnectionRadius = 6000, AccessLength = 1800, BeachClearance = 8, BeachHeight = 2.5f;
         private struct DistrictCandidate { internal int X, Z; internal Vector2 Center; internal float Weight, Rank; }
         internal ulong Fingerprint()
         {
             ulong h = 1469598103934665603UL;
             void Add(int value) { unchecked { h = (h ^ (uint)value) * 1099511628211UL; } }
-            Add(SourcePoint.x); Add(SourcePoint.y); Add(Radius); Add(Seed); Add(Limit); Add(FarmLimit);
+            Add(9); Add(SourcePoint.x); Add(SourcePoint.y); Add(Radius); Add(Seed); Add(Limit); Add(FarmLimit);
             foreach (float v in new[] { Height, Sea, Coverage, District, Slope, Threshold, FullDensity, Exponent, AreaScale, ConnectionRadius, AccessLength, BeachClearance, BeachHeight, FieldBuildingsChance, AccessWidth }) Add(BitConverter.SingleToInt32Bits(v));
             foreach (var s in Sizes) { Add(BitConverter.SingleToInt32Bits(s.x)); Add(BitConverter.SingleToInt32Bits(s.y)); }
             if (Footprints != null) foreach (var s in Footprints) { Add(BitConverter.SingleToInt32Bits(s.x)); Add(BitConverter.SingleToInt32Bits(s.y)); }
@@ -155,10 +155,11 @@ namespace TacticalMaps.Generation
             int farmBudget = Mathf.Min(FarmLimit, Mathf.RoundToInt(FarmLimit * area * Mathf.Pow(mean, .85f)));
             if (mean < .02f) { fieldBudget = Mathf.Min(fieldBudget, 10); farmBudget = Mathf.Min(farmBudget, 2); }
             candidates.Sort((a, b) => a.Rank.CompareTo(b.Rank));
-            int parcelSubdivisions=0;
+
+            int embeddedCount=0;
             foreach (var district in candidates)
             {
-                token.ThrowIfCancellationRequested(); if (fields.Count>=Limit || fields.Count-parcelSubdivisions>=fieldBudget) break;
+                token.ThrowIfCancellationRequested(); if (fields.Count>=Limit || fields.Count>=fieldBudget) break;
                 int x = district.X, z = district.Z; var center = district.Center + new Vector2(Hash(district.X,district.Z,301)-.5f,Hash(district.X,district.Z,302)-.5f)*District*.12f;
                 float angle = (Hash(x, z, 1) - .5f) * 1.1f;
                 var axis = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)); var side = new Vector2(-axis.y, axis.x);
@@ -173,9 +174,15 @@ namespace TacticalMaps.Generation
                     if (r.width > r.height) { plots.Add(new Rect(r.x, r.y, r.width * ratio, r.height)); plots.Add(new Rect(r.x + r.width * ratio, r.y, r.width * (1 - ratio), r.height)); }
                     else { plots.Add(new Rect(r.x, r.y, r.width, r.height * ratio)); plots.Add(new Rect(r.x, r.y + r.height * ratio, r.width, r.height * (1 - ratio))); }
                 }
-                var uncutPlots=new List<Rect>(plots);
-                Farmstead planned;
-                if (farms.Count>=farmBudget || Hash(x,z,200)>FarmProbability || !AgricultureSettlement.TryEmbedded(this,center,angle,plots,x,z,out planned)) planned=AgricultureSettlement.Plan(this,center,angle,w,h,x,z);
+                AgricultureSettlement.ShapePlots(this,plots,w,h,x,z);
+                Farmstead planned=default;
+                if(farms.Count<farmBudget && Hash(x,z,200)<=FarmProbability)
+                {
+                    bool preferEmbedded=embeddedCount<Mathf.RoundToInt((farms.Count+1)*FieldBuildingsChance);
+                    if(preferEmbedded)
+                    {if(!AgricultureSettlement.TryEmbedded(this,center,angle,plots,x,z,out planned))AgricultureSettlement.TryOutside(this,center,angle,w,h,x,z,out planned);}
+                    else if(!AgricultureSettlement.TryOutside(this,center,angle,w,h,x,z,out planned))AgricultureSettlement.TryEmbedded(this,center,angle,plots,x,z,out planned);
+                }
                 planned.groupId=x*73856093^z*19349663;
                 planned.gateHalfWidth=AccessWidth*.5f+(Roads?.Shoulder ?? 1)+1.75f;
                 bool hasFarm=farms.Count<farmBudget && Hash(x,z,200)<=FarmProbability && planned.buildings!=null;
@@ -184,8 +191,7 @@ namespace TacticalMaps.Generation
                     foreach(var other in farms)if((other.center-planned.center).sqrMagnitude<Mathf.Pow(other.yardHalfSize.magnitude+planned.yardHalfSize.magnitude+5,2) && AgricultureSettlement.Overlaps(new FarmField{center=other.center,angle=other.angle,halfSize=other.yardHalfSize},planned)){hasFarm=false;break;}
                     if(hasFarm)foreach(var other in fields)if((other.center-planned.center).sqrMagnitude<Mathf.Pow(other.halfSize.magnitude+planned.yardHalfSize.magnitude+5,2)&&AgricultureSettlement.Overlaps(other,planned)){hasFarm=false;break;}
                 }
-                if(!hasFarm && planned.embedded)plots=uncutPlots;
-                int accepted = 0, suitablePlots = 0;
+                int accepted = 0, suitablePlots = 0; bool hostAccepted=false;
                 for (int i = 0; i < plots.Count && fields.Count < Limit; i++)
                 {
                     var r = plots[i]; float gap = hasFarm && planned.embedded ? 2.5f : Mathf.Lerp(4, 7, Hash(x, z, 60 + i));
@@ -207,14 +213,16 @@ namespace TacticalMaps.Generation
                             if(!Suitable(f.Point(Mathf.Lerp(-f.halfSize.x,f.halfSize.x,ix/(float)nx),Mathf.Lerp(-f.halfSize.y,f.halfSize.y,iz/(float)nz)))){valid=false;break;}
                     }
                     if (valid) suitablePlots++;
-                    if (valid && hasFarm && AgricultureSettlement.Overlaps(f, planned)) valid = false;
+                    bool host=hasFarm && planned.embedded && (f.center-planned.parcelCenter).sqrMagnitude<.01f;
+                    if (valid && hasFarm && !host && AgricultureSettlement.Overlaps(f, planned)) valid = false;
+                    if(host)f.ReserveYard(planned);
                     if(valid)foreach(var other in farms)if((other.center-f.center).sqrMagnitude<Mathf.Pow(other.yardHalfSize.magnitude+f.halfSize.magnitude+5,2) && AgricultureSettlement.Overlaps(f,other)){valid=false;break;}
                     if (!valid) continue;
-                    f.height = (lo + hi) / 2; if (f.crop != 0 && hi - lo < .65f) f.crop = 3;
+                    f.height = (lo + hi) / 2;
+                    if(host){hostAccepted=true;if(f.crop==0)f.crop=1;}
                     fields.Add(f); accepted++;
                 }
-                if(hasFarm && planned.embedded)parcelSubdivisions+=Mathf.Max(0,accepted-uncutPlots.Count);
-                if (suitablePlots > 0 && hasFarm) farms.Add(planned);
+                if (suitablePlots > 0 && hasFarm && (!planned.embedded || hostAccepted)){farms.Add(planned);if(planned.embedded)embeddedCount++;}
             }
             int requested=0,connected=0;
             var tracks = AgricultureAccess.Build(this, fields.ToArray(), farms.ToArray(), token, (r,c)=>{requested=r;connected=c;});

@@ -132,7 +132,7 @@ Material:
     - _EnableHeightBlend: 0
     - _EnableInstancedPerPixelNormal: 1
     - _FarmEnabled: 1
-    - _FarmVersion: 3
+    - _FarmVersion: 4
     - _GrassEnabled: 1
     - _GrassFlowerCount: 4
     - _GrassTurfStrength: 1

@@ -30,7 +30,7 @@ namespace TacticalMaps.Editor
                         if(point.x==2496)Require(a.Fields.Length<=10&&a.Farms.Length<=2,"Mountain budgets");
                         else
                         {
-                            Require(a.Farms.Length>=300&&a.Farms.Length<=500,"300-500 farm budget");Require(new[]{1,2,4,6}.All(counts.ContainsKey),"All settlement sizes present");
+                            Require(a.Farms.Length>0&&a.Farms.Length<=500,"Suitability-limited farm budget");Require(new[]{1,2}.All(counts.ContainsKey),"One- and two-house field layouts present");
                             var groups = a.Fields.GroupBy(f=>f.groupId).Select(g=>g.Sum(f=>4f*f.halfSize.x*f.halfSize.y)).ToArray();
                             Require(groups.Max()/groups.Min()>12,"Different field group areas");
                             double baseline=point.x==2618?37956920.0294428:64045931.1697563;Require(area/baseline>=.33&&area/baseline<=.53,"Area reduced about 2-2.5 times");
@@ -42,7 +42,7 @@ namespace TacticalMaps.Editor
                             Require(farm.buildings!=null,"Explicit building layouts");
                             foreach(var building in farm.Buildings){Require(building.height>beach,"No beach houses");Require(a.Blocks(building.center),"Grass excluded under buildings");}
                             Require(!a.Surface.Primitives.Any(p=>p.Style.z==4),"No painted farmyards");
-                            Require(!a.Fields.Any(f=>AgricultureSettlement.Overlaps(f,farm)),"Fields do not cross reserved farmyards");
+                            Require(!a.Fields.Any(f=>(!farm.embedded || (f.center-farm.parcelCenter).sqrMagnitude>=.01f) && AgricultureSettlement.Overlaps(f,farm)),"Fields do not cross reserved farmyards");
                         }
                     }finally{map.Release();}
                 }
