@@ -31738,6 +31738,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 3008142032054945628, guid: 07a83ef670067164fa3d02aa87d949aa, type: 3}
+      propertyPath: Lens.FarClipPlane
+      value: 15000
+      objectReference: {fileID: 0}
     - target: {fileID: 3153461962868993173, guid: 07a83ef670067164fa3d02aa87d949aa, type: 3}
       propertyPath: m_Name
       value: RtsCameraSetup
@@ -37855,7 +37859,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.1
-  far clip plane: 5000
+  far clip plane: 15000
   field of view: 40
   orthographic: 0
   orthographic size: 10
@@ -229616,7 +229620,7 @@ MonoBehaviour:
   library: {fileID: 11400000, guid: ef3d53e29f48ac441bb317f60908f7a1, type: 2}
   detailedCropDistance: 110
   cropDistance: 1200
-  generateFieldBanks: 1
+  generateFieldBanks: 0
   detailedBuildingMargin: 200
   maximumCropPatches: 450000
   propDrawDistance: 180
