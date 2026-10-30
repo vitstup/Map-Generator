@@ -57,7 +57,7 @@ namespace TacticalMaps.Construction
             catch { Dispose(); throw; }
         }
 
-        internal int Render(Camera camera, Plane[] frustum, float projectionScale, float nearHeight, float minimumPixels, float distance, bool refresh)
+        internal int Render(Camera camera, Plane[] frustum, float projectionScale, float nearHeight, float minimumPixels, float distance, bool refresh, float transition = 0)
         {
             int id = camera.GetInstanceID();
             if (!views.TryGetValue(id, out var view))
@@ -70,7 +70,7 @@ namespace TacticalMaps.Construction
             {
                 for (int i = 0; i < 6; i++) planes[i] = new Vector4(frustum[i].normal.x, frustum[i].normal.y, frustum[i].normal.z, frustum[i].distance);
                 shader.SetVectorArray("_Planes", planes); shader.SetVector("_Eye", camera.transform.position);
-                shader.SetFloat("_ProjectionScale", projectionScale); shader.SetFloat("_NearScreenHeight", nearHeight);
+                shader.SetFloat("_ProjectionScale", projectionScale); shader.SetFloat("_NearScreenHeight", nearHeight * (1 + transition));
                 shader.SetFloat("_MinScreenHeight", minimumPixels / Mathf.Max(1, camera.pixelHeight));
                 shader.SetFloat("_DrawDistance", Mathf.Min(distance, camera.farClipPlane));
                 shader.SetInt("_Orthographic", camera.orthographic ? 1 : 0);
@@ -91,6 +91,7 @@ namespace TacticalMaps.Construction
                     output.Properties.SetVector("_ViewerDirection", -camera.transform.forward);
                     output.Properties.SetFloat("_Orthographic", camera.orthographic ? 1 : 0);
                     output.Properties.SetFloat("_ProjectionScale", projectionScale); output.Properties.SetFloat("_PixelHeight", camera.pixelHeight);
+                    output.Properties.SetVector("_MeshTransition", new Vector4(nearHeight * (1 - transition), nearHeight * (1 + transition), transition > 0 ? 1 : 0, 0));
                 }
             }
             int draws = 0;

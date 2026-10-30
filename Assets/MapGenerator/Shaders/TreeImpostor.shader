@@ -24,6 +24,7 @@ Shader "TacticalMaps/Trees/Impostor"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
             #include "UnityIndirect.cginc"
+            #include "TreeDither.hlsl"
 
             struct Tree { float4x4 objectToWorld; float4 sphere; };
             StructuredBuffer<Tree> _Trees;
@@ -35,6 +36,7 @@ Shader "TacticalMaps/Trees/Impostor"
             CBUFFER_END
             float4 _ViewerPosition, _ViewerDirection;
             float _Orthographic, _ProjectionScale, _PixelHeight;
+            float4 _MeshTransition;
             struct Attributes { float3 positionOS : POSITION; float2 uv : TEXCOORD0; };
             struct Varyings
             {
@@ -42,7 +44,7 @@ Shader "TacticalMaps/Trees/Impostor"
                 float2 uv : TEXCOORD0;
                 nointerpolation float2 view : TEXCOORD1;
                 half fog : TEXCOORD2;
-                nointerpolation half pixelHeight : TEXCOORD3;
+                nointerpolation float pixelHeight : TEXCOORD3;
             };
             Varyings Vert(Attributes input, uint instanceId : SV_InstanceID)
             {
@@ -80,6 +82,13 @@ Shader "TacticalMaps/Trees/Impostor"
             }
             half4 Frag(Varyings input) : SV_Target
             {
+                if (_MeshTransition.z > 0.5)
+                {
+                    float height = input.pixelHeight / max(_PixelHeight, 1);
+                    float meshCoverage = saturate((height - _MeshTransition.x) / max(_MeshTransition.y - _MeshTransition.x, 0.00001));
+                    if (meshCoverage >= 1) discard;
+                    if (meshCoverage > 0) TreeDitherClip(input.positionCS.xy, -meshCoverage);
+                }
                 float2 baseView = floor(input.view), blend = frac(input.view);
                 float nextRow = min(baseView.y + 1, _Atlas.y-1);
                 half4 color;

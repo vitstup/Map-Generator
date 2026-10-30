@@ -1,0 +1,4 @@
+level 0: total=8084, visible=236, impostors=216, instance draw submissions=11, LOD counts=0,1,13,6,0,0,0,0, cull/rebuild=3,087ms, submit=1,971ms, synchronized render/readback native=11,11ms vs instanced=6,25ms, changed pixels=25414.
+level 1: total=45657, visible=116, impostors=112, instance draw submissions=10, LOD counts=0,1,1,2,0,0,0,0, cull/rebuild=0,736ms, submit=0,252ms, synchronized render/readback native=9,36ms vs instanced=6,08ms, changed pixels=13175.
+level 2: total=109484, visible=67, impostors=58, instance draw submissions=11, LOD counts=0,1,6,2,0,0,0,0, cull/rebuild=0,742ms, submit=0,207ms, synchronized render/readback native=8,79ms vs instanced=5,63ms, changed pixels=16629.
+PASS: rendered pixels on all terrains, original LOD meshes, GPU instance batches, cached stationary views, native rendering disabled, distant/frustum culling. Timings include CPU, GPU, pipeline overhead and readback; compare them only as this fixed offscreen experiment.

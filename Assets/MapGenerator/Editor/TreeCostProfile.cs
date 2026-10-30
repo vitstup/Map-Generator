@@ -16,7 +16,9 @@ namespace TacticalMaps.Editor
         private static void After() => Run("after");
         [MenuItem("Tools/Tactical Maps/Profile Legacy Mesh Trees")]
         private static void Legacy() => Run("legacy", true);
-        private static void Run(string label, bool legacy = false)
+        [MenuItem("Tools/Tactical Maps/Compare Tree Optimization")]
+        internal static void Compare() { Run("hybrid-before", hybrid: true); Run("hybrid-after"); }
+        private static void Run(string label, bool legacy = false, bool hybrid = false)
         {
             var builder = UnityEngine.Object.FindAnyObjectByType<MapBuilder>();
             var trees = builder.GetComponentInChildren<InstancedTreeRenderer>();
@@ -32,10 +34,15 @@ namespace TacticalMaps.Editor
             try
             {
                 trees.DetailedGeometryForChecks = legacy;
-                foreach (string view in new[] { "game", "grove", "wide" })
+                trees.LegacyHybridForChecks = hybrid;
+                foreach (string view in new[] { "game", "near", "canopy", "grove", "wide" })
                 {
                     if (view == "game") { go.transform.SetPositionAndRotation(source.transform.position, source.transform.rotation); }
-                    else { go.transform.position = centre + (view == "grove" ? new Vector3(0, 85, -180) : new Vector3(0, 500, -1000)); go.transform.LookAt(centre); }
+                    else
+                    {
+                        go.transform.position = centre + (view == "near" ? new Vector3(0, 4, -22) : view == "canopy" ? new Vector3(0, 14, -35) : view == "grove" ? new Vector3(0, 85, -180) : new Vector3(0, 500, -1000));
+                        go.transform.LookAt(centre + (view == "near" || view == "canopy" ? Vector3.up * 7 : Vector3.zero));
+                    }
                     camera.orthographic = false; camera.fieldOfView = 40; camera.aspect = 1600f / 900; camera.targetTexture = target;
                     trees.enabled = true; double on = Measure(camera, target, pixel);
                     int visible = trees.VisibleTrees, draws = trees.SubmittedDraws;
@@ -53,7 +60,7 @@ namespace TacticalMaps.Editor
                 }
                 File.WriteAllText("Temp/tree-cost-" + label + ".txt", text.ToString()); UnityEngine.Debug.Log(text.ToString());
             }
-            finally { trees.SuppressDrawingForChecks = false; trees.DetailedGeometryForChecks = false; trees.enabled = true; RenderTexture.active = active; camera.targetTexture = null; target.Release(); UnityEngine.Object.DestroyImmediate(target); UnityEngine.Object.DestroyImmediate(pixel); UnityEngine.Object.DestroyImmediate(go); }
+            finally { trees.SuppressDrawingForChecks = false; trees.DetailedGeometryForChecks = false; trees.LegacyHybridForChecks = false; trees.enabled = true; RenderTexture.active = active; camera.targetTexture = null; target.Release(); UnityEngine.Object.DestroyImmediate(target); UnityEngine.Object.DestroyImmediate(pixel); UnityEngine.Object.DestroyImmediate(go); }
         }
         private static double Measure(Camera camera, RenderTexture target, Texture2D pixel)
         {

@@ -12,7 +12,7 @@ namespace TacticalMaps.Construction
         [SerializeField, Min(1)] private float treeDistance = 6000;
         [SerializeField, Min(16)] private float cullingCellSize = 128;
         [SerializeField, Min(0)] private float shadowDistance = 100;
-        [SerializeField, Range(0.02f, 0.3f), Tooltip("Use full meshes only above this fraction of screen height.")] private float meshScreenHeight = 0.2f;
+        [SerializeField, Range(0.02f, 0.3f), Tooltip("Biased screen size at the centre of the mesh/impostor cross-fade.")] private float meshScreenHeight = InstancedTreeRenderer.DefaultMeshScreenHeight;
         [SerializeField, Range(0.5f, 4)] private float minimumImpostorPixels = 1.5f;
 
         internal void Generate(MapData map, Transform parent)

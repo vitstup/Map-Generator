@@ -19,6 +19,12 @@ namespace TacticalMaps.Editor
             {
                 var species = library.SpeciesList[i];
                 current = species.source == sources[i] && species.levels != null && species.levels.Length > 0;
+                if (current && library.OptimizationVersion > 0)
+                {
+                    foreach (var level in species.levels)
+                        current &= level.parts != null && level.parts.Length > 0 && Array.TrueForAll(level.parts, p => p.mesh != null && p.material != null && p.material.enableInstancing);
+                    continue;
+                }
                 if (current) foreach (var level in species.levels)
                 {
                     if (level.prefab == null) { current = false; break; }
@@ -34,6 +40,7 @@ namespace TacticalMaps.Editor
                     baked &= species.impostorMaterial != null;
                     foreach (var level in species.levels) baked &= level.parts != null && level.parts.Length > 0;
                 }
+                if (library.OptimizationVersion < TreeLodOptimizer.Version) { TreeLodOptimizer.Optimize(library); baked = false; }
                 if (!baked) TreeImpostorBaker.Bake(library);
                 return library;
             }
@@ -95,6 +102,7 @@ namespace TacticalMaps.Editor
             }
             if (library == null) { library = ScriptableObject.CreateInstance<TreeRenderLibrary>(); AssetDatabase.CreateAsset(library, LibraryPath); }
             library.Configure(entries); EditorUtility.SetDirty(library); AssetDatabase.SaveAssets();
+            TreeLodOptimizer.Optimize(library);
             TreeImpostorBaker.Bake(library);
             return library;
         }

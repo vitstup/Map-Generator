@@ -1,0 +1,11 @@
+Development player, offscreen 1600x900, AMD Radeon RX 7700 XT, Direct3D12
+Identical saved placements; warm-up 60 frames + 180 samples per state. GPU/CPU frame timings; no ReadPixels in measured frames.
+near-before: GPU median=unavailable, p95=unavailable, samples=0; CPU median=8.436ms; mesh triangles=203660, mesh trees=35, draws=25
+near-after: GPU median=unavailable, p95=unavailable, samples=0; CPU median=6.653ms; mesh triangles=127426, mesh trees=71, draws=29
+canopy-before: GPU median=unavailable, p95=unavailable, samples=0; CPU median=9.584ms; mesh triangles=196878, mesh trees=28, draws=23
+canopy-after: GPU median=unavailable, p95=unavailable, samples=0; CPU median=8.287ms; mesh triangles=132144, mesh trees=73, draws=24
+grove-before: GPU median=unavailable, p95=unavailable, samples=0; CPU median=6.368ms; mesh triangles=146994, mesh trees=18, draws=13
+grove-after: GPU median=unavailable, p95=unavailable, samples=0; CPU median=5.575ms; mesh triangles=83746, mesh trees=47, draws=16
+wide-before: GPU median=unavailable, p95=unavailable, samples=0; CPU median=6.815ms; mesh triangles=0, mesh trees=0, draws=6
+wide-after: GPU median=unavailable, p95=unavailable, samples=0; CPU median=6.854ms; mesh triangles=4740, mesh trees=6, draws=7
+PASS: all eight states rendered. GPU samples of zero mean timing is unavailable, not a zero-cost frame.

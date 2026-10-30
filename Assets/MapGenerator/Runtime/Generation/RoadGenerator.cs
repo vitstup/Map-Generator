@@ -44,7 +44,7 @@ namespace TacticalMaps.Generation
         {
             if (roadSource == null) { source = null; network = null; loadedSource = null; return; }
             // Unity hot reload can restore private arrays/references, but cannot restore Task.
-            var hash = roadSource.imageContentsHash;
+            var hash = TextureContentRevision.Get(roadSource);
             if (loadedSource == roadSource && loadedHash == hash && source != null && network != null) return;
             if (!roadSource.isReadable) throw new InvalidOperationException("Road source must have Read/Write enabled.");
             var pixels = roadSource.GetPixels32(); source = new byte[pixels.Length];

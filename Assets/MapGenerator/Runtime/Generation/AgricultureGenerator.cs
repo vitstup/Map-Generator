@@ -61,8 +61,9 @@ namespace TacticalMaps.Generation
                 throw new InvalidOperationException("Agriculture requires a readable linear R16 density map.");
             if (districtSize < 120 || maximumFields < 1 || maximumFarms < 1 || coverage < 0 || coverage > 1 || maximumSlope < 0 || maximumSlope > 20 || fullDensity <= densityThreshold || fieldAreaScale < .1f || fieldAreaScale > 1 || connectionRadius < 0 || maximumAccessLength < 100 || beachClearance < 0)
                 throw new InvalidOperationException("Invalid agriculture settings.");
-            if (cachedSource != densitySource || cachedDensity == null || cachedHash != densitySource.imageContentsHash)
-            { cachedDensity = densitySource.GetPixelData<ushort>(0).ToArray(); cachedSource = densitySource; cachedHash = densitySource.imageContentsHash; cachedResult = null; }
+            var hash = TextureContentRevision.Get(densitySource);
+            if (cachedSource != densitySource || cachedDensity == null || cachedHash != hash)
+            { cachedDensity = densitySource.GetPixelData<ushort>(0).ToArray(); cachedSource = densitySource; cachedHash = hash; cachedResult = null; }
             var input = new AgricultureInput { Density = cachedDensity, SourceWidth = densitySource.width, SourceHeight = densitySource.height,
                 SourcePoint = map.SourcePoint, Radius = radius, Height = map.TerrainHeightMeters, Sea = map.SeaLevelMeters,
                 Coverage = coverage, District = districtSize, Slope = maximumSlope, FarmProbability = 1, Limit = maximumFields, FarmLimit = maximumFarms,

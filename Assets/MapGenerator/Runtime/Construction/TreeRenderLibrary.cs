@@ -9,9 +9,11 @@ namespace TacticalMaps.Construction
         [SerializeField] private Species[] species = Array.Empty<Species>();
         [SerializeField] private ComputeShader impostorCulling;
         [SerializeField] private Mesh impostorMesh;
+        [SerializeField] private int optimizationVersion;
         internal Species[] SpeciesList => species;
         internal ComputeShader ImpostorCulling => impostorCulling;
         internal Mesh ImpostorMesh => impostorMesh;
+        internal int OptimizationVersion => optimizationVersion;
 
         [Serializable]
         internal sealed class Species
@@ -20,6 +22,8 @@ namespace TacticalMaps.Construction
             public Vector3 referencePoint, rootScale = Vector3.one;
             public float size;
             public Level[] levels;
+            // Retained for reproducible A/B profiling and authoring; never mutated by optimization.
+            public Level[] originalLevels;
             public Material impostorMaterial;
             public Vector4 impostorCapture;
         }
@@ -45,6 +49,7 @@ namespace TacticalMaps.Construction
 
 #if UNITY_EDITOR
         internal void Configure(Species[] entries) => species = entries;
+        internal void MarkOptimized(int version) => optimizationVersion = version;
         internal void ConfigureImpostors(ComputeShader culling, Mesh mesh) { impostorCulling = culling; impostorMesh = mesh; }
 #endif
     }

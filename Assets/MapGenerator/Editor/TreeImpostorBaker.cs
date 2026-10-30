@@ -22,7 +22,8 @@ namespace TacticalMaps.Editor
             {
                 var library = AssetDatabase.LoadAssetAtPath<TreeRenderLibrary>(TreeInstancingSetup.Folder + "/TreeRenderLibrary.asset");
                 if (library == null) throw new InvalidOperationException("Configure the tree library first.");
-                Bake(library); File.WriteAllText(report, "PASS: six 24-view atlases, direct mesh/material LOD library, two-triangle impostor mesh and GPU culling assets.\n");
+                TreeLodOptimizer.Optimize(library);
+                Bake(library); File.WriteAllText(report, "PASS: generated mesh LODs, six 24-view atlases, direct mesh/material library, two-triangle impostor and GPU culling assets.\n");
             }
             catch (Exception e) { File.WriteAllText(report, e.ToString()); Debug.LogException(e); }
         }
@@ -49,6 +50,7 @@ namespace TacticalMaps.Editor
                 // Runtime consumes mesh/material records directly. Split prefabs remain optional authoring assets.
                 foreach (var level in species.levels)
                 {
+                    if (level.prefab == null) continue; // Generated meshes are already authoritative.
                     var parts = new System.Collections.Generic.List<TreeRenderLibrary.MeshPart>();
                     foreach (var renderer in level.prefab.GetComponentsInChildren<MeshRenderer>(true))
                     {
@@ -60,12 +62,12 @@ namespace TacticalMaps.Editor
                     }
                     level.parts = parts.ToArray();
                 }
-                BakeSpecies(species, shader);
+                BakeSpecies(species, shader, library.OptimizationVersion > 0);
             }
             library.ConfigureImpostors(culling, quad); EditorUtility.SetDirty(library); AssetDatabase.SaveAssets();
         }
 
-        private static void BakeSpecies(TreeRenderLibrary.Species species, Shader shader)
+        private static void BakeSpecies(TreeRenderLibrary.Species species, Shader shader, bool optimized)
         {
             var scene = EditorSceneManager.NewPreviewScene();
             var root = new GameObject("Impostor bake"); UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, scene);
@@ -73,6 +75,8 @@ namespace TacticalMaps.Editor
             var tile = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false, true);
             var atlas = new Texture2D(Tile * Columns, Tile * Rows, TextureFormat.RGBA32, false, true);
             var previous = RenderTexture.active;
+            var bakeMaterials = new System.Collections.Generic.List<Material>();
+            var sceneSun = RenderSettings.sun;
             try
             {
                 var instance = UnityEngine.Object.Instantiate(species.source, root.transform);
@@ -82,6 +86,19 @@ namespace TacticalMaps.Editor
                 group.enabled = false;
                 foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
                 { renderer.enabled = Array.IndexOf(keep, renderer) >= 0; renderer.shadowCastingMode = ShadowCastingMode.Off; renderer.receiveShadows = false; }
+                if (optimized) foreach (var renderer in keep)
+                {
+                    var mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
+                    var materials = renderer.sharedMaterials;
+                    for (int sub = 0; sub < materials.Length; sub++)
+                    {
+                        var part = Array.Find(species.levels[0].parts, p => p.mesh == mesh && p.submesh == sub);
+                        if (part == null) continue;
+                        var bakeMaterial = new Material(part.material); bakeMaterial.SetFloat("_WindStrength", 0);
+                        materials[sub] = bakeMaterial; bakeMaterials.Add(bakeMaterial);
+                    }
+                    renderer.sharedMaterials = materials;
+                }
                 Bounds bounds = keep[0].bounds;
                 foreach (var renderer in keep) bounds.Encapsulate(renderer.bounds);
                 float radius = bounds.extents.magnitude * 1.04f;
@@ -94,6 +111,7 @@ namespace TacticalMaps.Editor
                 var sunObject = new GameObject("Bake sun"); sunObject.transform.SetParent(root.transform);
                 var sun = sunObject.AddComponent<Light>(); sun.type = LightType.Directional; sun.intensity = 2;
                 sun.shadows = LightShadows.None; sun.cullingMask = 1 << 31; sun.transform.rotation = Quaternion.Euler(50, -30, 0);
+                if (sceneSun != null) { sun.color = sceneSun.color; sun.intensity = sceneSun.intensity; sun.transform.rotation = sceneSun.transform.rotation; }
                 for (int row = 0; row < Rows; row++) for (int column = 0; column < Columns; column++)
                 {
                     float azimuth = column * Mathf.PI * 2 / Columns, elevation = row * 40 * Mathf.Deg2Rad;
@@ -109,7 +127,17 @@ namespace TacticalMaps.Editor
                     atlas.SetPixels32(column * Tile, row * Tile, Tile, Tile, pixels);
                 }
                 atlas.Apply(); string atlasPath = Folder + "/" + species.source.name + "_Views.png";
-                File.WriteAllBytes(atlasPath, atlas.EncodeToPNG()); AssetDatabase.ImportAsset(atlasPath, ImportAssetOptions.ForceSynchronousImport);
+                // Import/build tools may keep the old PNG memory-mapped on Windows. Replace the
+                // directory entry atomically instead of truncating a mapped file in place.
+                string staging = atlasPath + ".tmp";
+                try
+                {
+                    File.WriteAllBytes(staging, atlas.EncodeToPNG());
+                    if (File.Exists(atlasPath)) File.Replace(staging, atlasPath, null);
+                    else File.Move(staging, atlasPath);
+                }
+                finally { if (File.Exists(staging)) File.Delete(staging); }
+                AssetDatabase.ImportAsset(atlasPath, ImportAssetOptions.ForceSynchronousImport);
                 var importer = (TextureImporter)AssetImporter.GetAtPath(atlasPath);
                 importer.sRGBTexture = false; importer.alphaSource = TextureImporterAlphaSource.FromInput; importer.alphaIsTransparency = false;
                 importer.mipmapEnabled = true; importer.mipMapsPreserveCoverage = true; importer.alphaTestReferenceValue = 0.3f;
@@ -128,6 +156,7 @@ namespace TacticalMaps.Editor
             {
                 RenderTexture.active = previous; render.Release(); UnityEngine.Object.DestroyImmediate(render);
                 UnityEngine.Object.DestroyImmediate(tile); UnityEngine.Object.DestroyImmediate(atlas); UnityEngine.Object.DestroyImmediate(root);
+                foreach (var material in bakeMaterials) UnityEngine.Object.DestroyImmediate(material);
                 EditorSceneManager.ClosePreviewScene(scene);
             }
         }

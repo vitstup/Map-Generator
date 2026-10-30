@@ -92,21 +92,22 @@ namespace TacticalMaps.Editor
                 Check(terrains.All(t => t.terrainData.treeInstanceCount > 0), "All levels retain their placement data");
                 Check(builder.GetComponentInChildren<InstancedTreeRenderer>().TreeCount == all.Placements.Count, "GPU renderer owns all three terrain zones");
                 var library = AssetDatabase.LoadAssetAtPath<TreeRenderLibrary>(TreeInstancingSetup.Folder + "/TreeRenderLibrary.asset");
-                Check(library.SpeciesList.All(s => s.levels.Length == s.source.GetComponentInChildren<LODGroup>().lodCount), "Every original LOD is preserved");
+                Check(library.SpeciesList.All(s => (s.originalLevels ?? s.levels).Length == s.source.GetComponentInChildren<LODGroup>().lodCount), "Every original LOD is preserved for authoring and A/B profiling");
                 Check(library.ImpostorMesh.triangles.Length == 6 && library.ImpostorCulling.HasKernel("CullTrees"), "Two-triangle distant mesh and GPU culling kernel");
                 Check(library.SpeciesList.All(s => s.impostorMaterial != null && s.levels.All(l => l.parts != null && l.parts.All(p => p.mesh != null && p.material != null))), "Runtime library uses direct mesh/material records");
                 foreach (var species in library.SpeciesList)
                 {
                     var original = species.source.GetComponentInChildren<LODGroup>().GetLODs();
+                    var preserved = species.originalLevels != null && species.originalLevels.Length > 0 ? species.originalLevels : species.levels;
                     for (int i = 0; i < original.Length; i++)
                     {
-                        Check(species.levels[i].screenHeight == original[i].screenRelativeTransitionHeight, "Original LOD thresholds preserved");
-                        Check(species.levels[i].prefab.GetComponentsInChildren<MeshFilter>().Select(f => f.sharedMesh).SequenceEqual(
+                        Check(preserved[i].screenHeight == original[i].screenRelativeTransitionHeight, "Original authoring LOD thresholds preserved");
+                        Check(preserved[i].prefab.GetComponentsInChildren<MeshFilter>().Select(f => f.sharedMesh).SequenceEqual(
                             original[i].renderers.Select(r => r.GetComponent<MeshFilter>().sharedMesh)), "All LOD meshes, including separate branch renderers, preserved");
                     }
                 }
                 foreach (var species in library.SpeciesList) foreach (var level in species.levels)
-                    Check(level.prefab.GetComponentsInChildren<MeshRenderer>().All(r => r.sharedMaterials.All(m => m.enableInstancing)), "All split LOD materials enable instancing");
+                    Check(level.parts.All(p => p.material.enableInstancing), "All runtime LOD materials enable instancing");
                 Check(InstancedTreeRenderer.SelectLod(new[] { 0.5f, 0.2f, 0.01f }, 0.6f) == 0 &&
                     InstancedTreeRenderer.SelectLod(new[] { 0.5f, 0.2f, 0.01f }, 0.3f) == 1 &&
                     InstancedTreeRenderer.SelectLod(new[] { 0.5f, 0.2f, 0.01f }, 0.05f) == 2 &&
@@ -143,6 +144,16 @@ namespace TacticalMaps.Editor
                 var source = UnityEngine.Object.FindObjectsByType<MapGenerator>(FindObjectsSortMode.None).FirstOrDefault(g => g != generator && g.gameObject.scene != scene);
                 if (source != null)
                 {
+                    // The real generation facade now also produces roads and farms. Give the
+                    // isolated builder their shared resources before checking a complete map.
+                    var sourceBuilder = UnityEngine.Object.FindObjectsByType<MapBuilder>(FindObjectsSortMode.None).FirstOrDefault(b => b.gameObject.scene != scene);
+                    if (sourceBuilder != null)
+                    {
+                        var roads = sourceBuilder.GetComponent<RoadBuilder>();
+                        if (roads != null) EditorUtility.CopySerialized(roads, root.AddComponent<RoadBuilder>());
+                        var farms = sourceBuilder.GetComponent<AgricultureBuilder>();
+                        if (farms != null) EditorUtility.CopySerialized(farms, root.AddComponent<AgricultureBuilder>());
+                    }
                     var clone = UnityEngine.Object.Instantiate(source.gameObject, root.transform).GetComponent<MapGenerator>();
                     var sourceSettings = clone.Settings;
                     foreach (var level in sourceSettings.Levels) level.Resolution = new Vector2Int(513, 513);

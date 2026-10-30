@@ -15,7 +15,7 @@ namespace TacticalMaps.Construction
         [SerializeField, Min(1)] private float drawDistance = 6000;
         [SerializeField, Min(16)] private float cellSize = 128;
         [SerializeField, Min(0)] private float shadowDistance = 100;
-        [SerializeField, Range(0.02f, 0.3f)] private float meshScreenHeight = 0.2f;
+        [SerializeField, Range(0.02f, 0.3f)] private float meshScreenHeight = DefaultMeshScreenHeight;
         [SerializeField, Range(0.5f, 4)] private float minimumImpostorPixels = 1.5f;
         private readonly Dictionary<int, CameraCache> cameras = new Dictionary<int, CameraCache>();
         private SpeciesRuntime[] species;
@@ -26,9 +26,15 @@ namespace TacticalMaps.Construction
         private Matrix4x4 cachedTransform;
         private bool dirty = true;
         private bool detailedGeometryForChecks;
+        private bool legacyHybridForChecks;
         private IndirectTreeImpostors impostors;
         private List<IndirectTreeImpostors.Tree>[] pendingGpuTrees;
         private int gpuLayer;
+        internal const float TransitionFraction = 0.12f;
+        internal const float DefaultMeshScreenHeight = 0.13f;
+        private static readonly int TreeFadeId = Shader.PropertyToID("_TreeFade");
+        private bool SmoothLods => library != null && library.OptimizationVersion > 0 && !detailedGeometryForChecks && !legacyHybridForChecks;
+        private float MeshThreshold => legacyHybridForChecks ? 0.2f : meshScreenHeight;
 
         internal int TreeCount { get; private set; }
         internal int VisibleTrees { get; private set; }
@@ -40,10 +46,11 @@ namespace TacticalMaps.Construction
         internal long MeshTriangles { get; private set; }
         internal int IndirectDraws { get; private set; }
         internal bool DetailedGeometryForChecks { get => detailedGeometryForChecks; set { if (detailedGeometryForChecks != value) { detailedGeometryForChecks = value; dirty = true; } } }
+        internal bool LegacyHybridForChecks { get => legacyHybridForChecks; set { if (legacyHybridForChecks != value) { legacyHybridForChecks = value; dirty = true; } } }
         internal uint ReadImpostorCountForChecks(Camera camera) => impostors?.ReadVisibleCount(camera) ?? 0;
         internal bool SuppressDrawingForChecks { get; set; }
 
-        internal void Configure(Terrain[] sources, TreeRenderLibrary assets, float distance, float gridSize, float shadows, float meshThreshold = 0.2f, float minimumPixels = 1.5f)
+        internal void Configure(Terrain[] sources, TreeRenderLibrary assets, float distance, float gridSize, float shadows, float meshThreshold = DefaultMeshScreenHeight, float minimumPixels = 1.5f)
         {
             terrains = sources; library = assets; drawDistance = distance; cellSize = gridSize; shadowDistance = shadows;
             meshScreenHeight = meshThreshold; minimumImpostorPixels = minimumPixels;
@@ -67,10 +74,11 @@ namespace TacticalMaps.Construction
             for (int i = 0; i < entries.Length; i++)
             {
                 var entry = entries[i]; sourceIndices.Add(entry.source, i);
-                var runtime = new SpeciesRuntime { Size = entry.size, Reference = entry.referencePoint, Scale = entry.rootScale, Levels = new LevelRuntime[entry.levels.Length] };
-                for (int lod = 0; lod < entry.levels.Length; lod++)
+                var levels = (detailedGeometryForChecks || legacyHybridForChecks) && entry.originalLevels != null && entry.originalLevels.Length > 0 ? entry.originalLevels : entry.levels;
+                var runtime = new SpeciesRuntime { Size = entry.size, Reference = entry.referencePoint, Scale = entry.rootScale, Levels = new LevelRuntime[levels.Length] };
+                for (int lod = 0; lod < levels.Length; lod++)
                 {
-                    var source = entry.levels[lod]; var indexes = new List<int>();
+                    var source = levels[lod]; var indexes = new List<int>();
                     if (source.parts == null || source.parts.Length == 0) throw new InvalidOperationException("Bake the mesh/material tree library before building.");
                     foreach (var geometry in source.parts)
                     {
@@ -182,12 +190,13 @@ namespace TacticalMaps.Construction
                 {
                     if (batch.Count == 0) break;
                     parameters.worldBounds = batch.Bounds;
+                    parameters.matProps = SmoothLods ? batch.Properties : null;
                     Graphics.RenderMeshInstanced(parameters, part.Mesh, part.Submesh, batch.Matrices, batch.Count);
                     draws++; triangles += part.Triangles * batch.Count;
                 }
             }
             float projectionScale = camera.orthographic ? bias / Mathf.Max(0.001f, 2 * camera.orthographicSize) : bias / (2 * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad));
-            IndirectDraws = impostors?.Render(camera, cache.Planes, projectionScale, meshScreenHeight, minimumImpostorPixels, drawDistance, refresh) ?? 0;
+            IndirectDraws = impostors?.Render(camera, cache.Planes, projectionScale, MeshThreshold, minimumImpostorPixels, drawDistance, refresh, SmoothLods ? TransitionFraction : 0) ?? 0;
             VisibleTrees = cache.Visible; MeshTriangles = triangles; SubmittedDraws = draws + IndirectDraws; CullMilliseconds = cache.CullTime; SubmitMilliseconds = Milliseconds(submitStarted);
             Array.Copy(cache.Lods, VisibleLods, VisibleLods.Length);
         }
@@ -200,12 +209,15 @@ namespace TacticalMaps.Construction
             var eye = camera.transform.position;
             float distanceLimit = Mathf.Min(drawDistance, camera.farClipPlane), limitSquared = distanceLimit * distanceLimit;
             float projectionScale = camera.orthographic ? bias / Mathf.Max(0.001f, 2 * camera.orthographicSize) : bias / (2 * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad));
+            bool smooth = SmoothLods;
+            float meshThreshold = MeshThreshold;
+            float minimumMeshHeight = meshThreshold * (smooth ? 1 - TransitionFraction : 1);
             cache.NearCells.Clear();
-            if (impostors != null && camera.orthographic && maximumTreeSize * projectionScale < meshScreenHeight) return;
+            if (impostors != null && camera.orthographic && maximumTreeSize * projectionScale < minimumMeshHeight && shadowRange <= 0) return;
             if (impostors != null && !camera.orthographic)
             {
                 // Detailed geometry can only appear inside this radius. Query those grid cells directly.
-                float radius = Mathf.Min(distanceLimit, maximumTreeSize * projectionScale / meshScreenHeight);
+                float radius = Mathf.Min(distanceLimit, Mathf.Max(maximumTreeSize * projectionScale / minimumMeshHeight, shadowRange + maximumTreeSize * 1.5f));
                 int minX = Mathf.FloorToInt((eye.x-radius)/cellSize), maxX = Mathf.FloorToInt((eye.x+radius)/cellSize);
                 int minZ = Mathf.FloorToInt((eye.z-radius)/cellSize), maxZ = Mathf.FloorToInt((eye.z+radius)/cellSize);
                 for (int z = minZ; z <= maxZ; z++) for (int x = minX; x <= maxX; x++)
@@ -216,7 +228,7 @@ namespace TacticalMaps.Construction
             {
                 float nearest = cell.Bounds.SqrDistance(eye);
                 if (nearest > limitSquared) continue;
-                if (impostors != null && cell.MaxSize * projectionScale / (camera.orthographic ? 1 : Mathf.Max(0.01f, Mathf.Sqrt(nearest))) < meshScreenHeight) continue;
+                if (impostors != null && cell.MaxSize * projectionScale / (camera.orthographic ? 1 : Mathf.Max(0.01f, Mathf.Sqrt(nearest))) < minimumMeshHeight && nearest > shadowRange * shadowRange) continue;
                 var padded = cell.Bounds; padded.Expand(shadowRange * 2);
                 if (!GeometryUtility.TestPlanesAABB(cache.Planes, padded)) continue;
                 foreach (var tree in cell.Trees)
@@ -229,20 +241,66 @@ namespace TacticalMaps.Construction
                     if (!visible && !shadow) continue;
                     var definition = species[tree.Species];
                     float screenHeight = tree.Size * projectionScale / (camera.orthographic ? 1 : Mathf.Max(0.01f, Mathf.Sqrt(squared)));
-                    if (impostors != null && screenHeight < meshScreenHeight) continue;
+                    if (smooth)
+                    {
+                        // Shadows have their own coarse mesh and never duplicate the visible caster.
+                        if (shadow)
+                        {
+                            int shadowLod = Mathf.Max(Mathf.Clamp(minimumLod, 0, definition.Levels.Length - 1), Mathf.Min(2, definition.Levels.Length - 1));
+                            AddLevel(cache, tree, definition.Levels[shadowLod], 2, 1);
+                        }
+                        if (!visible) continue;
+                        // If an editable impostor threshold overlaps a mesh transition, omit the
+                        // now-unreachable lower levels instead of switching mesh partway through a fade.
+                        int lastMesh = impostors == null ? definition.Levels.Length - 1 : ChooseLod(definition.Levels, meshThreshold * (1 + TransitionFraction) / (1 - TransitionFraction), minimumLod);
+                        int first, second; float coverage;
+                        if (impostors != null && screenHeight < meshThreshold * (1 + TransitionFraction))
+                        {
+                            if (screenHeight <= minimumMeshHeight) continue;
+                            first = lastMesh; second = -1;
+                            coverage = Mathf.InverseLerp(minimumMeshHeight, meshThreshold * (1 + TransitionFraction), screenHeight);
+                        }
+                        else ChooseBlend(definition.Levels, screenHeight, minimumLod, lastMesh, impostors != null, out first, out second, out coverage);
+                        if (first < 0) continue;
+                        cache.Visible++; cache.Lods[Mathf.Min(first, cache.Lods.Length - 1)]++;
+                        if (coverage > 0) AddLevel(cache, tree, definition.Levels[first], 1, coverage);
+                        if (second >= 0 && coverage < 1) AddLevel(cache, tree, definition.Levels[second], 1, coverage > 0 ? -coverage : 1);
+                        continue;
+                    }
+                    if (impostors != null && screenHeight < meshThreshold) continue;
                     int lod = ChooseLod(definition.Levels, screenHeight, minimumLod);
                     if (lod < 0) continue;
                     int mode = visible ? (shadow ? 0 : 1) : 2;
                     if (visible) { cache.Visible++; cache.Lods[Mathf.Min(lod, cache.Lods.Length - 1)]++; }
-                    foreach (int partIndex in definition.Levels[lod].Parts)
-                    {
-                        int bucketIndex = partIndex * 3 + mode;
-                        var bucket = cache.Buckets[bucketIndex];
-                        if (bucket == null) cache.Buckets[bucketIndex] = bucket = new Bucket();
-                        bucket.Layer = tree.Layer;
-                        var part = parts[partIndex];
-                        bucket.Add(part.Identity ? tree.Matrix : tree.Matrix * part.Relative, tree.Centre, tree.Radius);
-                    }
+                    AddLevel(cache, tree, definition.Levels[lod], mode, 1);
+                }
+            }
+            if (smooth) foreach (var bucket in cache.Buckets) bucket?.UploadFades();
+        }
+        private void AddLevel(CameraCache cache, TreeRecord tree, LevelRuntime level, int mode, float fade)
+        {
+            foreach (int partIndex in level.Parts)
+            {
+                int index = partIndex * 3 + mode;
+                var bucket = cache.Buckets[index];
+                if (bucket == null) cache.Buckets[index] = bucket = new Bucket();
+                bucket.Layer = tree.Layer;
+                var part = parts[partIndex];
+                bucket.Add(part.Identity ? tree.Matrix : tree.Matrix * part.Relative, tree.Centre, tree.Radius, fade);
+            }
+        }
+        private static void ChooseBlend(LevelRuntime[] levels, float height, int minimum, int last, bool impostor, out int first, out int second, out float coverage)
+        {
+            first = second = -1; coverage = 1;
+            for (int i = Mathf.Clamp(minimum, 0, levels.Length - 1); i <= last; i++)
+            {
+                if (impostor && i == last) { first = i; return; }
+                float low = levels[i].Threshold * (1 - TransitionFraction), high = levels[i].Threshold * (1 + TransitionFraction);
+                if (height >= high) { first = i; return; }
+                if (height > low)
+                {
+                    first = i; second = i + 1 <= last ? i + 1 : -1;
+                    coverage = Mathf.InverseLerp(low, high, height); return;
                 }
             }
         }
@@ -279,16 +337,23 @@ namespace TacticalMaps.Construction
         {
             internal readonly List<Batch> Batches = new List<Batch>(); internal int Layer; private int current;
             internal void Clear() { foreach (var batch in Batches) batch.Count = 0; current = 0; }
-            internal void Add(Matrix4x4 matrix, Vector3 centre, float radius)
+            internal void Add(Matrix4x4 matrix, Vector3 centre, float radius, float fade)
             {
                 if (current == Batches.Count) Batches.Add(new Batch());
                 var batch = Batches[current];
                 if (batch.Count == 511) { current++; if (current == Batches.Count) Batches.Add(new Batch()); batch = Batches[current]; }
                 var bounds = new Bounds(centre, Vector3.one * (radius * 2));
                 if (batch.Count == 0) batch.Bounds = bounds; else batch.Bounds.Encapsulate(bounds);
-                batch.Matrices[batch.Count++] = matrix;
+                batch.Fades[batch.Count] = fade; batch.Matrices[batch.Count++] = matrix;
             }
+            internal void UploadFades() { foreach (var batch in Batches) if (batch.Count > 0) batch.Properties.SetFloatArray(TreeFadeId, batch.Fades); }
         }
-        private sealed class Batch { internal readonly Matrix4x4[] Matrices = new Matrix4x4[511]; internal Bounds Bounds; internal int Count; }
+        private sealed class Batch
+        {
+            internal readonly Matrix4x4[] Matrices = new Matrix4x4[511];
+            internal readonly float[] Fades = new float[511];
+            internal readonly MaterialPropertyBlock Properties = new MaterialPropertyBlock();
+            internal Bounds Bounds; internal int Count;
+        }
     }
 }
