@@ -11,7 +11,7 @@ namespace TacticalMaps.Editor
     internal static class TreeImpostorBaker
     {
         internal const string Folder = TreeInstancingSetup.Folder + "/Impostors";
-        private const int Tile = 256, Columns = 8, Rows = 3;
+        private const int Tile = 256, Columns = 16, Rows = 5;
 
         [MenuItem("Tools/Tactical Maps/Bake Optimized Tree LODs")]
         private static void Run()
@@ -23,7 +23,7 @@ namespace TacticalMaps.Editor
                 var library = AssetDatabase.LoadAssetAtPath<TreeRenderLibrary>(TreeInstancingSetup.Folder + "/TreeRenderLibrary.asset");
                 if (library == null) throw new InvalidOperationException("Configure the tree library first.");
                 TreeLodOptimizer.Optimize(library);
-                Bake(library); File.WriteAllText(report, "PASS: generated mesh LODs, six 24-view atlases, direct mesh/material library, two-triangle impostor and GPU culling assets.\n");
+                Bake(library); File.WriteAllText(report, "PASS: three mesh LODs, six 80-view albedo/normal atlas pairs, relit impostors and GPU culling assets.\n");
             }
             catch (Exception e) { File.WriteAllText(report, e.ToString()); Debug.LogException(e); }
         }
@@ -74,9 +74,9 @@ namespace TacticalMaps.Editor
             var render = new RenderTexture(Tile, Tile, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear) { antiAliasing = 4 };
             var tile = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false, true);
             var atlas = new Texture2D(Tile * Columns, Tile * Rows, TextureFormat.RGBA32, false, true);
+            var normals = new Texture2D(Tile * Columns, Tile * Rows, TextureFormat.RGBA32, false, true);
             var previous = RenderTexture.active;
             var bakeMaterials = new System.Collections.Generic.List<Material>();
-            var sceneSun = RenderSettings.sun;
             try
             {
                 var instance = UnityEngine.Object.Instantiate(species.source, root.transform);
@@ -108,25 +108,52 @@ namespace TacticalMaps.Editor
                 camera.orthographic = true; camera.orthographicSize = radius; camera.nearClipPlane = 0.01f; camera.farClipPlane = radius * 8;
                 camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = Color.clear; camera.allowHDR = false;
                 camera.cullingMask = 1 << 31; camera.targetTexture = render;
-                var sunObject = new GameObject("Bake sun"); sunObject.transform.SetParent(root.transform);
-                var sun = sunObject.AddComponent<Light>(); sun.type = LightType.Directional; sun.intensity = 2;
-                sun.shadows = LightShadows.None; sun.cullingMask = 1 << 31; sun.transform.rotation = Quaternion.Euler(50, -30, 0);
-                if (sceneSun != null) { sun.color = sceneSun.color; sun.intensity = sceneSun.intensity; sun.transform.rotation = sceneSun.transform.rotation; }
                 for (int row = 0; row < Rows; row++) for (int column = 0; column < Columns; column++)
                 {
-                    float azimuth = column * Mathf.PI * 2 / Columns, elevation = row * 40 * Mathf.Deg2Rad;
+                    float azimuth = column * Mathf.PI * 2 / Columns, elevation = row * 20 * Mathf.Deg2Rad;
                     var direction = new Vector3(Mathf.Sin(azimuth) * Mathf.Cos(elevation), Mathf.Sin(elevation), Mathf.Cos(azimuth) * Mathf.Cos(elevation));
                     camera.transform.position = bounds.center + direction * radius * 4;
                     camera.transform.LookAt(bounds.center);
-                    camera.Render(); RenderTexture.active = render;
-                    tile.ReadPixels(new Rect(0,0,Tile,Tile),0,0); tile.Apply();
-                    var pixels = tile.GetPixels32();
-                    int opaque = 0; foreach (var pixel in pixels) if (pixel.a > 64) opaque++;
-                    if (opaque < 50 || opaque > pixels.Length * 0.9f) throw new InvalidOperationException(species.source.name + " bake has invalid silhouette alpha.");
-                    DilateRgb(pixels);
-                    atlas.SetPixels32(column * Tile, row * Tile, Tile, Tile, pixels);
+                    for (int mode = 1; mode <= 2; mode++)
+                    {
+                        foreach (var bakeMaterial in bakeMaterials) bakeMaterial.SetFloat("_TreeBakeMode", mode);
+                        camera.Render(); RenderTexture.active = render;
+                        tile.ReadPixels(new Rect(0,0,Tile,Tile),0,0); tile.Apply();
+                        var pixels = tile.GetPixels32();
+                        int opaque = 0; foreach (var pixel in pixels) if (pixel.a > 64) opaque++;
+                        if (opaque < 50 || opaque > pixels.Length * 0.9f) throw new InvalidOperationException(species.source.name + " bake has invalid silhouette alpha.");
+                        // MSAA resolves against transparent black. Store straight RGB, and premultiply
+                        // exactly once when combining views in the runtime shader.
+                        for (int i = 0; i < pixels.Length; i++) if (pixels[i].a > 0)
+                        { var p = pixels[i]; float inv = 255f / p.a; pixels[i] = new Color32((byte)Mathf.Min(255, p.r * inv), (byte)Mathf.Min(255, p.g * inv), (byte)Mathf.Min(255, p.b * inv), p.a); }
+                        DilateRgb(pixels);
+                        (mode == 1 ? atlas : normals).SetPixels32(column * Tile, row * Tile, Tile, Tile, pixels);
+                    }
                 }
-                atlas.Apply(); string atlasPath = Folder + "/" + species.source.name + "_Views.png";
+                string atlasPath = Folder + "/" + species.source.name + "_Views.png";
+                string normalPath = Folder + "/" + species.source.name + "_Normals.png";
+                SaveAtlas(atlas, atlasPath); SaveAtlas(normals, normalPath);
+                string materialPath = Folder + "/" + species.source.name + "_Impostor.mat";
+                var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+                if (material == null) { material = new Material(shader); AssetDatabase.CreateAsset(material, materialPath); }
+                material.shader = shader; material.enableInstancing = true;
+                material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(atlasPath));
+                material.SetTexture("_NormalMap", AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath));
+                material.SetVector("_Capture", species.impostorCapture); material.SetVector("_Atlas", new Vector4(Columns, Rows, Tile, 4));
+                species.impostorMaterial = material; EditorUtility.SetDirty(material);
+            }
+            finally
+            {
+                RenderTexture.active = previous; render.Release(); UnityEngine.Object.DestroyImmediate(render);
+                UnityEngine.Object.DestroyImmediate(tile); UnityEngine.Object.DestroyImmediate(atlas); UnityEngine.Object.DestroyImmediate(normals); UnityEngine.Object.DestroyImmediate(root);
+                foreach (var material in bakeMaterials) UnityEngine.Object.DestroyImmediate(material);
+                EditorSceneManager.ClosePreviewScene(scene);
+            }
+        }
+
+        private static void SaveAtlas(Texture2D atlas, string atlasPath)
+        {
+                atlas.Apply();
                 // Import/build tools may keep the old PNG memory-mapped on Windows. Replace the
                 // directory entry atomically instead of truncating a mapped file in place.
                 string staging = atlasPath + ".tmp";
@@ -141,24 +168,9 @@ namespace TacticalMaps.Editor
                 var importer = (TextureImporter)AssetImporter.GetAtPath(atlasPath);
                 importer.sRGBTexture = false; importer.alphaSource = TextureImporterAlphaSource.FromInput; importer.alphaIsTransparency = false;
                 importer.mipmapEnabled = true; importer.mipMapsPreserveCoverage = true; importer.alphaTestReferenceValue = 0.3f;
-                importer.npotScale = TextureImporterNPOTScale.None; importer.maxTextureSize = 2048;
+                importer.npotScale = TextureImporterNPOTScale.None; importer.maxTextureSize = 4096;
                 importer.textureCompression = TextureImporterCompression.CompressedHQ; importer.wrapMode = TextureWrapMode.Clamp;
                 importer.filterMode = FilterMode.Trilinear; importer.anisoLevel = 2; importer.SaveAndReimport();
-                string materialPath = Folder + "/" + species.source.name + "_Impostor.mat";
-                var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-                if (material == null) { material = new Material(shader); AssetDatabase.CreateAsset(material, materialPath); }
-                material.shader = shader; material.enableInstancing = true;
-                material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(atlasPath));
-                material.SetVector("_Capture", species.impostorCapture); material.SetVector("_Atlas", new Vector4(Columns, Rows, Tile, 4));
-                species.impostorMaterial = material; EditorUtility.SetDirty(material);
-            }
-            finally
-            {
-                RenderTexture.active = previous; render.Release(); UnityEngine.Object.DestroyImmediate(render);
-                UnityEngine.Object.DestroyImmediate(tile); UnityEngine.Object.DestroyImmediate(atlas); UnityEngine.Object.DestroyImmediate(root);
-                foreach (var material in bakeMaterials) UnityEngine.Object.DestroyImmediate(material);
-                EditorSceneManager.ClosePreviewScene(scene);
-            }
         }
         private static void DilateRgb(Color32[] pixels)
         {

@@ -18,6 +18,7 @@ Shader "TacticalMaps/Trees/Foliage"
         _WindFadeEnd("Wind fade end", Float) = 110
         _Cutoff("Alpha cutoff", Range(0,1)) = 0.25
         [HideInInspector] _TreeFade("LOD coverage", Float) = 1
+        [HideInInspector] _TreeBakeMode("Bake: 1 albedo, 2 root-space normal", Float) = 0
     }
     SubShader
     {

@@ -229590,7 +229590,7 @@ MonoBehaviour:
   cullingCellSize: 128
   shadowDistance: 200
   castShadows: 0
-  meshScreenHeight: 0.13
+  meshScreenHeight: 0.055
   minimumImpostorPixels: 1.5
 --- !u!114 &1968958951
 MonoBehaviour:
@@ -234316,7 +234316,7 @@ MonoBehaviour:
   cellSize: 128
   shadowDistance: 200
   castShadows: 0
-  meshScreenHeight: 0.13
+  meshScreenHeight: 0.055
   minimumImpostorPixels: 1.5
 --- !u!1 &2052198557
 GameObject:

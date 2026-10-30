@@ -11,7 +11,7 @@ namespace TacticalMaps.Editor
 {
     internal static class TreeLodOptimizer
     {
-        internal const int Version = 1;
+        internal const int Version = 2;
         private const string Folder = TreeInstancingSetup.Folder + "/Optimized";
 
         [MenuItem("Tools/Tactical Maps/Optimize Tree Meshes And Transitions")]
@@ -44,20 +44,24 @@ namespace TacticalMaps.Editor
                 if (species.originalLevels == null || species.originalLevels.Length == 0) species.originalLevels = species.levels;
                 var original = species.originalLevels[0].parts;
                 long triangles = original.Sum(p => (long)p.mesh.GetIndexCount(p.submesh) / 3);
-                int[] budgets = triangles > 5000 ? new[] { 6000, 1800, 500 } : triangles > 2500 ? new[] { 1800, 650, 220 } : triangles > 1000 ? new[] { 1000, 400, 140 } : new[] { (int)triangles, 300, 120 };
-                var levels = new TreeRenderLibrary.Level[4];
-                levels[0] = new TreeRenderLibrary.Level { screenHeight = 0.95f, parts = original.Select(p => CopyPart(p, p.mesh, OptimizedMaterial(p.material))).ToArray() };
-                float[] thresholds = { 0.36f, 0.18f, 0.006f };
+                // Retain foliage density as well as the outer silhouette. More aggressive budgets
+                // pass a contour-only comparison but expose holes inside maple and pine crowns.
+                float farFraction = .24f;
+                int[] budgets = { Mathf.RoundToInt(triangles * .42f), Mathf.RoundToInt(triangles * farFraction) };
+                var levels = new TreeRenderLibrary.Level[3];
+                levels[0] = new TreeRenderLibrary.Level { screenHeight = 0.40f, parts = original.Select(p => CopyPart(p, p.mesh, OptimizedMaterial(p.material))).ToArray() };
+                float[] thresholds = { 0.16f, 0.001f };
                 for (int level = 0; level < budgets.Length; level++)
                 {
-                    var authored = species.originalLevels[Mathf.Min(level + 1, species.originalLevels.Length - 1)].parts;
+                    // Always start at LOD0. Authored lower LODs already enlarge the leaf cards.
+                    var authored = original;
                     long authoredTriangles = authored.Sum(p => (long)p.mesh.GetIndexCount(p.submesh) / 3);
                     var parts = new List<TreeRenderLibrary.MeshPart>();
                     foreach (var part in authored)
                     {
                         long sourceCount = part.mesh.GetIndexCount(part.submesh) / 3;
                         int target = Mathf.Max(12, Mathf.RoundToInt(budgets[level] * (float)sourceCount / authoredTriangles));
-                        var mesh = FoliageMesh(part.mesh, part.submesh, target);
+                        var mesh = FoliageMesh(part.mesh, part.submesh, target, part.material);
                         string path = Folder + "/Meshes/" + species.source.name + "_LOD" + (level + 1) + "_" + parts.Count + ".asset";
                         mesh.name = System.IO.Path.GetFileNameWithoutExtension(path);
                         var saved = AssetDatabase.LoadAssetAtPath<Mesh>(path);
@@ -73,7 +77,7 @@ namespace TacticalMaps.Editor
                             saved.UploadMeshData(false);
                             UnityEngine.Object.DestroyImmediate(mesh); EditorUtility.SetDirty(saved);
                         }
-                        var output = CopyPart(part, saved, OptimizedMaterial(part.material, level == 0)); output.submesh = 0;
+                        var output = CopyPart(part, saved, OptimizedMaterial(part.material)); output.submesh = 0;
                         parts.Add(output);
                     }
                     levels[level + 1] = new TreeRenderLibrary.Level { screenHeight = thresholds[level], parts = parts.ToArray() };
@@ -129,10 +133,9 @@ namespace TacticalMaps.Editor
         private sealed class LeafGroup
         {
             internal readonly List<int> Indices = new List<int>();
-            internal Vector3 Centre;
         }
 
-        private static Mesh FoliageMesh(Mesh source, int submesh, int target)
+        private static Mesh FoliageMesh(Mesh source, int submesh, int target, Material material)
         {
             var indices = source.GetIndices(submesh);
             if (indices.Length / 3 <= target) return Compact(source, indices, null);
@@ -159,49 +162,56 @@ namespace TacticalMaps.Editor
                 if (!groups.TryGetValue(id, out var group)) groups.Add(id, group = new LeafGroup());
                 group.Indices.Add(a); group.Indices.Add(b); group.Indices.Add(c);
             }
-            var leaves = groups.Values.ToArray();
-            foreach (var leaf in leaves)
-            { var unique = leaf.Indices.Distinct().ToArray(); foreach (int i in unique) leaf.Centre += positions[i]; leaf.Centre /= unique.Length; }
-            int trunkBudget = Mathf.Min(trunk.Count / 3, Mathf.Max(80, target / 5));
-            float ratio = leaves.Length == 0 ? 0 : Mathf.Clamp((target - trunkBudget) / Mathf.Max(1f, (indices.Length - trunk.Count) / 3f), leaves.Length < 150 ? 0.6f : 0.3f, 1);
-            int keep = Mathf.CeilToInt(leaves.Length * ratio);
-            // Farthest-point selection covers the whole canopy instead of losing complete clusters.
-            var distances = Enumerable.Repeat(float.MaxValue, leaves.Length).ToArray();
-            var selected = new bool[leaves.Length];
-            var output = new List<int>(); var moved = new Dictionary<int, Vector3>();
-            int next = 0;
-            for (int i = 1; i < leaves.Length; i++) if (leaves[i].Centre.y > leaves[next].Centre.y) next = i;
-            float expansion = Mathf.Min(1.8f, Mathf.Sqrt(1 / Mathf.Max(ratio, 0.001f)));
-            for (int n = 0; n < keep; n++)
-            {
-                selected[next] = true; var leaf = leaves[next]; output.AddRange(leaf.Indices);
-                foreach (int i in leaf.Indices) moved[i] = leaf.Centre + (positions[i] - leaf.Centre) * expansion;
-                int farthest = -1; float distance = -1;
-                for (int i = 0; i < leaves.Length; i++)
-                {
-                    if (selected[i]) continue;
-                    distances[i] = Mathf.Min(distances[i], (leaves[i].Centre - leaf.Centre).sqrMagnitude);
-                    if (distances[i] > distance) { distance = distances[i]; farthest = i; }
-                }
-                if (farthest < 0) break; next = farthest;
-            }
-            var foliage = Compact(source, output.ToArray(), moved);
-            if (trunk.Count == 0) return foliage;
-            var wood = Compact(source, trunk.ToArray(), null);
-            Mesh simplified = null;
+            var leaves = groups.Values.Select(g => g.Indices.ToArray()).ToArray();
+            int trunkBudget = Mathf.Min(trunk.Count / 3, Mathf.Max(24, Mathf.RoundToInt(trunk.Count / 3f * target / (indices.Length / 3f))));
+            var pieces = new List<Mesh>();
             try
             {
-                MeshLodUtility.GenerateMeshLods(wood, 8);
-                int chosen = 0;
-                for (int i = 1; i < wood.lodCount; i++) { chosen = i; if (wood.GetLod(0, i).indexCount / 3 <= trunkBudget) break; }
-                simplified = Extract(wood, 0, chosen);
+                if (leaves.Length > 200)
+                {
+                    var selected = TreeCanopyCoverage.Select(source, leaves, material, Mathf.Max(1, target - trunkBudget));
+                    pieces.Add(Compact(source, selected.SelectMany(i => leaves[i]).ToArray(), null));
+                }
+                else
+                {
+                    float fraction = target / (indices.Length / 3f);
+                    // The tiny maple keeps every card. Ginkgo has larger connected clusters:
+                    // retain their multi-view coverage, then simplify inside each selected cluster.
+                    var selected = leaves.Length > 100 ? TreeCanopyCoverage.Select(source, leaves, material,
+                        Mathf.RoundToInt(leaves.Sum(l => l.Length / 3) * (fraction > .3f ? .85f : .45f))) : Enumerable.Range(0, leaves.Length).ToArray();
+                    foreach (int index in selected)
+                    {
+                        var leaf = leaves[index]; var part = Compact(source, (int[])leaf.Clone(), null);
+                        pieces.Add(Simplify(part, Mathf.Max(2, Mathf.RoundToInt(leaf.Length / 3f * fraction))));
+                        UnityEngine.Object.DestroyImmediate(part);
+                    }
+                }
+                if (trunk.Count > 0)
+                {
+                    var wood = Compact(source, trunk.ToArray(), null);
+                    pieces.Add(Simplify(wood, trunkBudget)); UnityEngine.Object.DestroyImmediate(wood);
+                }
                 var combined = new Mesh();
-                combined.CombineMeshes(new[] { new CombineInstance { mesh = foliage }, new CombineInstance { mesh = simplified } }, true, false);
-                // Expanded cards must remain inside conservative renderer bounds.
+                combined.CombineMeshes(pieces.Select(p => new CombineInstance { mesh = p }).ToArray(), true, false);
                 combined.RecalculateBounds();
                 return combined;
             }
-            finally { UnityEngine.Object.DestroyImmediate(foliage); UnityEngine.Object.DestroyImmediate(wood); if (simplified != null) UnityEngine.Object.DestroyImmediate(simplified); }
+            finally { foreach (var piece in pieces) UnityEngine.Object.DestroyImmediate(piece); }
+        }
+
+        private static Mesh Simplify(Mesh mesh, int target)
+        {
+            if (mesh.triangles.Length / 3 <= target) return UnityEngine.Object.Instantiate(mesh);
+            MeshLodUtility.GenerateMeshLods(mesh, 8);
+            int chosen = 0;
+            long error = Math.Abs(mesh.GetIndexCount(0) / 3 - target);
+            for (int i = 1; i < mesh.lodCount; i++)
+            {
+                long count = mesh.GetLod(0, i).indexCount / 3;
+                long candidate = Math.Abs(count - target);
+                if (count >= 2 && candidate < error) { error = candidate; chosen = i; }
+            }
+            return Extract(mesh, 0, chosen);
         }
 
         // Compact each generated index range into an ordinary mesh. No runtime Mesh LOD dependency,

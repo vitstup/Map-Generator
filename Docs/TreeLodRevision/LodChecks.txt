@@ -1,0 +1,9 @@
+Contact sheet rows: SM_Env_Tree_Pine_01, SM_Env_Tree_Pine_02, SM_Env_Tree_Pine_03, SM_Env_Tree_Maple_01, SM_Env_Tree_Maple_02, SM_Env_Tree_Ginko_01
+Columns: original source shading / main mesh / generated middle / generated far.
+SM_Env_Tree_Pine_01: main / middle / far / both sides of mesh and impostor transitions render.
+SM_Env_Tree_Pine_02: main / middle / far / both sides of mesh and impostor transitions render.
+SM_Env_Tree_Pine_03: main / middle / far / both sides of mesh and impostor transitions render.
+SM_Env_Tree_Maple_01: main / middle / far / both sides of mesh and impostor transitions render.
+SM_Env_Tree_Maple_02: main / middle / far / both sides of mesh and impostor transitions render.
+SM_Env_Tree_Ginko_01: main / middle / far / both sides of mesh and impostor transitions render.
+PASS: assets, shader compilation, all six species at 12 screen sizes, mesh/impostor overlap, mesh-only fallback, stationary cache and resource rebuild.

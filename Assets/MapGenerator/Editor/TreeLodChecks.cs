@@ -22,7 +22,8 @@ namespace TacticalMaps.Editor
                 Check(shader != null && !ShaderUtil.ShaderHasError(shader), "Tree shader compiles");
             foreach (var species in library.SpeciesList)
             {
-                Check(species.levels.Length == 4 && species.originalLevels.Length >= 2, "Generated and preserved source LODs");
+                Check(species.levels.Length == 3 && species.originalLevels.Length >= 2, "Main / middle / far meshes and preserved sources");
+                Check(species.impostorMaterial.GetTexture("_NormalMap") != null, "Relightable impostor normals exist");
                 long previous = long.MaxValue;
                 float threshold = float.MaxValue;
                 foreach (var level in species.levels)
@@ -40,7 +41,7 @@ namespace TacticalMaps.Editor
             var scene = EditorSceneManager.NewPreviewScene();
             var root = new GameObject("Tree LOD verification") { hideFlags = HideFlags.HideAndDontSave };
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, scene);
-            var atlas = new Texture2D(1600, library.SpeciesList.Length * 320, TextureFormat.RGB24, false);
+            var atlas = new Texture2D(1280, library.SpeciesList.Length * 320, TextureFormat.RGB24, false);
             var sourceSun = RenderSettings.sun;
             TerrainData data = null; TreeRenderLibrary fallback = null;
             try
@@ -62,7 +63,7 @@ namespace TacticalMaps.Editor
                     camera.orthographicSize = bounds.extents.magnitude * 1.04f;
                     camera.transform.position = bounds.center + new Vector3(0, 0.35f, -1).normalized * bounds.size.magnitude * 2;
                     camera.transform.LookAt(bounds.center);
-                    for (int col = 0; col < 5; col++)
+                    for (int col = 0; col < 4; col++)
                     {
                         var level = col == 0 ? species.originalLevels[0] : species.levels[col - 1];
                         var geometry = new GameObject("Representation"); geometry.transform.SetParent(root.transform);
@@ -84,7 +85,7 @@ namespace TacticalMaps.Editor
                 }
                 atlas.Apply(); File.WriteAllBytes("Temp/tree-lod-contact-sheet.png", atlas.EncodeToPNG());
                 report.AppendLine("Contact sheet rows: " + string.Join(", ", library.SpeciesList.Select(s => s.source.name)));
-                report.AppendLine("Columns: original source shading / optimized full mesh / generated near / generated middle / generated far.");
+                report.AppendLine("Columns: original source shading / main mesh / generated middle / generated far.");
 
                 data = new TerrainData { heightmapResolution = 33, size = new Vector3(256, 1, 256) };
                 var terrainObject = Terrain.CreateTerrainGameObject(data); terrainObject.transform.SetParent(root.transform); terrainObject.transform.position = new Vector3(-128, 0, -128); terrainObject.layer = 31;
@@ -96,19 +97,20 @@ namespace TacticalMaps.Editor
                     data.treePrototypes = new[] { new TreePrototype { prefab = species.source } };
                     data.SetTreeInstances(new[] { new TreeInstance { position = new Vector3(0.5f,0,0.5f), prototypeIndex = 0, widthScale = 1, heightScale = 1, color = Color.white, lightmapColor = Color.white } }, false);
                     trees.Configure(new[] { terrain }, library, 6000, 64, 0);
-                    foreach (float height in new[] { 1.2f, 0.95f, 0.6f, 0.36f, 0.23f, 0.18f, 0.16f, 0.1457f, 0.13f, 0.1143f, 0.1f })
+                    float transition = InstancedTreeRenderer.DefaultMeshScreenHeight;
+                    foreach (float height in new[] { 1.2f, 0.448f, 0.40f, 0.352f, 0.20f, 0.1792f, 0.16f, 0.1408f, transition*1.121f, transition, transition*.879f, transition*.65f })
                     {
                         Aim(camera, species, height);
-                        var pixels = Capture(camera, height == 0.13f ? "Temp/tree-transition-" + species.source.name + ".png" : null, 768, 768);
+                        var pixels = Capture(camera, height == transition ? "Temp/tree-transition-" + species.source.name + ".png" : null, 768, 768);
                         uint impostors = trees.ReadImpostorCountForChecks(camera);
                         Check(trees.VisibleTrees + impostors > 0, species.source.name + " remains submitted at " + height);
                         int covered = pixels.Count(p => p.a > 127);
                         Check(covered > 10, species.source.name + " has a visible silhouette at " + height);
                         Check(pixels.Count(p => p.r > 220 && p.b > 220 && p.g < 30) < covered / 5, "No shader error pixels");
-                        if (height == 0.13f) Check(trees.VisibleTrees == 1 && impostors == 1, "Mesh and impostor overlap at transition");
-                        if (height == 0.1f) Check(trees.VisibleTrees == 0 && impostors == 1, "Pure impostor below mesh transition");
+                        if (height == transition) Check(trees.VisibleTrees == 1 && impostors == 1, "Mesh and impostor overlap at transition");
+                        if (height == transition*.65f) Check(trees.VisibleTrees == 0 && impostors == 1, "Pure impostor below mesh transition");
                     }
-                    report.AppendLine(species.source.name + ": full / three generated levels / both sides of mesh and impostor transitions render.");
+                    report.AppendLine(species.source.name + ": main / middle / far / both sides of mesh and impostor transitions render.");
                 }
                 foreach (float threshold in new[] { 0.02f, 0.14f, 0.2f, 0.3f })
                 {
@@ -123,7 +125,7 @@ namespace TacticalMaps.Editor
                 Capture(camera, null, 768, 768); Check(trees.CullMilliseconds == 0, "Stationary view reuses fade batches");
                 trees.enabled = false; trees.enabled = true; Capture(camera, null, 768, 768);
                 Check(trees.VisibleTrees == 1, "Disable/enable recreates resources and renders");
-                report.AppendLine("PASS: assets, shader compilation, all six species at 11 screen sizes, mesh/impostor overlap, mesh-only fallback, stationary cache and resource rebuild.");
+                report.AppendLine("PASS: assets, shader compilation, all six species at 12 screen sizes, mesh/impostor overlap, mesh-only fallback, stationary cache and resource rebuild.");
                 File.WriteAllText("Temp/tree-lod-checks.txt", report.ToString()); Debug.Log(report.ToString());
             }
             catch (Exception e) { File.WriteAllText("Temp/tree-lod-checks.txt", report + e.ToString()); throw; }

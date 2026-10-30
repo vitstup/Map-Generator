@@ -1,0 +1,14 @@
+24 unseen directions per species; background-separated silhouette IoU and mean visible RGB relative to main mesh.
+SM_Env_Tree_Pine_01: middle IoU mean=0,994, min=0,988, RGB error=0,008; far IoU mean=0,973, min=0,964, RGB error=0,020
+SM_Env_Tree_Pine_02: middle IoU mean=0,994, min=0,986, RGB error=0,011; far IoU mean=0,972, min=0,931, RGB error=0,021
+SM_Env_Tree_Pine_03: middle IoU mean=0,988, min=0,973, RGB error=0,016; far IoU mean=0,946, min=0,898, RGB error=0,036
+SM_Env_Tree_Maple_01: middle IoU mean=0,996, min=0,993, RGB error=0,002; far IoU mean=0,976, min=0,961, RGB error=0,008
+SM_Env_Tree_Maple_02: middle IoU mean=0,996, min=0,992, RGB error=0,001; far IoU mean=0,991, min=0,981, RGB error=0,004
+SM_Env_Tree_Ginko_01: middle IoU mean=0,996, min=0,989, RGB error=0,003; far IoU mean=0,931, min=0,898, RGB error=0,015
+SM_Env_Tree_Pine_01 relit impostor (deliberately oversized): min IoU=0,902, max RGB error=0,023, correct-versus-mirrored advantage=0,341
+SM_Env_Tree_Pine_02 relit impostor (deliberately oversized): min IoU=0,869, max RGB error=0,013, correct-versus-mirrored advantage=0,359
+SM_Env_Tree_Pine_03 relit impostor (deliberately oversized): min IoU=0,894, max RGB error=0,010, correct-versus-mirrored advantage=0,333
+SM_Env_Tree_Maple_01 relit impostor (deliberately oversized): min IoU=0,843, max RGB error=0,026, correct-versus-mirrored advantage=0,237
+SM_Env_Tree_Maple_02 relit impostor (deliberately oversized): min IoU=0,787, max RGB error=0,054, correct-versus-mirrored advantage=0,267
+SM_Env_Tree_Ginko_01 relit impostor (deliberately oversized): min IoU=0,912, max RGB error=0,017, correct-versus-mirrored advantage=0,237
+PASS: mesh silhouette/color at 24 directions per species; impostor silhouette/color at three instance rotations and two sun colors.

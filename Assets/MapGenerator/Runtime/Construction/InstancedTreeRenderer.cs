@@ -32,7 +32,7 @@ namespace TacticalMaps.Construction
         private List<IndirectTreeImpostors.Tree>[] pendingGpuTrees;
         private int gpuLayer;
         internal const float TransitionFraction = 0.12f;
-        internal const float DefaultMeshScreenHeight = 0.13f;
+        internal const float DefaultMeshScreenHeight = 0.055f;
         private static readonly int TreeFadeId = Shader.PropertyToID("_TreeFade");
         private bool SmoothLods => library != null && library.OptimizationVersion > 0 && !detailedGeometryForChecks && !legacyHybridForChecks;
         private float MeshThreshold => legacyHybridForChecks ? 0.2f : meshScreenHeight;

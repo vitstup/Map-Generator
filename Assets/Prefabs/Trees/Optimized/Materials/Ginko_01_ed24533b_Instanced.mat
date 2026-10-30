@@ -42,6 +42,7 @@ Material:
     - _FrostFalloff: 1.36
     - _FrostHeight: 0.72
     - _NormalStrength: 0.5
+    - _TreeBakeMode: 0
     - _TreeFade: 1
     - _WindFadeEnd: 110
     - _WindFadeStart: 30

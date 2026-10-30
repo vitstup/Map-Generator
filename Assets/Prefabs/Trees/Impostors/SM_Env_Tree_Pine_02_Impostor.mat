@@ -27,11 +27,15 @@ Material:
         m_Texture: {fileID: 2800000, guid: 20d92b8a4cf57374c9a65d8ca8661bc6, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _NormalMap:
+        m_Texture: {fileID: 2800000, guid: a959cdd3085b5964281351839fac306a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _Cutoff: 0.3
     m_Colors:
-    - _Atlas: {r: 8, g: 3, b: 256, a: 4}
+    - _Atlas: {r: 16, g: 5, b: 256, a: 4}
     - _Capture: {r: -0.52498174, g: 2.322091, b: 0.00855875, a: 4.821768}
     - _Tint: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

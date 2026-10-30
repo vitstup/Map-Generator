@@ -10,7 +10,7 @@ TEXTURE2D(_TrunkMap); SAMPLER(sampler_TrunkMap);
 TEXTURE2D(_LeafNormal); SAMPLER(sampler_LeafNormal);
 CBUFFER_START(UnityPerMaterial)
     float4 _LeafUV, _TrunkUV, _LeafColor, _TrunkColor, _FrostColor;
-    float _Cutoff, _FrostHeight, _FrostFalloff, _WindStrength, _WindFadeStart, _WindFadeEnd, _NormalStrength;
+    float _Cutoff, _FrostHeight, _FrostFalloff, _WindStrength, _WindFadeStart, _WindFadeEnd, _NormalStrength, _TreeBakeMode;
 CBUFFER_END
 UNITY_INSTANCING_BUFFER_START(TreeProperties)
     UNITY_DEFINE_INSTANCED_PROP(float, _TreeFade)
@@ -99,6 +99,10 @@ half4 TreeForward(TreeVaryings input, FRONT_FACE_TYPE front : FRONT_FACE_SEMANTI
             normal = normalize(TransformTangentToWorld(mapped, half3x3(tangent, bitangent, normal)));
         }
     #endif
+    half3 albedo = lerp(texel.rgb * input.tint.rgb, _FrostColor.rgb, input.frost);
+    // Preview root has identity rotation: its world normals are the tree's root-space normals.
+    if (_TreeBakeMode > 1.5) return half4(normal * .5 + .5, 1);
+    if (_TreeBakeMode > .5) return half4(albedo, 1);
     Light main = TacticalVegetationLight(input.positionWS, _TreeSkipShadowChecks, 2);
     half3 diffuse = SampleSH(normal);
     half ao = 1;
@@ -125,7 +129,6 @@ half4 TreeForward(TreeVaryings input, FRONT_FACE_TYPE front : FRONT_FACE_SEMANTI
             diffuse += light.color * (saturate(dot(normal,light.direction)) * light.distanceAttenuation * light.shadowAttenuation);
         LIGHT_LOOP_END
     #endif
-    half3 albedo = lerp(texel.rgb * input.tint.rgb, _FrostColor.rgb, input.frost);
     return half4(MixFog(albedo * diffuse, input.fog), 1);
 }
 TreeVaryings TreeShadowVert(TreeAttributes input)
