@@ -8,7 +8,7 @@ Shader "TacticalMaps/Grass/DistantCards"
         #pragma multi_compile_local _ GRASS_REDUCED_CARDS
         #pragma target 4.5
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+        #include "TacticalShadowSampling.hlsl"
         #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
         #include "UnityIndirect.cginc"
         #include "GrassCommon.hlsl"
@@ -33,6 +33,8 @@ Shader "TacticalMaps/Grass/DistantCards"
         float4 _GrassMeadow,_GrassDry,_GrassWind,_GrassOptions,_GrassLodDistances,_GrassProjection;
         float4 _GrassAmbientSky,_GrassAmbientSide,_GrassFocus,_GrassMeadowRange;
         int _GrassTransitionCheck;
+        float _GrassSkipShadowChecks;
+        int _GrassShadowFiltering;
         float4 _GrassFieldRanges;
         struct Attributes { float3 positionOS:POSITION; float2 uv:TEXCOORD0; float2 meta:TEXCOORD1; uint instanceID:SV_InstanceID; };
         struct Varyings
@@ -180,11 +182,7 @@ Shader "TacticalMaps/Grass/DistantCards"
             half3 tint=i.color;
             if(_GrassFlowerStampCheck==1)tint=lerp(tint,flower.rgb,flower.a);
             half3 normal=CardNormal(i);
-            #if defined(_MAIN_LIGHT_SHADOWS_SCREEN)
-            Light light=GetMainLight(ComputeScreenPos(TransformWorldToHClip(i.world)));
-            #else
-            Light light=GetMainLight(TransformWorldToShadowCoord(i.world));
-            #endif
+            Light light=TacticalVegetationLight(i.world,_GrassSkipShadowChecks,_GrassShadowFiltering);
             half diffuse=saturate((dot(normal,light.direction)+.25)/1.25);
             half3 ambient=lerp(_GrassAmbientSide.rgb,_GrassAmbientSky.rgb,saturate(normal.y));
             half3 color=tint*tex.rgb*(ambient+light.color*diffuse*light.shadowAttenuation);

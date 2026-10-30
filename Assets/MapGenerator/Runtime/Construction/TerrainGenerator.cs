@@ -16,6 +16,7 @@ namespace TacticalMaps.Construction
         [SerializeField] private Material terrainMaterial;
         [SerializeField, Min(100)] private float detailedSurfaceDistance = 6000;
         [SerializeField, Min(100)] private float mainSurfaceDistance = 12000;
+        [SerializeField] private UnityEngine.Rendering.ShadowCastingMode shadowCasting = UnityEngine.Rendering.ShadowCastingMode.On;
 
         internal void Generate(MapData map, Transform parent, Vector3 center)
         {
@@ -48,6 +49,7 @@ namespace TacticalMaps.Construction
                 terrain.allowAutoConnect = false;
                 terrain.heightmapPixelError = level == 0 ? mainPixelError : backgroundPixelError;
                 terrain.drawInstanced = true;
+                terrain.shadowCastingMode = shadowCasting;
                 terrain.basemapDistance = level == 0 ? mainSurfaceDistance : detailedSurfaceDistance;
                 var material = new Material(terrainMaterial) { name = "TerrainSurface_" + level };
                 terrain.materialTemplate = material;

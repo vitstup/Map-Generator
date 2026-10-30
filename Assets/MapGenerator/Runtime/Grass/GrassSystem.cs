@@ -23,6 +23,9 @@ namespace TacticalMaps.Grass
         [SerializeField] private Color dryColor = new Color(.49f, .45f, .25f);
         [SerializeField, Range(0, 1)] private float windStrength = .22f;
         [SerializeField, Min(0)] private float windSpeed = 1.2f;
+        public enum ShadowFiltering { Off, Hard, Soft }
+        [SerializeField, Tooltip("Receiving only: grass never casts shadows. Hard uses one hardware filtered lookup; Soft follows the light's PCF quality.")]
+        private ShadowFiltering shadowFiltering = ShadowFiltering.Hard;
         [Header("Flowers: shared by every LOD")]
         [SerializeField, Tooltip("Show flowers on every geometry LOD and on Terrain. Keeps the palette, density and distance settings.")]
         private bool showFlowers = true;
@@ -260,6 +263,7 @@ namespace TacticalMaps.Grass
                 Focus=ResolveFocus(camera), NearRange=new Vector2(nearDistance,geometryDistance),
                 Density = density, Heights = heightRange, Slope = maximumSlope, Shore = shoreClearanceHeight,
                 Seed = seed, Wind = new Vector2(freezeWind?0:windStrength, windSpeed), Meadow = meadowColor, Dry = dryColor,
+                ShadowFiltering = (int)shadowFiltering,
                 Distance = geometryDistance, NearDistance = nearDistance, MinPixels = minimumPixels,
                 MiddleDensity = middleDensity, PrepareBudget = chunksPreparedPerFrame, Debug = debugView, Layer = gameObject.layer
                 , MeadowDistance = meadowDistance, DistantDistance = distantDistance, BakeMode = BakeMode, Mature = MatureForChecks,
@@ -321,6 +325,7 @@ namespace TacticalMaps.Grass
         internal Color Meadow, Dry;
         internal int Seed, PrepareBudget, Debug, Layer;
         internal int BakeMode, CheckTopology, TransitionCheck, GeometryMask, Optimization;
+        internal int ShadowFiltering;
         internal bool Mature, SuppressCards, Reference;
     }
 

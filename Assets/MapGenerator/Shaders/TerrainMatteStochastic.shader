@@ -98,6 +98,7 @@ Shader "TacticalMaps/Terrain/MatteStochastic"
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
             #pragma vertex SplatmapVert
             #pragma fragment MatteFragment
+            #define TACTICAL_TERRAIN_FORWARD 1
             #include_with_pragmas "TerrainMatteKeywords.hlsl"
             #include "TerrainMattePasses.hlsl"
             ENDHLSL
@@ -112,7 +113,9 @@ Shader "TacticalMaps/Terrain/MatteStochastic"
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
             #pragma vertex SplatmapVert
             #pragma fragment MatteDepthNormals
-            #include_with_pragmas "TerrainMatteKeywords.hlsl"
+            // Lighting/shadow variants cannot affect a normals-only output.
+            #pragma target 3.5
+            #pragma multi_compile_fragment _ _ALPHATEST_ON
             #include "TerrainMattePasses.hlsl"
             ENDHLSL
         }

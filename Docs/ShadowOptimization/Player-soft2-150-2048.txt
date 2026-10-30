@@ -1,0 +1,27 @@
+AMD Radeon RX 7700 XT; Direct3D12; 1600x900; cascades=2; distance=150; atlas=2048; light=Soft; supports=True
+Development player; 90 warmup + 90 measured real frames; explicit render requests=False. Uninstrumented frame elapsed includes the player loop, not isolated GPU time. End-camera callbacks verify rendering every measured frame.
+near/off: frame median=3.571ms p95=3.876ms rendered=180 trees=24 grass=8
+near/reference: frame median=3.985ms p95=4.057ms rendered=180 trees=30 grass=8
+near/all: frame median=3.952ms p95=4.029ms rendered=180 trees=30 grass=8
+near/no-trees: frame median=3.816ms p95=3.934ms rendered=180 trees=24 grass=8
+near/no-trees-terrain: frame median=3.774ms p95=3.843ms rendered=180 trees=24 grass=8
+near/off-repeat: frame median=3.550ms p95=3.645ms rendered=180 trees=24 grass=8
+grove/off: frame median=3.337ms p95=3.433ms rendered=180 trees=16 grass=8
+grove/reference: frame median=3.749ms p95=3.851ms rendered=180 trees=21 grass=8
+grove/all: frame median=3.570ms p95=3.639ms rendered=180 trees=21 grass=8
+grove/no-trees: frame median=3.450ms p95=3.543ms rendered=180 trees=16 grass=8
+grove/no-trees-terrain: frame median=3.327ms p95=3.414ms rendered=180 trees=16 grass=8
+grove/off-repeat: frame median=3.336ms p95=3.423ms rendered=180 trees=16 grass=8
+wide/off: frame median=4.525ms p95=4.623ms rendered=180 trees=7 grass=8
+wide/reference: frame median=4.647ms p95=4.701ms rendered=180 trees=7 grass=8
+wide/all: frame median=4.553ms p95=4.607ms rendered=180 trees=7 grass=8
+wide/no-trees: frame median=4.568ms p95=4.643ms rendered=180 trees=7 grass=8
+wide/no-trees-terrain: frame median=4.540ms p95=4.596ms rendered=180 trees=7 grass=8
+wide/off-repeat: frame median=4.545ms p95=4.581ms rendered=180 trees=7 grass=8
+farm/off: frame median=2.101ms p95=2.145ms rendered=180 trees=6 grass=8
+farm/reference: frame median=2.378ms p95=2.473ms rendered=180 trees=7 grass=8
+farm/all: frame median=2.356ms p95=2.455ms rendered=180 trees=7 grass=8
+farm/no-trees: frame median=2.354ms p95=2.449ms rendered=180 trees=6 grass=8
+farm/no-trees-terrain: frame median=2.339ms p95=2.451ms rendered=180 trees=6 grass=8
+farm/off-repeat: frame median=2.157ms p95=2.240ms rendered=180 trees=6 grass=8
+PASS: every state advanced game frames and submitted grass and trees. Frame elapsed is not isolated GPU time.

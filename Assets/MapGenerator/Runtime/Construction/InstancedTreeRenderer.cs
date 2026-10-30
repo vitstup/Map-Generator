@@ -15,6 +15,7 @@ namespace TacticalMaps.Construction
         [SerializeField, Min(1)] private float drawDistance = 6000;
         [SerializeField, Min(16)] private float cellSize = 128;
         [SerializeField, Min(0)] private float shadowDistance = 100;
+        [SerializeField, Tooltip("Use separate coarse shadow meshes. Turn off to keep tree LOD lighting stable.")] private bool castShadows = true;
         [SerializeField, Range(0.02f, 0.3f)] private float meshScreenHeight = DefaultMeshScreenHeight;
         [SerializeField, Range(0.5f, 4)] private float minimumImpostorPixels = 1.5f;
         private readonly Dictionary<int, CameraCache> cameras = new Dictionary<int, CameraCache>();
@@ -49,10 +50,13 @@ namespace TacticalMaps.Construction
         internal bool LegacyHybridForChecks { get => legacyHybridForChecks; set { if (legacyHybridForChecks != value) { legacyHybridForChecks = value; dirty = true; } } }
         internal uint ReadImpostorCountForChecks(Camera camera) => impostors?.ReadVisibleCount(camera) ?? 0;
         internal bool SuppressDrawingForChecks { get; set; }
+        internal bool SuppressCastingForChecks { get; set; }
+        internal bool CastShadowsForChecks { get => castShadows; set => castShadows = value; }
 
-        internal void Configure(Terrain[] sources, TreeRenderLibrary assets, float distance, float gridSize, float shadows, float meshThreshold = DefaultMeshScreenHeight, float minimumPixels = 1.5f)
+        internal void Configure(Terrain[] sources, TreeRenderLibrary assets, float distance, float gridSize, float shadows, float meshThreshold = DefaultMeshScreenHeight, float minimumPixels = 1.5f, bool cast = true)
         {
             terrains = sources; library = assets; drawDistance = distance; cellSize = gridSize; shadowDistance = shadows;
+            castShadows = cast;
             meshScreenHeight = meshThreshold; minimumImpostorPixels = minimumPixels;
             Rebuild();
         }
@@ -162,6 +166,7 @@ namespace TacticalMaps.Construction
             float effectiveShadows = Mathf.Min(shadowDistance, camera.farClipPlane);
             var pipeline = GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
             effectiveShadows = Mathf.Min(effectiveShadows, pipeline != null ? pipeline.shadowDistance : QualitySettings.shadowDistance);
+            if (!castShadows || SuppressCastingForChecks || (pipeline != null && !pipeline.supportsMainLightShadows && !pipeline.supportsAdditionalLightShadows)) effectiveShadows = 0;
             if (camera.TryGetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>(out var cameraData) && !cameraData.renderShadows) effectiveShadows = 0;
             int minimumLod = QualitySettings.maximumLODLevel;
             var view = camera.worldToCameraMatrix; var projection = camera.projectionMatrix;

@@ -1,7 +1,7 @@
 #ifndef TACTICAL_TREE_FOLIAGE_INCLUDED
 #define TACTICAL_TREE_FOLIAGE_INCLUDED
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+#include "TacticalShadowSampling.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 #include "TreeDither.hlsl"
@@ -17,6 +17,7 @@ UNITY_INSTANCING_BUFFER_START(TreeProperties)
 UNITY_INSTANCING_BUFFER_END(TreeProperties)
 float3 _LightDirection;
 float3 _LightPosition;
+float _TreeSkipShadowChecks;
 struct TreeAttributes
 {
     float3 positionOS : POSITION;
@@ -98,7 +99,7 @@ half4 TreeForward(TreeVaryings input, FRONT_FACE_TYPE front : FRONT_FACE_SEMANTI
             normal = normalize(TransformTangentToWorld(mapped, half3x3(tangent, bitangent, normal)));
         }
     #endif
-    Light main = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
+    Light main = TacticalVegetationLight(input.positionWS, _TreeSkipShadowChecks, 2);
     half3 diffuse = SampleSH(normal);
     half ao = 1;
     #if defined(_SCREEN_SPACE_OCCLUSION)

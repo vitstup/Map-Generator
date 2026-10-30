@@ -12,6 +12,7 @@ namespace TacticalMaps.Construction
         [SerializeField, Min(1)] private float treeDistance = 6000;
         [SerializeField, Min(16)] private float cullingCellSize = 128;
         [SerializeField, Min(0)] private float shadowDistance = 100;
+        [SerializeField, Tooltip("Separate shadow meshes; can be disabled independently of grass and object shadows.")] private bool castShadows = true;
         [SerializeField, Range(0.02f, 0.3f), Tooltip("Biased screen size at the centre of the mesh/impostor cross-fade.")] private float meshScreenHeight = InstancedTreeRenderer.DefaultMeshScreenHeight;
         [SerializeField, Range(0.5f, 4)] private float minimumImpostorPixels = 1.5f;
 
@@ -55,7 +56,7 @@ namespace TacticalMaps.Construction
             }
             if (trees.Placements.Count == 0) return;
             var root = new GameObject("Trees"); root.transform.SetParent(parent, false);
-            try { root.AddComponent<InstancedTreeRenderer>().Configure(terrains, renderLibrary, treeDistance, cullingCellSize, shadowDistance, meshScreenHeight, minimumImpostorPixels); }
+            try { root.AddComponent<InstancedTreeRenderer>().Configure(terrains, renderLibrary, treeDistance, cullingCellSize, shadowDistance, meshScreenHeight, minimumImpostorPixels, castShadows); }
             catch
             {
                 if (Application.isPlaying) Destroy(root); else DestroyImmediate(root);

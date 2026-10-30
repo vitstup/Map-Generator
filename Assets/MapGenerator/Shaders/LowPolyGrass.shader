@@ -12,7 +12,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         #pragma multi_compile_local _ GRASS_HEADS
         #pragma multi_compile_local _ GRASS_UNDERSTOREY
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+        #include "TacticalShadowSampling.hlsl"
         #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
         #include "UnityIndirect.cginc"
         #include "GrassCommon.hlsl"
@@ -53,6 +53,8 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
         int _GrassTransitionCheck;
         float4 _GrassFieldRanges;
         float _GrassBakeMode;
+        float _GrassSkipShadowChecks;
+        int _GrassShadowFiltering;
         float4 _GrassBakeRegion;
         struct Attributes { float3 positionOS:POSITION; float2 uv:TEXCOORD0; float2 meta:TEXCOORD1; float2 coefficients:TEXCOORD2; uint instanceID:SV_InstanceID; };
         struct Varyings { float4 positionCS:SV_POSITION; float3 world:TEXCOORD0; half3 normal:TEXCOORD1; half3 color:TEXCOORD2; half fog:TEXCOORD3; float4 shadowCoord:TEXCOORD4; half fade:TEXCOORD5; half detail:TEXCOORD6; nointerpolation float2 noiseSeed:TEXCOORD7; half canopy:TEXCOORD8; nointerpolation half petal:TEXCOORD9; };
@@ -282,11 +284,7 @@ Shader "TacticalMaps/Grass/LowPolyIndirect"
             if(_GrassBakeMode>2.5) return half4(input.petal.xxx,1);
             if(_GrassBakeMode>1.5) return half4(normalize(input.normal).xzy*.5+.5,1);
             if(_GrassBakeMode>.5) return half4(input.color,1);
-            #if defined(_MAIN_LIGHT_SHADOWS_SCREEN)
-            Light light=GetMainLight(input.shadowCoord);
-            #else
-            Light light=GetMainLight(TransformWorldToShadowCoord(input.world));
-            #endif
+            Light light=TacticalVegetationLight(input.world,_GrassSkipShadowChecks,_GrassShadowFiltering);
             float3 normal=normalize(input.normal);
             half diffuse=saturate((dot(normal,light.direction)+.25)/1.25);
             half3 ambient=lerp(_GrassAmbientSide.rgb,_GrassAmbientSky.rgb,saturate(normal.y));

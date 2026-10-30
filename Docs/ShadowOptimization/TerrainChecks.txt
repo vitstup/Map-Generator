@@ -1,0 +1,1 @@
+PASS: angle RGB error=0,0000; additive layers; tile-shift difference 0,0000 -> 0,0945; matte basemap. Synchronized offscreen render/readback 512px: regular=5,48ms stochastic=5,11ms. GPU frame timing: unavailable in current Editor configuration.

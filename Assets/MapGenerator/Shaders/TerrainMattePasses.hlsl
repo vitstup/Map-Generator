@@ -5,6 +5,9 @@
 // The stock PBR fragment is deliberately not used by any pass in our shaders.
 #define _NORMALMAP 1
 #define _TERRAIN_INSTANCED_PERPIXEL_NORMAL 1
+#if defined(TACTICAL_TERRAIN_FORWARD)
+    #include "TacticalShadowSampling.hlsl"
+#endif
 #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitInput.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitPasses.hlsl"
 

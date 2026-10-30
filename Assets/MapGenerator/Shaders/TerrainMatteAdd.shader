@@ -100,6 +100,7 @@ Shader "Hidden/TacticalMaps/Terrain/MatteAdd"
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
             #pragma vertex SplatmapVert
             #pragma fragment MatteFragment
+            #define TACTICAL_TERRAIN_FORWARD 1
             #include_with_pragmas "TerrainMatteKeywords.hlsl"
 #define TERRAIN_SPLAT_ADDPASS 1
             #include "TerrainMattePasses.hlsl"

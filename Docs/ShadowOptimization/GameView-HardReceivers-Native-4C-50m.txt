@@ -1,0 +1,27 @@
+Editor Game View; normal camera rendering; GPU profiler enabled; 60 warmup + 180 measured advancing frames per state. CPU elapsed includes Editor/profiler overhead.
+AMD Radeon RX 7700 XT; Direct3D12
+near/off: 2219x1248; Editor elapsed=8.752ms; trees=24; GPU Grass.LitNormals=2.115ms samples=180 distinct=140; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=0.917ms samples=180 distinct=143
+near/reference: 2219x1248; Editor elapsed=16.797ms; trees=29; GPU Grass.LitNormals=2.523ms samples=180 distinct=111; MainLightShadow=0.161ms samples=180 distinct=94; DrawOpaqueObjects=0.677ms samples=180 distinct=106
+near/all: 2219x1248; Editor elapsed=14.768ms; trees=29; GPU Grass.LitNormals=2.340ms samples=180 distinct=130; MainLightShadow=0.161ms samples=180 distinct=109; DrawOpaqueObjects=1.523ms samples=180 distinct=127
+near/no-trees: 2219x1248; Editor elapsed=13.202ms; trees=24; GPU Grass.LitNormals=2.337ms samples=180 distinct=108; MainLightShadow=0.040ms samples=180 distinct=31; DrawOpaqueObjects=1.501ms samples=180 distinct=101
+near/no-terrain: 2219x1248; Editor elapsed=13.087ms; trees=29; GPU Grass.LitNormals=2.331ms samples=180 distinct=101; MainLightShadow=0.128ms samples=180 distinct=92; DrawOpaqueObjects=1.501ms samples=180 distinct=106
+near/no-grass-receive: 2219x1248; Editor elapsed=11.559ms; trees=29; GPU Grass.LitNormals=2.227ms samples=180 distinct=111; MainLightShadow=0.160ms samples=180 distinct=99; DrawOpaqueObjects=1.500ms samples=180 distinct=111
+near/no-all-receive: 2219x1248; Editor elapsed=12.034ms; trees=29; GPU Grass.LitNormals=2.225ms samples=180 distinct=115; MainLightShadow=0.159ms samples=180 distinct=96; DrawOpaqueObjects=1.345ms samples=180 distinct=115
+near/off-repeat: 2219x1248; Editor elapsed=7.021ms; trees=24; GPU Grass.LitNormals=1.632ms samples=180 distinct=138; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.017ms samples=180 distinct=145
+canopy/off: 2219x1248; Editor elapsed=6.800ms; trees=19; GPU Grass.LitNormals=2.113ms samples=180 distinct=138; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.461ms samples=180 distinct=143
+canopy/reference: 2219x1248; Editor elapsed=11.876ms; trees=24; GPU Grass.LitNormals=2.623ms samples=180 distinct=112; MainLightShadow=0.088ms samples=180 distinct=94; DrawOpaqueObjects=1.865ms samples=180 distinct=111
+canopy/all: 2219x1248; Editor elapsed=12.427ms; trees=24; GPU Grass.LitNormals=2.450ms samples=180 distinct=121; MainLightShadow=0.089ms samples=180 distinct=110; DrawOpaqueObjects=1.695ms samples=180 distinct=120
+canopy/no-trees: 2219x1248; Editor elapsed=11.607ms; trees=19; GPU Grass.LitNormals=2.584ms samples=180 distinct=116; MainLightShadow=0.022ms samples=180 distinct=89; DrawOpaqueObjects=1.786ms samples=180 distinct=114
+canopy/no-terrain: 2219x1248; Editor elapsed=11.022ms; trees=24; GPU Grass.LitNormals=2.300ms samples=180 distinct=110; MainLightShadow=0.078ms samples=180 distinct=97; DrawOpaqueObjects=2.254ms samples=180 distinct=111
+canopy/no-grass-receive: 2219x1248; Editor elapsed=11.020ms; trees=24; GPU Grass.LitNormals=2.099ms samples=180 distinct=88; MainLightShadow=0.087ms samples=180 distinct=74; DrawOpaqueObjects=3.186ms samples=180 distinct=91
+canopy/no-all-receive: 2219x1248; Editor elapsed=10.622ms; trees=24; GPU Grass.LitNormals=2.105ms samples=180 distinct=90; MainLightShadow=0.087ms samples=180 distinct=75; DrawOpaqueObjects=3.098ms samples=180 distinct=91
+canopy/off-repeat: 2219x1248; Editor elapsed=8.253ms; trees=19; GPU Grass.LitNormals=2.099ms samples=180 distinct=132; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=3.072ms samples=180 distinct=135
+grove/off: 2219x1248; Editor elapsed=6.118ms; trees=16; GPU Grass.LitNormals=2.336ms samples=180 distinct=118; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.796ms samples=180 distinct=119
+grove/reference: 2219x1248; Editor elapsed=6.190ms; trees=16; GPU Grass.LitNormals=2.375ms samples=180 distinct=119; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.833ms samples=180 distinct=120
+grove/all: 2219x1248; Editor elapsed=6.070ms; trees=16; GPU Grass.LitNormals=2.351ms samples=180 distinct=126; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.809ms samples=180 distinct=125
+grove/no-trees: 2219x1248; Editor elapsed=6.270ms; trees=16; GPU Grass.LitNormals=2.351ms samples=180 distinct=117; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.803ms samples=180 distinct=119
+grove/no-terrain: 2219x1248; Editor elapsed=6.124ms; trees=16; GPU Grass.LitNormals=2.352ms samples=180 distinct=125; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.803ms samples=180 distinct=125
+grove/no-grass-receive: 2219x1248; Editor elapsed=6.380ms; trees=16; GPU Grass.LitNormals=2.341ms samples=180 distinct=116; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.798ms samples=180 distinct=116
+grove/no-all-receive: 2219x1248; Editor elapsed=6.224ms; trees=16; GPU Grass.LitNormals=2.346ms samples=180 distinct=118; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.793ms samples=180 distinct=119
+grove/off-repeat: 2219x1248; Editor elapsed=6.624ms; trees=16; GPU Grass.LitNormals=2.357ms samples=180 distinct=120; MainLightShadow=unavailable samples=0 distinct=0; DrawOpaqueObjects=1.814ms samples=180 distinct=119
+PASS: real Game View frames advanced for all states.

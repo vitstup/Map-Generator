@@ -1,0 +1,60 @@
+{
+  "scene": "Assets/Scenes/MainScene.unity",
+  "playing": false,
+  "profiler": false,
+  "background": false,
+  "mode": "NativeGraphicsJobsSplitThreading",
+  "mainShadows": true,
+  "additionalShadows": false,
+  "distance": 200.0,
+  "cascades": 1,
+  "atlas": 2048,
+  "fade": 0.2,
+  "vegetation": [
+    {
+      "type": "InstancedTreeRenderer",
+      "settings": {
+        "castShadows": false,
+        "shadowDistance": 200.0
+      }
+    },
+    {
+      "type": "GrassSystem",
+      "settings": {
+        "shadowFiltering": 1
+      }
+    },
+    {
+      "type": "TreeBuilder",
+      "settings": {
+        "castShadows": false,
+        "shadowDistance": 200.0
+      }
+    }
+  ],
+  "terrain": [
+    {
+      "name": "Terrain_Main",
+      "cast": "On"
+    },
+    {
+      "name": "Terrain_Horizon",
+      "cast": "On"
+    },
+    {
+      "name": "Terrain_Surroundings",
+      "cast": "On"
+    }
+  ],
+  "lights": [
+    {
+      "name": "Directional Light",
+      "shadows": "Hard",
+      "strength": 0.85
+    }
+  ],
+  "workbench": [
+    true
+  ],
+  "shaderErrors": []
+}

@@ -259,6 +259,7 @@ namespace TacticalMaps.Grass
             {
                 entry.SetInt("_GrassTopologyCheck",s.CheckTopology);
                 entry.SetInt("_GrassTransitionCheck",s.TransitionCheck);
+                entry.SetInt("_GrassShadowFiltering",s.ShadowFiltering);
                 entry.SetFloat("_GrassFrameTime",frameTime);
                 entry.SetVector("_GrassFlowers",s.Flowers);entry.SetInt("_GrassFlowerCount",s.FlowerCount);
                 entry.SetVectorArray("_GrassFlowerColors",s.FlowerColors);entry.SetVectorArray("_GrassFlowerShapes",s.FlowerShapes);

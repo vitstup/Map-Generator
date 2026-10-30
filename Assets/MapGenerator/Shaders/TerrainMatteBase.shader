@@ -98,6 +98,7 @@ Shader "Hidden/TacticalMaps/Terrain/MatteBase"
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
             #pragma vertex SplatmapVert
             #pragma fragment MatteFragment
+            #define TACTICAL_TERRAIN_FORWARD 1
             #include_with_pragmas "TerrainMatteKeywords.hlsl"
 #define TERRAIN_SPLAT_BASEPASS 1
             #include "TerrainMattePasses.hlsl"
@@ -113,7 +114,8 @@ Shader "Hidden/TacticalMaps/Terrain/MatteBase"
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
             #pragma vertex SplatmapVert
             #pragma fragment MatteDepthNormals
-            #include_with_pragmas "TerrainMatteKeywords.hlsl"
+            #pragma target 3.5
+            #pragma multi_compile_fragment _ _ALPHATEST_ON
 #define TERRAIN_SPLAT_BASEPASS 1
             #include "TerrainMattePasses.hlsl"
             ENDHLSL
