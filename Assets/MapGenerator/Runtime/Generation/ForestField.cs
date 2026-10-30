@@ -11,6 +11,8 @@ namespace TacticalMaps.Generation
         internal GameObject[] Prefabs = Array.Empty<GameObject>();
         internal ushort[] Pixels;
         internal int Width, Height, Seed, Limit, Level;
+        internal int OrdinarySpeciesCount;
+        internal float BambooFraction;
         internal Vector2 Size, ScaleRange, InnerSize;
         internal float SeamClearance;
         internal float VerticalSize, Sea, Coverage, CellSize, MinimumRadius, MaximumRadius, MinimumArea,
@@ -124,15 +126,18 @@ namespace TacticalMaps.Generation
                             { seen[other] = true; members.Add(other); }
                 }
                 if (members.Count < 3) continue;
-                int dominant = random.Next(Prefabs.Length);
+                int ordinaryCount = OrdinarySpeciesCount > 0 ? OrdinarySpeciesCount : Prefabs.Length;
+                int dominant = random.Next(ordinaryCount);
                 foreach (int member in members)
                 {
                     float scale = Mathf.Lerp(ScaleRange.x, ScaleRange.y, Next(random));
-                    output.Add(new TreePlacement(points[member], Next(random) < 0.8f ? dominant : random.Next(Prefabs.Length), group,
+                    output.Add(new TreePlacement(points[member], Next(random) < 0.8f ? dominant : random.Next(ordinaryCount), group,
                         Next(random) * Mathf.PI * 2, scale * Mathf.Lerp(0.9f, 1.1f, Next(random)), scale, Level));
                 }
                 group++;
             }
+            // Separate RNG preserves the pre-existing layout, rotations and ordinary-tree mix.
+            BambooMix.Apply(output, OrdinarySpeciesCount, Prefabs.Length, BambooFraction, Seed);
             return new TreeData(Prefabs, output.ToArray(), mask, nx, nz);
         }
 

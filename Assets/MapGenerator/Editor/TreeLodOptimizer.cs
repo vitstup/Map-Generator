@@ -46,8 +46,9 @@ namespace TacticalMaps.Editor
                 long triangles = original.Sum(p => (long)p.mesh.GetIndexCount(p.submesh) / 3);
                 // Retain foliage density as well as the outer silhouette. More aggressive budgets
                 // pass a contour-only comparison but expose holes inside maple and pine crowns.
-                float farFraction = .24f;
-                int[] budgets = { Mathf.RoundToInt(triangles * .42f), Mathf.RoundToInt(triangles * farFraction) };
+                bool bamboo = species.source.name.StartsWith("SM_Env_Bamboo_", StringComparison.Ordinal);
+                float farFraction = bamboo ? .40f : .24f;
+                int[] budgets = { Mathf.RoundToInt(triangles * (bamboo ? .70f : .42f)), Mathf.RoundToInt(triangles * farFraction) };
                 var levels = new TreeRenderLibrary.Level[3];
                 levels[0] = new TreeRenderLibrary.Level { screenHeight = 0.40f, parts = original.Select(p => CopyPart(p, p.mesh, OptimizedMaterial(p.material))).ToArray() };
                 float[] thresholds = { 0.16f, 0.001f };
@@ -61,7 +62,7 @@ namespace TacticalMaps.Editor
                     {
                         long sourceCount = part.mesh.GetIndexCount(part.submesh) / 3;
                         int target = Mathf.Max(12, Mathf.RoundToInt(budgets[level] * (float)sourceCount / authoredTriangles));
-                        var mesh = FoliageMesh(part.mesh, part.submesh, target, part.material);
+                        var mesh = FoliageMesh(part.mesh, part.submesh, target, part.material, bamboo);
                         string path = Folder + "/Meshes/" + species.source.name + "_LOD" + (level + 1) + "_" + parts.Count + ".asset";
                         mesh.name = System.IO.Path.GetFileNameWithoutExtension(path);
                         var saved = AssetDatabase.LoadAssetAtPath<Mesh>(path);
@@ -135,7 +136,7 @@ namespace TacticalMaps.Editor
             internal readonly List<int> Indices = new List<int>();
         }
 
-        private static Mesh FoliageMesh(Mesh source, int submesh, int target, Material material)
+        private static Mesh FoliageMesh(Mesh source, int submesh, int target, Material material, bool preserveLeaves)
         {
             var indices = source.GetIndices(submesh);
             if (indices.Length / 3 <= target) return Compact(source, indices, null);
@@ -167,7 +168,7 @@ namespace TacticalMaps.Editor
             var pieces = new List<Mesh>();
             try
             {
-                if (leaves.Length > 200)
+                if (leaves.Length > 200 && !preserveLeaves)
                 {
                     var selected = TreeCanopyCoverage.Select(source, leaves, material, Mathf.Max(1, target - trunkBudget));
                     pieces.Add(Compact(source, selected.SelectMany(i => leaves[i]).ToArray(), null));
@@ -177,7 +178,7 @@ namespace TacticalMaps.Editor
                     float fraction = target / (indices.Length / 3f);
                     // The tiny maple keeps every card. Ginkgo has larger connected clusters:
                     // retain their multi-view coverage, then simplify inside each selected cluster.
-                    var selected = leaves.Length > 100 ? TreeCanopyCoverage.Select(source, leaves, material,
+                    var selected = leaves.Length > 100 && !preserveLeaves ? TreeCanopyCoverage.Select(source, leaves, material,
                         Mathf.RoundToInt(leaves.Sum(l => l.Length / 3) * (fraction > .3f ? .85f : .45f))) : Enumerable.Range(0, leaves.Length).ToArray();
                     foreach (int index in selected)
                     {

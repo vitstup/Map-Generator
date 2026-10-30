@@ -1163,6 +1163,375 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: 6d07982cb60747f4992b17b3801f5458, type: 2}
     impostorCapture: {x: 0.075115204, y: 6.2359962, z: -0.18540335, w: 8.21691}
+  - source: {fileID: 405606203298129695, guid: 3a73f30ef50d68649b0f431b5e6ff2eb, type: 3}
+    referencePoint: {x: 0.011216581, y: 3.0813787, z: 0.12728822}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 7.4064
+    levels:
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: 4506351956314036062, guid: 3e1500ec82d00004181019f5abf1d1c1, type: 3}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.4
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: 4300000, guid: 62a856de44d71fb47baee3e57f40a37a, type: 2}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.16
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: 4300000, guid: ec1396de514aa6449b64d0fbbcb785b4, type: 2}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.001
+    originalLevels:
+    - prefab: {fileID: 6729881823586095819, guid: 3de47c3141cae584aad0e2c858aeea04, type: 3}
+      parts:
+      - mesh: {fileID: 4506351956314036062, guid: 3e1500ec82d00004181019f5abf1d1c1, type: 3}
+        material: {fileID: 2100000, guid: 45599f7a5c244ec4ea3fe587d1607909, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.2524443
+    - prefab: {fileID: 745189996508375607, guid: e77d1befb8379624f945fd9ad4620a5c, type: 3}
+      parts:
+      - mesh: {fileID: 2954331719903130682, guid: 3e1500ec82d00004181019f5abf1d1c1, type: 3}
+        material: {fileID: 2100000, guid: 45599f7a5c244ec4ea3fe587d1607909, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.01
+    impostorMaterial: {fileID: 2100000, guid: 1a910e1b746fbfc469a1a3bb62a8094b, type: 2}
+    impostorCapture: {x: 0.011216581, y: 3.0813787, z: 0.12728822, w: 4.0600524}
+  - source: {fileID: 6370720739051437596, guid: 726e0a47b3fe539418dc04be77f08296, type: 3}
+    referencePoint: {x: 0.0414114, y: 3.0299718, z: -0.06671548}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 7.3727155
+    levels:
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: -8376960128298835465, guid: 08caff6fd73955a4a9e056e8792f6ee2, type: 3}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.4
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: 4300000, guid: 368829ee75a9c6c45beac1f869a27dba, type: 2}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.16
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: 4300000, guid: 52a6b78284cc22548b0d1b1b00a888b9, type: 2}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.001
+    originalLevels:
+    - prefab: {fileID: 2964311040113506941, guid: 054c0a98084c68c439a721cf905dfa84, type: 3}
+      parts:
+      - mesh: {fileID: -8376960128298835465, guid: 08caff6fd73955a4a9e056e8792f6ee2, type: 3}
+        material: {fileID: 2100000, guid: 45599f7a5c244ec4ea3fe587d1607909, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.24785714
+    - prefab: {fileID: 4597215332377767572, guid: a0638a1348bda7d449be120a0ca17fb2, type: 3}
+      parts:
+      - mesh: {fileID: -5844557866046780059, guid: 08caff6fd73955a4a9e056e8792f6ee2, type: 3}
+        material: {fileID: 2100000, guid: 45599f7a5c244ec4ea3fe587d1607909, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.01
+    impostorMaterial: {fileID: 2100000, guid: 292e92a2bd634724491709c7a6cbb428, type: 2}
+    impostorCapture: {x: 0.0414114, y: 3.0299718, z: -0.06671548, w: 4.4430747}
+  - source: {fileID: 1177704603548196594, guid: 2f4b75adc8b6d9d49b0ca832e499d85f, type: 3}
+    referencePoint: {x: -0.52044535, y: 3.1786954, z: 0.11040068}
+    rootScale: {x: 1, y: 1, z: 1}
+    size: 7.6701627
+    levels:
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: 7895789905162149059, guid: 57146b18eb5513c40802065f895c7546, type: 3}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.4
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: 4300000, guid: c49ea9534750dad48870e9239dd79bba, type: 2}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.16
+    - prefab: {fileID: 0}
+      parts:
+      - mesh: {fileID: 4300000, guid: 586cf923f6de0d74d82a65c91931f741, type: 2}
+        material: {fileID: 2100000, guid: bee1f91c9e52d4840bd0829509ea3da6, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.001
+    originalLevels:
+    - prefab: {fileID: 7215627337794832590, guid: bd1a6ea9c38674045bffddec746556a5, type: 3}
+      parts:
+      - mesh: {fileID: 7895789905162149059, guid: 57146b18eb5513c40802065f895c7546, type: 3}
+        material: {fileID: 2100000, guid: 45599f7a5c244ec4ea3fe587d1607909, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.24785714
+    - prefab: {fileID: 7584992161599539927, guid: 43824ca19eb505b43962862899963468, type: 3}
+      parts:
+      - mesh: {fileID: 871707264477043974, guid: 57146b18eb5513c40802065f895c7546, type: 3}
+        material: {fileID: 2100000, guid: 45599f7a5c244ec4ea3fe587d1607909, type: 2}
+        submesh: 0
+        localToRoot:
+          e00: 1
+          e01: 0
+          e02: 0
+          e03: 0
+          e10: 0
+          e11: 1
+          e12: 0
+          e13: 0
+          e20: 0
+          e21: 0
+          e22: 1
+          e23: 0
+          e30: 0
+          e31: 0
+          e32: 0
+          e33: 1
+      screenHeight: 0.01
+    impostorMaterial: {fileID: 2100000, guid: 06980e859ce7dff4ba18a0a7ef57b9c9, type: 2}
+    impostorCapture: {x: -0.3951087, y: 3.0788834, z: 0.08289683, w: 4.9929166}
   impostorCulling: {fileID: 7200000, guid: db1ae0c3f8ad97f459cf5309e504603a, type: 3}
   impostorMesh: {fileID: 4300000, guid: 55d60923622391341b2a536aea183722, type: 2}
   optimizationVersion: 2

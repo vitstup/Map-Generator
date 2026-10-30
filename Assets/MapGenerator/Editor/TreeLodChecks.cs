@@ -125,7 +125,7 @@ namespace TacticalMaps.Editor
                 Capture(camera, null, 768, 768); Check(trees.CullMilliseconds == 0, "Stationary view reuses fade batches");
                 trees.enabled = false; trees.enabled = true; Capture(camera, null, 768, 768);
                 Check(trees.VisibleTrees == 1, "Disable/enable recreates resources and renders");
-                report.AppendLine("PASS: assets, shader compilation, all six species at 12 screen sizes, mesh/impostor overlap, mesh-only fallback, stationary cache and resource rebuild.");
+                report.AppendLine($"PASS: assets, shader compilation, all {library.SpeciesList.Length} species at 12 screen sizes, mesh/impostor overlap, mesh-only fallback, stationary cache and resource rebuild.");
                 File.WriteAllText("Temp/tree-lod-checks.txt", report.ToString()); Debug.Log(report.ToString());
             }
             catch (Exception e) { File.WriteAllText("Temp/tree-lod-checks.txt", report + e.ToString()); throw; }

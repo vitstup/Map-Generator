@@ -181924,6 +181924,11 @@ MonoBehaviour:
   - {fileID: 7728709216723660740, guid: b7a3a4877a4f190409fbca8fe4bcfa67, type: 3}
   - {fileID: 4467678524264583855, guid: 474f447736efd014e9c1eba2a68e2b95, type: 3}
   - {fileID: 2174982424311862829, guid: 8fdefb0f141e5424db392a3c1e982881, type: 3}
+  bambooPrefabs:
+  - {fileID: 405606203298129695, guid: 3a73f30ef50d68649b0f431b5e6ff2eb, type: 3}
+  - {fileID: 6370720739051437596, guid: 726e0a47b3fe539418dc04be77f08296, type: 3}
+  - {fileID: 1177704603548196594, guid: 2f4b75adc8b6d9d49b0ca832e499d85f, type: 3}
+  bambooFraction: 0.18
   maximumCoverage: 0.3
   zoneCellSize: 12
   minimumGroveRadius: 65

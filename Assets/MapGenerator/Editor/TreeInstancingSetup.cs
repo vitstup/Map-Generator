@@ -49,6 +49,10 @@ namespace TacticalMaps.Editor
             var materials = new Dictionary<Material, Material>();
             for (int i = 0; i < sources.Count; i++)
             {
+                // Extending the palette must retain the established LOD chain of existing species.
+                var existing = library == null ? null : Array.Find(library.SpeciesList, s => s.source == sources[i]);
+                if (existing != null && existing.originalLevels != null && existing.originalLevels.Length > 0)
+                { entries[i] = existing; continue; }
                 var source = sources[i]; var groups = source.GetComponentsInChildren<LODGroup>(true);
                 if (groups.Length != 1) throw new InvalidOperationException(source.name + " must have exactly one LODGroup.");
                 var group = groups[0]; var lods = group.GetLODs();
@@ -94,7 +98,7 @@ namespace TacticalMaps.Editor
                             output.receiveShadows = renderer.receiveShadows;
                         }
                         var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
-                        entry.levels[lod] = new TreeRenderLibrary.Level { prefab = prefab, screenHeight = lods[lod].screenRelativeTransitionHeight };
+                        entry.levels[lod] = new TreeRenderLibrary.Level { prefab = prefab, screenHeight = lods[lod].screenRelativeTransitionHeight, parts = PartsOf(prefab) };
                     }
                     finally { UnityEngine.Object.DestroyImmediate(root); }
                 }
@@ -105,6 +109,19 @@ namespace TacticalMaps.Editor
             TreeLodOptimizer.Optimize(library);
             TreeImpostorBaker.Bake(library);
             return library;
+        }
+        private static TreeRenderLibrary.MeshPart[] PartsOf(GameObject prefab)
+        {
+            var parts = new List<TreeRenderLibrary.MeshPart>();
+            foreach (var renderer in prefab.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var mesh = renderer.GetComponent<MeshFilter>().sharedMesh;
+                var materials = renderer.sharedMaterials;
+                for (int sub = 0; sub < mesh.subMeshCount; sub++)
+                    parts.Add(new TreeRenderLibrary.MeshPart { mesh = mesh, material = materials[Mathf.Min(sub, materials.Length - 1)], submesh = sub,
+                        localToRoot = prefab.transform.worldToLocalMatrix * renderer.transform.localToWorldMatrix });
+            }
+            return parts.ToArray();
         }
         private static float MaxAbs(Vector3 v) => Mathf.Max(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
         private static void EnsureFolder(string path)

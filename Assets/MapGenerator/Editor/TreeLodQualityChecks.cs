@@ -73,7 +73,7 @@ namespace TacticalMaps.Editor
                         throw new InvalidOperationException("LOD visual quality outside bounds: " + species.source.name);
                 }
                 CheckImpostors(library, root.transform, camera, sun, report);
-                report.AppendLine("PASS: mesh silhouette/color at 24 directions per species; impostor silhouette/color at three instance rotations and two sun colors.");
+                report.AppendLine($"PASS: {library.SpeciesList.Length} species; mesh silhouette/color at 24 directions per species; impostor silhouette/color at three instance rotations and two sun colors.");
                 File.WriteAllText("Temp/tree-lod-quality.txt", report.ToString());
             }
             finally { UnityEngine.Object.DestroyImmediate(root); EditorSceneManager.ClosePreviewScene(scene); }

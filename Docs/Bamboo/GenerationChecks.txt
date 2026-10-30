@@ -1,0 +1,1 @@
+PASS: trees by level 1561,1752,3122; main 7 groups, 29,996% forest area. Determinism, async, cancellation, ring exclusion/area budgets, spacing, groups, water, slopes, rock blockers, GPU renderer construction, all original LODs, instancing materials, offsets, rebuild lifetime and full source-map generation.

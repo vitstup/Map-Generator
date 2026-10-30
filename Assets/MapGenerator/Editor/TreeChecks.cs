@@ -35,6 +35,21 @@ namespace TacticalMaps.Editor
                 map = new MapData(textures, sizes, 400, 20, 4000, new Vector2Int(42, 71));
                 var stage = root.GetComponent<TreePlacementGenerator>();
                 var all = stage.Generate(map, CancellationToken.None); var second = stage.Generate(map, CancellationToken.None);
+                var treeSettings = new SerializedObject(stage);
+                int ordinaryCount = treeSettings.FindProperty("treePrefabs").arraySize;
+                Check(all.Placements.Any(p => p.Prefab >= ordinaryCount), "Bamboo is mixed into generated groves");
+                Check(all.Placements.GroupBy(p => (p.Level,p.Group)).All(g => g.Any(p => p.Prefab < ordinaryCount)), "No bamboo-only groves");
+                float bambooFraction = treeSettings.FindProperty("bambooFraction").floatValue;
+                treeSettings.FindProperty("bambooFraction").floatValue = 0; treeSettings.ApplyModifiedPropertiesWithoutUndo();
+                var withoutBamboo = stage.Generate(map, CancellationToken.None);
+                Check(withoutBamboo.Placements.Count == all.Placements.Count, "Mixing bamboo keeps the tree count");
+                for (int i = 0; i < all.Placements.Count; i++)
+                {
+                    var a = all.Placements[i]; var b = withoutBamboo.Placements[i];
+                    Check(a.Position == b.Position && a.Rotation == b.Rotation && a.WidthScale == b.WidthScale && a.HeightScale == b.HeightScale && a.Group == b.Group && a.Level == b.Level,
+                        "Bamboo changes species only, preserving placement and transforms");
+                }
+                treeSettings.FindProperty("bambooFraction").floatValue = bambooFraction; treeSettings.ApplyModifiedPropertiesWithoutUndo();
                 var first = new TreeData(all.Prefabs.ToArray(), all.Placements.Where(p => p.Level == 0).ToArray(), all.Zones.ToArray());
                 Check(first.Placements.Count > 200, "Flat rectangular main terrain receives groves");
                 Check(first.Coverage > 0.20f && first.Coverage <= 0.300001f, "Forest union area stays within 30% of full main terrain");

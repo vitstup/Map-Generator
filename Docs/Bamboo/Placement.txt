@@ -1,0 +1,4 @@
+Bamboo mixed into existing groves; positions, rotations and scales retained.
+Terrain_Main: 1466 bamboo / 8084 placements (18,1%); 37 groups, all retain ordinary trees.
+Terrain_Surroundings: 8273 bamboo / 45657 placements (18,1%); 141 groups, all retain ordinary trees.
+Terrain_Horizon: 19615 bamboo / 109484 placements (17,9%); 97 groups, all retain ordinary trees.

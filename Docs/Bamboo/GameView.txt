@@ -1,0 +1,15 @@
+Native Editor Game View; same new meshes, earlier impostor threshold .13 versus final 0.055; 60 warmup + 180 rendered frames per state. Editor elapsed, not isolated GPU time.
+AMD Radeon RX 7700 XT; Direct3D12; NativeGraphicsJobsSplitThreading
+near/earlier: 1637x921; median=6.217ms, p95=9.852ms; rendered=240; mesh trees=121; triangles=352434; draws=29; lods=16,105,0,0,0,0,0,0
+near/final: 1637x921; median=6.761ms, p95=8.038ms; rendered=240; mesh trees=541; triangles=1383475; draws=42; lods=16,69,456,0,0,0,0,0
+near/repeat: 1637x921; median=6.819ms, p95=9.143ms; rendered=240; mesh trees=541; triangles=1383475; draws=42; lods=16,69,456,0,0,0,0,0
+canopy/earlier: 1637x921; median=7.209ms, p95=8.348ms; rendered=240; mesh trees=111; triangles=337386; draws=29; lods=13,98,0,0,0,0,0,0
+canopy/final: 1637x921; median=8.136ms, p95=8.720ms; rendered=240; mesh trees=530; triangles=1337143; draws=40; lods=13,58,459,0,0,0,0,0
+canopy/repeat: 1637x921; median=8.251ms, p95=8.726ms; rendered=240; mesh trees=530; triangles=1337143; draws=40; lods=13,58,459,0,0,0,0,0
+grove/earlier: 1637x921; median=5.691ms, p95=6.042ms; rendered=240; mesh trees=73; triangles=353274; draws=22; lods=2,71,0,0,0,0,0,0
+grove/final: 1637x921; median=5.903ms, p95=6.246ms; rendered=240; mesh trees=434; triangles=1007027; draws=35; lods=2,51,381,0,0,0,0,0
+grove/repeat: 1637x921; median=5.909ms, p95=6.934ms; rendered=240; mesh trees=434; triangles=1007027; draws=35; lods=2,51,381,0,0,0,0,0
+wide/earlier: 1637x921; median=6.609ms, p95=6.803ms; rendered=240; mesh trees=6; triangles=37428; draws=11; lods=0,6,0,0,0,0,0,0
+wide/final: 1637x921; median=8.998ms, p95=9.199ms; rendered=240; mesh trees=603; triangles=2108579; draws=14; lods=0,0,603,0,0,0,0,0
+wide/repeat: 1637x921; median=8.986ms, p95=9.166ms; rendered=240; mesh trees=603; triangles=2108579; draws=14; lods=0,0,603,0,0,0,0,0
+PASS: all states rendered; 240 camera-motion frames crossed LOD transitions in both directions.

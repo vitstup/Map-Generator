@@ -28,9 +28,21 @@ namespace TacticalMaps.Editor
                     prefabs.GetArrayElementAtIndex(i).objectReferenceValue = prefab;
                 }
             }
+            var bamboo = settings.FindProperty("bambooPrefabs");
+            if (bamboo.arraySize == 0)
+            {
+                var names = new[] { "01", "03", "04" }; bamboo.arraySize = names.Length;
+                for (int i = 0; i < names.Length; i++)
+                {
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(RockSetup.PrefabFolder + "SM_Env_Bamboo_" + names[i] + ".prefab");
+                    if (prefab == null) throw new InvalidOperationException("Missing Samurai bamboo " + names[i]);
+                    bamboo.GetArrayElementAtIndex(i).objectReferenceValue = prefab;
+                }
+            }
             settings.ApplyModifiedProperties();
-            var sources = new GameObject[prefabs.arraySize];
-            for (int i = 0; i < sources.Length; i++) sources[i] = (GameObject)prefabs.GetArrayElementAtIndex(i).objectReferenceValue;
+            var sources = new GameObject[prefabs.arraySize + bamboo.arraySize];
+            for (int i = 0; i < prefabs.arraySize; i++) sources[i] = (GameObject)prefabs.GetArrayElementAtIndex(i).objectReferenceValue;
+            for (int i = 0; i < bamboo.arraySize; i++) sources[prefabs.arraySize + i] = (GameObject)bamboo.GetArrayElementAtIndex(i).objectReferenceValue;
             var render = new SerializedObject(treeBuilder);
             render.FindProperty("renderLibrary").objectReferenceValue = TreeInstancingSetup.EnsureLibrary(sources);
             render.ApplyModifiedProperties();

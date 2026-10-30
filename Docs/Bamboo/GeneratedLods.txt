@@ -1,0 +1,9 @@
+SM_Env_Tree_Pine_01: 15588 / 6682 / 3790 triangles
+SM_Env_Tree_Pine_02: 3888 / 1732 / 962 triangles
+SM_Env_Tree_Pine_03: 1888 / 736 / 476 triangles
+SM_Env_Tree_Maple_01: 14164 / 6238 / 3564 triangles
+SM_Env_Tree_Maple_02: 594 / 362 / 234 triangles
+SM_Env_Tree_Ginko_01: 6280 / 4164 / 2167 triangles
+SM_Env_Bamboo_01: 528 / 352 / 224 triangles
+SM_Env_Bamboo_03: 2532 / 1472 / 1472 triangles
+SM_Env_Bamboo_04: 4100 / 2448 / 2448 triangles

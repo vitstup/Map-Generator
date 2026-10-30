@@ -37,6 +37,11 @@ namespace TacticalMaps.Editor
             SessionState.SetInt(Key + ".target", Application.targetFrameRate);
             SessionState.SetBool(Key,true); EditorApplication.isPlaying = true;
         }
+        [MenuItem("Tools/Tactical Maps/Verify Bamboo In Game View")]
+        internal static void RunBamboo()
+        {
+            SessionState.SetString(Key + ".targetSpecies","Bamboo_03"); Run();
+        }
         private static void Changed(PlayModeStateChange change)
         {
             if (!SessionState.GetBool(Key,false)) return;
@@ -51,7 +56,8 @@ namespace TacticalMaps.Editor
                     foreach (var component in camera.GetComponents<Behaviour>()) if (component.GetType().Name.Contains("Cinemachine")) component.enabled = false;
                     var terrain = UnityEngine.Object.FindObjectsByType<Terrain>(FindObjectsSortMode.None).First(t => t.name == "Terrain_Main");
                     var data = terrain.terrainData;
-                    int pine = Array.FindIndex(data.treePrototypes, p => p.prefab.name.Contains("Pine_02"));
+                    string targetSpecies = SessionState.GetString(Key + ".targetSpecies","Pine_02");
+                    int pine = Array.FindIndex(data.treePrototypes, p => p.prefab.name.Contains(targetSpecies));
                     var placements = data.treeInstances.Where(t => t.prototypeIndex == pine).ToArray();
                     if (placements.Length == 0) placements = data.treeInstances;
                     centre = terrain.transform.TransformPoint(Vector3.Scale(placements[placements.Length/2].position,data.size));
@@ -71,6 +77,7 @@ namespace TacticalMaps.Editor
                 QualitySettings.vSyncCount = SessionState.GetInt(Key + ".vsync",0);
                 Application.targetFrameRate = SessionState.GetInt(Key + ".target",-1);
                 SessionState.SetBool(Key,false);
+                SessionState.EraseString(Key + ".targetSpecies");
             }
         }
         private static void Configure()

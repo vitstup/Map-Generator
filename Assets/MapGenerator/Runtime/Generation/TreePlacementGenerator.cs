@@ -11,6 +11,8 @@ namespace TacticalMaps.Generation
     {
         [SerializeField] private bool generateTrees = true;
         [SerializeField] private GameObject[] treePrefabs = Array.Empty<GameObject>();
+        [SerializeField, Tooltip("Minority species mixed into ordinary groves; never chosen as the dominant tree.")] private GameObject[] bambooPrefabs = Array.Empty<GameObject>();
+        [SerializeField, Range(0, .4f)] private float bambooFraction = .18f;
         [SerializeField, Range(0, 1), Tooltip("Maximum fraction of the entire main terrain occupied by forest zones, including water in the denominator.")] private float maximumCoverage = 0.30f;
         [SerializeField, Min(2)] private float zoneCellSize = 12;
         [SerializeField, Min(10)] private float minimumGroveRadius = 65;
@@ -65,15 +67,17 @@ namespace TacticalMaps.Generation
             if (!generateTrees || treePrefabs == null || treePrefabs.Length == 0 || (level > 0 && !generateBackgroundTrees)) return new ForestField();
             foreach (float v in new[] { maximumCoverage, zoneCellSize, minimumGroveRadius, maximumGroveRadius,
                 minimumGroveArea, treeSpacing, minimumSpacingRatio, maximumSlope, shoreClearance, minimumHeightAboveWater, scaleRange.x, scaleRange.y,
-                backgroundSpacing.x, backgroundSpacing.y, backgroundGroveScale.x, backgroundGroveScale.y, seamClearance })
+                backgroundSpacing.x, backgroundSpacing.y, backgroundGroveScale.x, backgroundGroveScale.y, seamClearance, bambooFraction })
                 if (float.IsNaN(v) || float.IsInfinity(v)) throw new InvalidOperationException("Tree settings must be finite.");
             if (maximumCoverage < 0 || maximumCoverage > 1 || zoneCellSize < 2 || minimumGroveRadius < 10 || maximumGroveRadius < minimumGroveRadius ||
                 minimumGroveArea < 0 || treeSpacing < 2 || minimumSpacingRatio < 0.3f || minimumSpacingRatio > 1 || maximumSlope < 0 || maximumSlope > 60 ||
                 shoreClearance < 0 || minimumHeightAboveWater < 0 || scaleRange.x <= 0 || scaleRange.y < scaleRange.x || maximumTrees < 1 ||
                 backgroundSpacing.x < 1 || backgroundSpacing.y < 1 || backgroundGroveScale.x < 1 || backgroundGroveScale.y < 1 ||
-                backgroundTreeLimits.x < 1 || backgroundTreeLimits.y < 1 || seamClearance < 0)
+                backgroundTreeLimits.x < 1 || backgroundTreeLimits.y < 1 || seamClearance < 0 || bambooFraction < 0 || bambooFraction > .4f)
                 throw new InvalidOperationException("Invalid forest placement settings.");
-            foreach (var prefab in treePrefabs)
+            var combinedPrefabs = new List<GameObject>(treePrefabs);
+            if (bambooPrefabs != null) combinedPrefabs.AddRange(bambooPrefabs);
+            foreach (var prefab in combinedPrefabs)
                 if (prefab == null || prefab.GetComponentInChildren<MeshRenderer>(true) == null)
                     throw new InvalidOperationException("Assign tree prefabs with mesh renderers.");
             var texture = map.Heightmaps[level];
@@ -83,7 +87,8 @@ namespace TacticalMaps.Generation
             {
                 Roads = map.Roads,
                 Agriculture = map.Agriculture,
-                Prefabs = (GameObject[])treePrefabs.Clone(), Pixels = texture.GetPixelData<ushort>(0).ToArray(),
+                Prefabs = combinedPrefabs.ToArray(), OrdinarySpeciesCount = treePrefabs.Length, BambooFraction = bambooFraction,
+                Pixels = texture.GetPixelData<ushort>(0).ToArray(),
                 Width = texture.width, Height = texture.height, Size = map.Sizes[level], VerticalSize = map.TerrainHeightMeters,
                 Sea = map.SeaLevelMeters, Coverage = maximumCoverage, CellSize = zoneCellSize * groveScale,
                 MinimumRadius = minimumGroveRadius * groveScale, MaximumRadius = maximumGroveRadius * groveScale, MinimumArea = minimumGroveArea * groveScale * groveScale,
