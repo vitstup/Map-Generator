@@ -67,9 +67,11 @@ Shader "TacticalMaps/Agriculture/Rice"
             fade*=1-smoothstep(_CropRanges.y*.55,_CropRanges.y,d);
             // Complementary pixel ranks replace close plants with the simplified patch.
             if(_CropRanges.z<.5)clip(fade-rank);else clip(rank-(1-fade));
-            Light sun=GetMainLight(TransformWorldToShadowCoord(i.world));
+            // Crops keep diffuse lighting, but never sample the shadow atlas.
+            // Both LODs must remain shadow-free, including beyond cascade bounds.
+            Light sun=GetMainLight();
             half diffuse=.4+.6*saturate(abs(dot(normalize(i.normal),sun.direction)));
-            half3 color=i.color*(SampleSH(half3(0,1,0))+sun.color*diffuse*sun.shadowAttenuation);
+            half3 color=i.color*(SampleSH(half3(0,1,0))+sun.color*diffuse);
             return half4(MixFog(color,i.fog),1);
         }
         ENDHLSL
@@ -79,8 +81,6 @@ Shader "TacticalMaps/Agriculture/Rice"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
-            #pragma multi_compile_fragment _ _SHADOWS_SOFT
             #pragma multi_compile_fog
             ENDHLSL
         }

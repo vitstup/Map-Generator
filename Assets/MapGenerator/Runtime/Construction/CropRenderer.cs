@@ -109,7 +109,7 @@ namespace TacticalMaps.Construction
                 block.SetVector("_CropVertical" + l, new Vector4(p.y, s.y, terrain.terrainData.heightmapResolution, 0));
             }
             var bounds = new Bounds(mapCenter + Vector3.up * terrains[0].terrainData.size.y / 2, new Vector3(terrains[2].terrainData.size.x, terrains[0].terrainData.size.y + 100, terrains[2].terrainData.size.z));
-            Graphics.DrawMeshInstancedIndirect(mesh, 0, library.cropMaterial, bounds, args, 0, block, ShadowCastingMode.Off, true, gameObject.layer, camera, LightProbeUsage.Off);
+            Graphics.DrawMeshInstancedIndirect(mesh, 0, library.cropMaterial, bounds, args, 0, block, ShadowCastingMode.Off, false, gameObject.layer, camera, LightProbeUsage.Off);
         }
     }
 }
