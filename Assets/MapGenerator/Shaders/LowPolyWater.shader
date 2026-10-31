@@ -6,8 +6,8 @@ Shader "TacticalMaps/LowPolyWater"
         _DeepColor ("Deep water", Color) = (0.025,0.28,0.40,1)
         _SkyColor ("Sky reflection tint", Color) = (0.48,0.72,0.80,1)
         _FoamColor ("Shore foam", Color) = (0.78,0.92,0.87,1)
-        _WaveAmplitude ("Wave height, metres", Range(0,3)) = 1.2
-        _WaveLength ("Wave length, metres", Range(20,400)) = 100
+        _WaveAmplitude ("Surface motion strength", Range(0,3)) = 1.2
+        _WaveLength ("Broad surface variation, metres", Range(20,400)) = 100
         _WaveSpeed ("Wave speed", Range(0,3)) = 1.3
         _RippleSize ("Surface ripple size, metres", Range(2,80)) = 18
         _RippleStrength ("Moving ripple normals", Range(0,0.5)) = 0.16
@@ -18,8 +18,8 @@ Shader "TacticalMaps/LowPolyWater"
         _FoamDepth ("Foam depth, metres", Range(0.1,10)) = 0.7
         _FoamStrength ("Foam strength", Range(0,1)) = 0.35
         _GlintStrength ("Sun glints", Range(0,2)) = 0.55
-        _ShallowOpacity ("Shallow opacity", Range(0,1)) = 0.12
-        _DeepOpacity ("Deep opacity", Range(0,1)) = 0.88
+        _ShallowOpacity ("Shallow opacity, vertical view", Range(0,1)) = 0.12
+        _DeepOpacity ("Deep opacity, vertical view", Range(0,1)) = 0.88
         _AbsorptionDepth ("Opacity depth, metres", Range(1,100)) = 18
         [HideInInspector] _Depth0 ("Main seabed", 2D) = "black" {}
         [HideInInspector] _Depth1 ("Middle seabed", 2D) = "black" {}
@@ -47,6 +47,7 @@ Shader "TacticalMaps/LowPolyWater"
             #pragma multi_compile_fog
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
             TEXTURE2D(_Depth0); SAMPLER(sampler_Depth0);
             TEXTURE2D(_Depth1); SAMPLER(sampler_Depth1);
             TEXTURE2D(_Depth2); SAMPLER(sampler_Depth2);
@@ -60,7 +61,7 @@ Shader "TacticalMaps/LowPolyWater"
                 float _HeightRange, _WaterLevel;
             CBUFFER_END
             struct Attributes { float4 positionOS : POSITION; };
-            struct Varyings { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; half fog : TEXCOORD1; half crest : TEXCOORD2; };
+            struct Varyings { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; half fog : TEXCOORD1; };
             float Hash(float2 p)
             {
                 float3 q = frac(float3(p.xyx) * 0.1031);
@@ -83,63 +84,106 @@ Shader "TacticalMaps/LowPolyWater"
                 else h = SAMPLE_TEXTURE2D_LOD(_Depth2,sampler_Depth2,p*_MapSize2.zw+0.5,0).r;
                 return _MapCenter.y + h * _HeightRange;
             }
+            // Smooth 2D noise and its analytic gradient. No repeating wave trains.
+            float SurfaceNoise(float2 p,out float2 gradient)
+            {
+                float2 cell=floor(p),f=frac(p);
+                float2 u=f*f*f*(f*(f*6-15)+10);
+                float2 du=30*f*f*(f-1)*(f-1);
+                float a=Hash(cell),b=Hash(cell+float2(1,0));
+                float c=Hash(cell+float2(0,1)),d=Hash(cell+1);
+                float crossTerm=a-b-c+d;
+                gradient=float2(b-a+crossTerm*u.y,c-a+crossTerm*u.x)*du;
+                return a+(b-a)*u.x+(c-a)*u.y+crossTerm*u.x*u.y-.5;
+            }
+            float SurfaceMotion(float2 p,float2 footprint,out float2 slope)
+            {
+                float time=_Time.y*_WaveSpeed*_FlowSpeed*.18;
+                float small=max(12,_RippleSize),large=max(32,_WaveLength*.55);
+                float2 g0,g1;
+                float nearFilter=1-smoothstep(.1,.5,max(footprint.x,footprint.y)/small);
+                float largeFilter=1-smoothstep(.1,.5,max(footprint.x,footprint.y)/large);
+                float a=SurfaceNoise((p+float2(time,-time*.37))/small,g0)*nearFilter;
+                float2 rotated=float2(p.x*.6-p.y*.8,p.x*.8+p.y*.6);
+                float b=SurfaceNoise((rotated+float2(-time*.43,time*.61))/large+37.1,g1)*largeFilter;
+                g1=float2(g1.x*.6+g1.y*.8,-g1.x*.8+g1.y*.6);
+                slope=(g0*nearFilter*.65+g1*largeFilter*.35)*_RippleStrength*.65*min(_WaveAmplitude,1.5);
+                return a*.65+b*.35;
+            }
             Varyings Vert(Attributes input)
             {
                 Varyings o;
                 float3 p = TransformObjectToWorld(input.positionOS.xyz);
-                float2 q = p.xz - _MapCenter.xz;
-                float phase = _Time.y * _WaveSpeed;
-                float k = 6.2831853 / max(1,_WaveLength);
-                float wave = sin(dot(q,float2(0.8,0.6))*k+phase)*0.65
-                           + sin(dot(q,float2(-0.6,0.8))*k*1.73-phase*1.17)*0.35;
-                float ground = Ground(p.xz);
-                float depth = max(0,_WaterLevel-ground);
-                // Waves disappear at the shore instead of being clamped onto nearly coincident ground.
-                float amplitude = min(_WaveAmplitude * saturate(depth/4),depth*0.3);
-                p.y = _WaterLevel+_SurfaceLift+wave*amplitude;
+                float2 surface=p.xz-_MapCenter.xz;
+                float2 gradient;
+                float movement=SurfaceMotion(surface,0,gradient);
+                float regional=SurfaceNoise(surface/140,gradient);
+                // A moving waterline and irregular low swells, on the existing mesh.
+                // No directional sine trains and no camera-local replacement patch.
+                float surge=.16+.11*sin(_Time.y*_WaveSpeed*.72+regional*3);
+                p.y = _WaterLevel+_SurfaceLift+(surge+movement*.2)*_WaveAmplitude;
                 o.positionWS = p;
                 o.positionCS = TransformWorldToHClip(p);
                 o.fog = ComputeFogFactor(o.positionCS.z);
-                o.crest = wave;
                 return o;
             }
             half4 Frag(Varyings input) : SV_Target
             {
-                float ground = Ground(input.positionWS.xz);
-                // Terrain depth testing handles geometry; this clips uphill water triangles at the shore.
-                float depth = max(0,_WaterLevel-ground);
-                clip(depth-0.02);
-                half3 normal = normalize(cross(ddy(input.positionWS),ddx(input.positionWS)));
-                normal *= normal.y < 0 ? -1 : 1;
-                float2 surface = input.positionWS.xz-_MapCenter.xz;
-                float2 flow = surface-float2(0.8,0.6)*_Time.y*_FlowSpeed;
-                float rippleK=6.2831853/max(1,_RippleSize);
-                float warp=FoamNoise(flow*0.035)*6;
-                float r0=dot(flow,float2(0.8,0.6))*rippleK+warp;
-                float r1=dot(flow,float2(-0.45,0.89))*rippleK*1.41-warp;
-                float2 perturb=(cos(r0)*float2(0.8,0.6)+cos(r1)*float2(-0.45,0.89)*0.55)*_RippleStrength;
-                normal=normalize(normal+float3(perturb.x,0,perturb.y)*saturate(depth/2));
                 half3 view = GetWorldSpaceNormalizeViewDir(input.positionWS);
+                float mapDepth=max(0,_WaterLevel-Ground(input.positionWS.xz));
+                float rawDepth=SampleSceneDepth(GetNormalizedScreenSpaceUV(input.positionCS));
+                float sceneEye=LinearEyeDepth(rawDepth,_ZBufferParams);
+                float waterEye=-TransformWorldToView(input.positionWS).z;
+                float contactGap=max(0,sceneEye-waterEye);
+                float viewDistance=distance(input.positionWS,_WorldSpaceCameraPos);
+                // Actual rendered terrain defines contact, not the reduced bed map.
+                // The latter remains the fallback under sky, preserving the horizon fix.
+                float hasBed=step(sceneEye,_ProjectionParams.z*.999);
+                float depth=lerp(mapDepth,contactGap*abs(view.y),hasBed*(1-smoothstep(250,700,viewDistance)));
+                float2 surface = input.positionWS.xz-_MapCenter.xz;
+                clip(min(_MapSize2.x*.5-abs(surface.x),_MapSize2.y*.5-abs(surface.y)));
+                float2 dx=ddx(surface),dy=ddy(surface),footprint=abs(dx)+abs(dy);
+                float2 slope;
+                float motion=SurfaceMotion(surface,footprint,slope);
+                float detailFade=1-smoothstep(350,1800,viewDistance);
+                slope*=detailFade*smoothstep(.05,1,depth);
+                half3 normal=normalize(float3(-slope.x,1,-slope.y));
                 Light light = GetMainLight();
                 half diffuse = saturate(dot(normal,light.direction));
-                half3 color = lerp(_ShallowColor.rgb,_DeepColor.rgb,saturate(depth/max(0.1,_DepthColorDistance)));
-                color *= 0.65 + diffuse * 0.35;
-                color *= 0.96 + input.crest * 0.10;
-                color += _SkyColor.rgb * smoothstep(0.65,0.95,input.crest) * 0.035;
-                half movingCrests = smoothstep(0.82,0.99,sin(r0))
-                    * smoothstep(0.45,0.75,FoamNoise(flow*float2(0.16,0.13)+float2(91,17)));
-                color += _SkyColor.rgb * movingCrests * _RippleHighlights * saturate(depth/2);
-                half fresnel = 1-saturate(dot(normal,view)); fresnel *= fresnel; fresnel *= fresnel;
-                color = lerp(color,_SkyColor.rgb,fresnel*0.55);
+                // At distance the water column dominates the seabed tint. A coarse
+                // offshore depth cliff must not draw a polygonal colour boundary.
+                float tintDepth=lerp(depth,_DepthColorDistance*2,smoothstep(300,1000,viewDistance));
+                half3 color = lerp(_ShallowColor.rgb,_DeepColor.rgb,saturate(tintDepth/max(0.1,_DepthColorDistance)));
+                color *= .82 + diffuse * .18;
+                color *= 1+motion*_RippleHighlights*.65*detailFade;
+                half fresnel = 1-saturate(abs(view.y)); fresnel *= fresnel; fresnel *= fresnel;
+                color = lerp(color,_SkyColor.rgb,fresnel*0.45);
                 half sun = saturate(dot(reflect(-light.direction,normal),view));
-                color += light.color * smoothstep(0.96,0.998,sun) * _GlintStrength;
-                half shore = (1-smoothstep(0,max(0.1,_FoamDepth),depth))*smoothstep(0.02,0.4,depth);
+                color += light.color * pow(sun,24) * _GlintStrength * .05 * detailFade;
+                float contactWidth=max(.3,_FoamDepth*.35/max(.2,abs(view.y)));
+                float shore=1-smoothstep(0,contactWidth*2,contactGap);
+                shore*=shore;
                 half foam = 0;
-                [branch] if (shore > 0.001)
-                    foam = shore * smoothstep(0.4,0.75,FoamNoise((input.positionWS.xz-_MapCenter.xz)*0.08+_Time.y*float2(0.08,0.035))) * _FoamStrength;
+                [branch] if (shore > .001)
+                {
+                    float t=_Time.y*_WaveSpeed;
+                    float breakup=FoamNoise(surface*.22+float2(t*.11,-t*.07));
+                    float wash=.65+.35*sin(t*.72+FoamNoise(surface*.018)*4);
+                    float foamFilter=(1-smoothstep(.5,2.5,max(footprint.x,footprint.y)))*(1-smoothstep(350,900,viewDistance));
+                    foam=shore*smoothstep(.28,.7,breakup)*wash*_FoamStrength*1.3*foamFilter;
+                }
                 color = lerp(color,_FoamColor.rgb,foam);
                 half opacity = lerp(_ShallowOpacity,_DeepOpacity,1-exp2(-depth/max(0.1,_AbsorptionDepth)));
+                // Beer-Lambert transmission along the viewing ray. The old vertical
+                // opacity left the sky/seabed visible even across kilometres of sea.
+                // Use the mean water plane, so animated ripple normals cannot make
+                // transparency flicker or expose a strip of sky near the horizon.
+                float pathLength = rcp(max(0.02,abs(view.y)));
+                opacity = 1-pow(saturate(1-opacity),pathLength);
                 opacity = lerp(opacity,1,foam);
+                // Fade into the real beach over a world-sized contact zone. This
+                // removes the hard staircase even at shallow viewing angles.
+                opacity*=lerp(smoothstep(0,max(.8,fwidth(contactGap)*1.5),contactGap),1,smoothstep(400,900,viewDistance));
                 return half4(MixFog(color,input.fog),opacity);
             }
             ENDHLSL
