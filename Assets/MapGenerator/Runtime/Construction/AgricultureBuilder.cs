@@ -12,7 +12,7 @@ namespace TacticalMaps.Construction
     {
         [SerializeField] private AgricultureLibrary library;
         [SerializeField, Min(50)] private float detailedCropDistance = 110;
-        [SerializeField, Min(100)] private float cropDistance = 1200;
+        [SerializeField, Min(100), Tooltip("Maximum plant geometry range. Capped at detailed range + 190 m; the terrain canopy continues to the horizon.")] private float cropDistance = 300;
         [SerializeField, Tooltip("Generate earthen borders around fields. Courtyard fences are independent.")] private bool generateFieldBanks = true;
         [SerializeField, Min(0)] private float detailedBuildingMargin = 200;
         [SerializeField, Min(1)] private int maximumCropPatches = 450000;

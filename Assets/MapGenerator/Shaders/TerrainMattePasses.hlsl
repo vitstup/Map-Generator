@@ -200,7 +200,8 @@ half4 MatteFragment(Varyings input) : SV_Target
         }
         if (_GrassOptions.y > 2.5) albedo=lerp(albedo,half3(GrassHash(floor(input.positionWS.xz/_GrassOptions.x)),.3,.5),amount);
     }
-    FarmSurface(input.positionWS, albedo, normal);
+    half4 farmCanopy;
+    FarmSurface(input.positionWS, albedo, normal, farmCanopy);
     if (_RoadEnabled > .5 && input.positionWS.y > _RoadOptions.y + .05)
     {
         float4 road=RoadSample(input.positionWS.xz);
@@ -245,6 +246,10 @@ half4 MatteFragment(Varyings input) : SV_Target
     surface.albedo=albedo; surface.normalTS=normal; surface.occlusion=1; surface.alpha=coverage;
     // BlinnPhong with zero specular is diffuse-only: no Fresnel or environment reflection term.
     half4 color=UniversalFragmentBlinnPhong(lighting,surface);
+    // Match the shadow-free plants before fog and terrain layer weighting.
+    Light cropSun=GetMainLight();
+    half3 canopyLighting=SampleSH(half3(0,1,0))+cropSun.color*.72;
+    color.rgb=lerp(color.rgb,farmCanopy.rgb*canopyLighting,farmCanopy.a);
     SplatmapFinalColor(color,lighting.fogCoord);
     return half4(color.rgb,1);
 }

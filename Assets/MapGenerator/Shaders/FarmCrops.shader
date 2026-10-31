@@ -9,6 +9,7 @@ Shader "TacticalMaps/Agriculture/Rice"
         #pragma target 4.5
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+        #include "FarmCropCommon.hlsl"
         StructuredBuffer<float4> _CropPatches, _CropShapes, _CropStyles, _CropExclusions;
         StructuredBuffer<uint> _VisibleCrops;
         TEXTURE2D(_CropHeight0); SAMPLER(sampler_CropHeight0);
@@ -24,13 +25,14 @@ Shader "TacticalMaps/Agriculture/Rice"
             return v.x+h*2*v.y;
         }
         struct A { float3 p:POSITION; float3 n:NORMAL; float2 uv:TEXCOORD0; float2 root:TEXCOORD1; uint instance:SV_InstanceID; };
-        struct V { float4 p:SV_POSITION; float3 world:TEXCOORD0; half3 normal:TEXCOORD1; half3 color:TEXCOORD2; float permission:TEXCOORD3; float fog:TEXCOORD4; };
+        struct V { float4 p:SV_POSITION; float3 world:TEXCOORD0; half3 normal:TEXCOORD1; half3 color:TEXCOORD2; float permission:TEXCOORD3; float fog:TEXCOORD4; nointerpolation float canopy:TEXCOORD5; };
         float Hash(float2 p){return frac(sin(dot(p,float2(127.1,311.7)))*43758.5453);}
         V Vert(A a)
         {
             V o; float4 patch=_CropPatches[_VisibleCrops[a.instance]]; float4 style=_CropStyles[(uint)patch.w];
             float4 shape=_CropShapes[(uint)patch.w];
             float2 axis=float2(cos(style.x),sin(style.x)), side=float2(-axis.y,axis.x);
+            o.canopy=FarmCanopyBlend(FarmParcelDistance(_WorldSpaceCameraPos,patch.y,shape,axis),_CropRanges.y);
             float2 root=patch.xz+axis*a.root.x+side*a.root.y;
             // World-anchored, time-independent jitter, shared by near and distant clumps.
             float2 offset=(float2(Hash(root+float2(37.1,style.z*19)),Hash(root+float2(style.z*23,83.7)))-.5)*.13;
@@ -64,7 +66,7 @@ Shader "TacticalMaps/Agriculture/Rice"
             float regional=sin(i.world.x*.013+sin(i.world.z*.017)) * 6;
             float nearFade=smoothstep(_CropRanges.x-16+regional,_CropRanges.x+16+regional,d);
             float fade=_CropRanges.z<.5?1-nearFade:nearFade;
-            fade*=1-smoothstep(_CropRanges.y*.55,_CropRanges.y,d);
+            fade*=1-i.canopy;
             // Complementary pixel ranks replace close plants with the simplified patch.
             if(_CropRanges.z<.5)clip(fade-rank);else clip(rank-(1-fade));
             // Crops keep diffuse lighting, but never sample the shadow atlas.

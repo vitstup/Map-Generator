@@ -1,5 +1,8 @@
 #pragma kernel Cull
 StructuredBuffer<float4> _CropPatches;
+StructuredBuffer<float4> _CropShapes, _CropStyles;
+#define FARM_CROP_CULLING
+#include "FarmCropCommon.hlsl"
 AppendStructuredBuffer<uint> _Near;
 AppendStructuredBuffer<uint> _Far;
 uint _Count;
@@ -11,7 +14,9 @@ void Cull(uint3 id:SV_DispatchThreadID)
     if(id.x>=_Count)return;
     float3 p=_CropPatches[id.x].xyz;
     float d=distance(p,_Camera);
-    if(d>_Ranges.y+6)return;
+    float4 style=_CropStyles[(uint)_CropPatches[id.x].w];
+    float2 axis=float2(cos(style.x),sin(style.x));
+    if(FarmParcelDistance(_Camera,p.y,_CropShapes[(uint)_CropPatches[id.x].w],axis)>=_Ranges.y)return;
     for(int i=0;i<6;i++)if(dot(_Planes[i].xyz,p)+_Planes[i].w < -7)return;
     if(d<_Ranges.x+32)_Near.Append(id.x);
     if(d>_Ranges.x-32)_Far.Append(id.x);

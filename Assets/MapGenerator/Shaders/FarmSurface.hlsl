@@ -1,5 +1,6 @@
 #ifndef TACTICAL_FARM_SURFACE
 #define TACTICAL_FARM_SURFACE
+#include "FarmCropCommon.hlsl"
 TEXTURE2D(_FarmMap);
 TEXTURE2D(_FarmSoil);
 TEXTURE2D(_FarmSoilNormal);
@@ -8,6 +9,7 @@ TEXTURE2D(_FarmProfiles);
 TEXTURE2D_ARRAY(_FarmDistances);
 float4 _FarmRect, _FarmDetailGrid, _FarmCenter;
 float _FarmEnabled, _FarmVersion;
+float _FarmGeometryDistance;
 bool FarmDetail(float2 world, out float signedDistance, out float4 shape, out float4 style, out float4 detail, out float4 exclusion)
 {
     signedDistance=32;shape=0;style=0;detail=0;exclusion=0;
@@ -31,8 +33,22 @@ bool FarmDetail(float2 world, out float signedDistance, out float4 shape, out fl
     shape.xy+=_FarmCenter.xy;
     return true;
 }
-void FarmSurface(float3 world, inout half3 albedo, inout half3 normal)
+// Analytically filtered planting dots: once cells are subpixel, converge to their
+// area average instead of sparkling or disappearing. No extra texture or draw call.
+float FarmPlantDots(float2 local)
 {
+    float2 cell=local/.8;
+    float2 width=max(abs(ddx(cell))+abs(ddy(cell)),.001);
+    // Integrate each smooth periodic dot over the pixel footprint. Separate axes retain
+    // visible rows at grazing angles even when the other axis is already subpixel.
+    // Stop at Nyquist rather than allowing sinc side lobes to reverse the pattern.
+    float2 w=min(width,1)*3.14159265;
+    float2 filtered=.5+.5*cos(cell*6.2831853)*(sin(w)/w);
+    return filtered.x*filtered.y;
+}
+void FarmSurface(float3 world, inout half3 albedo, inout half3 normal, out half4 canopy)
+{
+    canopy=0;
     if(_FarmEnabled<.5||_FarmVersion<2.5)return;
     float2 uv=(world.xz-_FarmRect.xy)/_FarmRect.zw;
     if(any(uv<0)||any(uv>1))return;
@@ -47,10 +63,25 @@ void FarmSurface(float3 world, inout half3 albedo, inout half3 normal)
         float2 local=float2(dot(d,style.xy),dot(d,float2(-style.y,style.x)));
         if(all(abs(local-exclusion.xy)<=exclusion.zw))return;
     }
+    if(detailed && style.z>.5 && style.z<3.5 && sd<-1)
+    {
+        float2 delta=world.xz-shape.xy;
+        float2 local=float2(dot(delta,style.xy),dot(delta,float2(-style.y,style.x)));
+        float distanceToParcel=FarmParcelDistance(_WorldSpaceCameraPos,world.y,shape,style.xy);
+        float blend=_FarmGeometryDistance>0?FarmCanopyBlend(distanceToParcel,_FarmGeometryDistance):1;
+        float edge=1-smoothstep(-2.6,-1.8,sd);
+        // First clump root is .4 metres from the parcel's negative corner.
+        // One distant mark represents a cluster. This keeps the canopy readable
+        // at tactical zoom without retaining thousands of subpixel blade triangles.
+        float2 planting=local+shape.zw-.4;
+        float dots=FarmPlantDots(planting*.5);
+        canopy=half4(FarmCropColor(style.z,style.w)*.91,dots*edge*blend);
+    }
     bool accurate=distanceToCamera<1600 && footprint<12 && detailed;
     if(!accurate)
     {
         albedo=lerp(albedo,far.rgb/max(.0001,far.a),far.a);
+        canopy=0; // The filtered horizon mask already contains the canopy average.
         return;
     }
     float aa=clamp(footprint*.6,.08,1.2);
@@ -77,6 +108,7 @@ void FarmSurface(float3 world, inout half3 albedo, inout half3 normal)
     float ridge=sin(phase)*rowWeight*.18;
     soilNormal.xy+=across*ridge;
     float farBlend=max(smoothstep(6,12,footprint),smoothstep(1000,1550,distanceToCamera));
+    canopy.a*=1-farBlend;
     albedo=lerp(albedo,lerp(surface,far.rgb/max(.0001,far.a),farBlend),lerp(amount,far.a,farBlend));
     normal=normalize(lerp(normal,normalize(soilNormal),amount*(1-farBlend)));
 }

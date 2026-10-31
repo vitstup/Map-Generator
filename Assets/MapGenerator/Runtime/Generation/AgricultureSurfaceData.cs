@@ -104,6 +104,14 @@ namespace TacticalMaps.Generation
         {
             float v = p.Style.w; int crop = Mathf.RoundToInt(p.Style.z);
             Color soil = Color.Lerp(new Color(.29f, .225f, .145f).linear, new Color(.4f, .31f, .2f).linear, v);
+            // The horizon mask is the area average of the same planting dots.
+            // Retain crop colour even outside the paged detail/geometry region.
+            if(crop>=1 && crop<=3)
+            {
+                Color plants=crop==2?Color.Lerp(Color.Lerp(new Color(.49f,.43f,.17f).linear,new Color(.66f,.57f,.28f).linear,v),new Color(.69f,.59f,.29f).linear,.22f)
+                    :Color.Lerp(new Color(.25f,.38f,.115f).linear,new Color(.43f,.54f,.21f).linear,v);
+                soil=Color.Lerp(soil,plants*.91f,.25f);
+            }
             return soil;
         }
         internal static Color32[] FarMask(FarmSurfacePrimitive[] primitives, Vector2 size, int n, CancellationToken token)

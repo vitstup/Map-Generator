@@ -21,6 +21,9 @@ namespace TacticalMaps.Construction
         internal int PatchCount => patches.Length;
         internal long BufferBytes => (patchBuffer != null ? patches.Length * 16L + fieldShapes.Length * 48L : 0) + views.Count * (patches.Length * 8L + 40);
         internal bool SuppressForChecks { get; set; }
+        // Old serialized previews can retain 1200 m. Cap geometry residency without
+        // requiring map regeneration; the terrain canopy has no distance cutoff.
+        internal float GeometryDistance => Mathf.Min(farDistance, Mathf.Max(240, nearDistance + 190));
         private sealed class View : IDisposable
         {
             internal ComputeBuffer Near, Far, NearArgs, FarArgs;
@@ -49,7 +52,7 @@ namespace TacticalMaps.Construction
             patches = points.ToArray(); fieldShapes = shapes.ToArray(); fieldStyles = styles.ToArray(); fieldExclusions = exclusions.ToArray();
         }
         private void OnEnable() => RenderPipelineManager.beginCameraRendering += Render;
-        private void OnDisable() { RenderPipelineManager.beginCameraRendering -= Render; Release(); }
+        private void OnDisable() { RenderPipelineManager.beginCameraRendering -= Render; SetCanopyRange(0); Release(); }
         private void OnValidate() => Release();
         private void Release()
         {
@@ -58,7 +61,9 @@ namespace TacticalMaps.Construction
         }
         private void Render(ScriptableRenderContext context, Camera camera)
         {
-            if (SuppressForChecks || patches.Length == 0 || library == null || terrains == null || terrains.Length != 3 || !SystemInfo.supportsComputeShaders || !SystemInfo.supportsInstancing || camera.cameraType == CameraType.Preview || camera.cameraType == CameraType.Reflection || (camera.cullingMask & (1 << gameObject.layer)) == 0) return;
+            bool supported=!SuppressForChecks && patches.Length>0 && library!=null && terrains!=null && terrains.Length==3 && SystemInfo.supportsComputeShaders && SystemInfo.supportsInstancing;
+            SetCanopyRange(supported?GeometryDistance:0);
+            if (!supported || camera.cameraType == CameraType.Preview || camera.cameraType == CameraType.Reflection || (camera.cullingMask & (1 << gameObject.layer)) == 0) return;
 #if UNITY_EDITOR
             if (camera.scene.IsValid() && UnityEditor.SceneManagement.EditorSceneManager.IsPreviewScene(camera.scene) && camera.scene != gameObject.scene) return;
 #endif
@@ -88,19 +93,25 @@ namespace TacticalMaps.Construction
             view.LastUsed = Time.realtimeSinceStartup;
             view.Near.SetCounterValue(0); view.Far.SetCounterValue(0);
             var compute = library.culling; int kernel = 0;
-            compute.SetBuffer(kernel, "_CropPatches", patchBuffer); compute.SetBuffer(kernel, "_Near", view.Near); compute.SetBuffer(kernel, "_Far", view.Far);
-            compute.SetInt("_Count", patches.Length); compute.SetVector("_Camera", camera.transform.position); compute.SetVector("_Ranges", new Vector4(nearDistance, farDistance, 0, 0));
+            compute.SetBuffer(kernel, "_CropPatches", patchBuffer); compute.SetBuffer(kernel, "_CropShapes", shapeBuffer); compute.SetBuffer(kernel, "_CropStyles", styleBuffer); compute.SetBuffer(kernel, "_Near", view.Near); compute.SetBuffer(kernel, "_Far", view.Far);
+            compute.SetInt("_Count", patches.Length); compute.SetVector("_Camera", camera.transform.position); compute.SetVector("_Ranges", new Vector4(nearDistance, GeometryDistance, 0, 0));
             var planes = GeometryUtility.CalculateFrustumPlanes(camera); var vectors = new Vector4[6];
             for (int i = 0; i < 6; i++) vectors[i] = new Vector4(planes[i].normal.x, planes[i].normal.y, planes[i].normal.z, planes[i].distance);
             compute.SetVectorArray("_Planes", vectors); compute.Dispatch(kernel, (patches.Length + 63) / 64, 1, 1);
             ComputeBuffer.CopyCount(view.Near, view.NearArgs, 4); ComputeBuffer.CopyCount(view.Far, view.FarArgs, 4);
             Draw(camera, library.closeRice, view.Near, view.NearArgs, 0); Draw(camera, library.distantRice, view.Far, view.FarArgs, 1);
         }
+        private void SetCanopyRange(float range)
+        {
+            if (terrains != null) foreach (var terrain in terrains)
+                if (terrain != null && terrain.materialTemplate != null)
+                    terrain.materialTemplate.SetFloat("_FarmGeometryDistance",range);
+        }
         private static uint[] Args(Mesh mesh) => new[] { mesh.GetIndexCount(0), 0u, mesh.GetIndexStart(0), (uint)mesh.GetBaseVertex(0), 0u };
         private void Draw(Camera camera, Mesh mesh, ComputeBuffer visible, ComputeBuffer args, int lod)
         {
             var block = new MaterialPropertyBlock(); block.SetBuffer("_CropPatches", patchBuffer); block.SetBuffer("_CropShapes", shapeBuffer); block.SetBuffer("_CropStyles", styleBuffer); block.SetBuffer("_CropExclusions",exclusionBuffer); block.SetBuffer("_VisibleCrops", visible);
-            block.SetVector("_CropRanges", new Vector4(nearDistance, farDistance, lod, 0));
+            block.SetVector("_CropRanges", new Vector4(nearDistance, GeometryDistance, lod, 0));
             for (int l = 0; l < 3; l++)
             {
                 var terrain = terrains[l]; var p = terrain.transform.position; var s = terrain.terrainData.size;
