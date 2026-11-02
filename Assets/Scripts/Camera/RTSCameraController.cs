@@ -26,6 +26,11 @@ public class RTSCameraController : MonoBehaviour
     [SerializeField] private float moveSmoothTime = 0.15f;
     [SerializeField] private float edgeScreenPanBorder = 0f;   // px, 0 = disabled. Set >0 to enable edge panning.
 
+    [Header("Target Movement Bounds (World XZ)")]
+    [SerializeField, Tooltip("Clamp CameraTarget to a world-space square. The camera's orbit remains free.")] private bool limitMovement;
+    [SerializeField, Tooltip("World-space centre of the square. Y is ignored.")] private Vector3 movementBoundsCenter;
+    [SerializeField, Min(0f), Tooltip("Distance from the centre to each side. The full square has side length 2 x this distance.")] private float movementBoundsDistance = 750f;
+
     [Header("Rotation")]
     [SerializeField] private float rotateSpeed = 0.25f;        // degrees per pixel of mouse delta
     [SerializeField] private bool invertRotation = false;
@@ -34,6 +39,7 @@ public class RTSCameraController : MonoBehaviour
     [SerializeField] private float zoomStepBase = 0.01f;       // minimum step size, applied near value = 0
     [SerializeField] private float zoomStepMax = 0.08f;        // maximum step size, applied near value = 1
     [SerializeField] private float zoomCurveExponent = 2f;     // >1 = step grows slowly at first then ramps up faster near 1
+    [SerializeField, Min(0f), Tooltip("Time to ease towards the requested zoom. Zero disables smoothing.")] private float zoomSmoothTime = 0.18f;
 
     [Header("Terrain Clamping")]
     [SerializeField] private LayerMask groundLayerMask;
@@ -50,9 +56,15 @@ public class RTSCameraController : MonoBehaviour
     private float _currentHeightVelocity;
     private float _targetHeight;
     private bool _heightInitialized;
+    private float _zoomTarget;
+    private float _zoomVelocity;
+    private float _lastZoomValue;
+    private bool _zoomInitialized;
 
     private void OnEnable() 
     {
+        _zoomInitialized = false;
+        _zoomVelocity = 0f;
         moveAction.action.Enable();
         rotateAction.action.Enable();
         zoomAction.action.Enable();
@@ -62,6 +74,8 @@ public class RTSCameraController : MonoBehaviour
 
     private void OnDisable()
     {
+        _zoomInitialized = false;
+        _zoomVelocity = 0f;
         moveAction.action.Disable();
         rotateAction.action.Disable();
         zoomAction.action.Disable();
@@ -78,6 +92,7 @@ public class RTSCameraController : MonoBehaviour
             return;
         }
 
+        ClampTargetToBounds();
         // Initialize target height to current ground height so we don't snap on frame 1.
         float groundY = SampleGroundHeight(target.position, out bool hit);
         _targetHeight = hit ? groundY : target.position.y;
@@ -92,10 +107,24 @@ public class RTSCameraController : MonoBehaviour
         float dt = Time.unscaledDeltaTime;
         if (dt <= 0f) return;
 
-        HandleZoom();
+        HandleZoom(dt);
         HandleRotation();
         HandleMovement(dt);
+        ClampTargetToBounds();
         HandleHeightClamp(dt);
+    }
+
+    private void ClampTargetToBounds()
+    {
+        if (!limitMovement || target == null) return;
+        float distance = Mathf.Max(0f, movementBoundsDistance);
+        Vector3 position = target.position;
+        float x = Mathf.Clamp(position.x, movementBoundsCenter.x - distance, movementBoundsCenter.x + distance);
+        float z = Mathf.Clamp(position.z, movementBoundsCenter.z - distance, movementBoundsCenter.z + distance);
+        // Discard only velocity into a blocked side, preserving smooth movement along the edge.
+        if (x != position.x) { _currentVelocity.x = 0f; _moveSmoothVelocity.x = 0f; }
+        if (z != position.z) { _currentVelocity.z = 0f; _moveSmoothVelocity.z = 0f; }
+        target.position = new Vector3(x, position.y, z);
     }
 
     // ------------------------------------------------------------------
@@ -192,33 +221,51 @@ public class RTSCameraController : MonoBehaviour
 
     // ------------------------------------------------------------------
     // ZOOM (scroll wheel -> OrbitalFollow.RadialAxis.Value)
-    // Step size grows non-linearly with the current normalized position within
+    // Step size grows non-linearly with the requested normalized position within
     // RadialAxis.Range: tiny steps near the range minimum (zoomed in), large
     // steps near the range maximum (zoomed out). Result is clamped to
     // RadialAxis's own Range (inspector), never hardcoded.
     // ------------------------------------------------------------------
-    private void HandleZoom()
+    private void HandleZoom(float dt)
     {
         if (orbitalFollow == null) return;
 
         Vector2 scroll = zoomAction.action.ReadValue<Vector2>();
         float scrollValue = Mathf.Abs(scroll.y) > Mathf.Abs(scroll.x) ? scroll.y : scroll.x;
-        if (Mathf.Approximately(scrollValue, 0f)) return;
+        UpdateZoom(scrollValue, dt);
+    }
 
-        float direction = Mathf.Sign(scrollValue); // +1 = zoom out, -1 = zoom in (scroll up)
+    private void UpdateZoom(float scrollValue, float dt)
+    {
+        if (orbitalFollow == null || dt <= 0f) return;
 
         float rangeMin = orbitalFollow.RadialAxis.Range.x;
         float rangeMax = orbitalFollow.RadialAxis.Range.y;
         float rangeSize = rangeMax - rangeMin;
 
-        float currentValue = orbitalFollow.RadialAxis.Value;
-        float normalized = rangeSize > 0f ? Mathf.Clamp01((currentValue - rangeMin) / rangeSize) : 0f;
-
-        float step = Mathf.Lerp(zoomStepBase, zoomStepMax, Mathf.Pow(normalized, zoomCurveExponent));
-        float scaledStep = step * rangeSize; // step computed in normalized space, scaled back to axis units
-
-        float newValue = currentValue + direction * scaledStep;
-        orbitalFollow.RadialAxis.Value = Mathf.Clamp(newValue, rangeMin, rangeMax);
+        float currentValue = Mathf.Clamp(orbitalFollow.RadialAxis.Value, rangeMin, rangeMax);
+        // Respect direct axis changes from the inspector, camera cuts or other camera tools.
+        if (!_zoomInitialized || Mathf.Abs(currentValue - _lastZoomValue) > .0001f)
+        {
+            _zoomTarget = currentValue; _zoomVelocity = 0f; _zoomInitialized = true;
+        }
+        _zoomTarget = Mathf.Clamp(_zoomTarget, rangeMin, rangeMax);
+        if (!Mathf.Approximately(scrollValue, 0f))
+        {
+            // An opposite wheel tick starts from the visible zoom, cancelling queued motion.
+            if (scrollValue * (_zoomTarget - currentValue) < 0f || scrollValue * _zoomVelocity < 0f)
+            { _zoomTarget = currentValue; _zoomVelocity = 0f; }
+            float normalized = rangeSize > 0f ? Mathf.Clamp01((_zoomTarget - rangeMin) / rangeSize) : 0f;
+            float step = Mathf.Lerp(zoomStepBase, zoomStepMax, Mathf.Pow(normalized, zoomCurveExponent));
+            // Input System supplies uniform scroll units here: retain fractional and multi-notch input.
+            _zoomTarget = Mathf.Clamp(_zoomTarget + scrollValue * step * rangeSize, rangeMin, rangeMax);
+            // Reversing the wheel must not keep carrying the zoom in the old direction.
+            if ((_zoomTarget - currentValue) * _zoomVelocity < 0f) _zoomVelocity = 0f;
+        }
+        float value = zoomSmoothTime <= 0f ? _zoomTarget : Mathf.SmoothDamp(
+            currentValue, _zoomTarget, ref _zoomVelocity, zoomSmoothTime, Mathf.Infinity, dt);
+        if (Mathf.Abs(value - _zoomTarget) < .000001f) { value = _zoomTarget; _zoomVelocity = 0f; }
+        orbitalFollow.RadialAxis.Value = _lastZoomValue = Mathf.Clamp(value, rangeMin, rangeMax);
     }
 
     // ------------------------------------------------------------------
@@ -257,6 +304,14 @@ public class RTSCameraController : MonoBehaviour
 #if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
+        if (limitMovement)
+        {
+            Gizmos.color = Color.cyan;
+            float distance = Mathf.Max(0f, movementBoundsDistance);
+            Vector3 center = movementBoundsCenter;
+            center.y = target != null ? target.position.y : transform.position.y;
+            Gizmos.DrawWireCube(center, new Vector3(distance * 2f, 0f, distance * 2f));
+        }
         if (target == null) return;
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(target.position, 0.5f);

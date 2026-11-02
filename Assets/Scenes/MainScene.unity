@@ -79388,6 +79388,10 @@ PrefabInstance:
       propertyPath: m_LocalRotation.x
       value: 0.15212339
       objectReference: {fileID: 0}
+    - target: {fileID: 8726093421567681417, guid: 07a83ef670067164fa3d02aa87d949aa, type: 3}
+      propertyPath: movementBoundsDistance
+      value: 1500
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

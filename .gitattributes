@@ -1,1 +1,2 @@
 Assets/MapGenerator/Generated/Agriculture/Preview/RoadSignedDistances*.asset filter=lfs diff=lfs merge=lfs -text
+Assets/Plugins/MapGenerator/Generated/Agriculture/Preview/RoadSignedDistances*.asset filter=lfs diff=lfs merge=lfs -text
