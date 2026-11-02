@@ -111,7 +111,8 @@ namespace TacticalMaps.Construction
             // Placement positions are local to GeneratedMap; it is normally at world identity.
             for(int i=0;i<props.Length;i++)props[i].position=group.transform.InverseTransformPoint(props[i].position);
             group.AddComponent<FarmPropRenderer>().Configure(library,props,propDrawDistance);
-            FarmFenceBuilder.Build(map.Agriculture.Farms, library, terrains, center, map.Sizes[0], group.transform, owned);
+            FarmFenceBuilder.Build(map.Agriculture.Farms, library, terrains, center, map.Sizes[0], group.transform, owned,
+                map.Sizes[1], map.Agriculture.FenceLayer, map.Agriculture.SurroundingsFenceColliders);
             foreach (var pair in banks) owned.AddMesh(pair.Value.Build(group.transform, "FieldBanks_" + pair.Key, library.bankMaterial, true));
             LastBuildMilliseconds = clock.Elapsed.TotalMilliseconds;
         }
