@@ -11,6 +11,8 @@ namespace TacticalMaps.Generation
     internal sealed class AgricultureGenerator : MonoBehaviour
     {
         [SerializeField] private bool generateAgriculture = true;
+        [SerializeField, TacticalMaps.Construction.LayerIndex, Tooltip("Physics layer for house colliders. Main terrain always has house physics; Horizon never does.")] private int buildingLayer;
+        [SerializeField, Tooltip("Enable house colliders in the Surroundings ring as well as Main terrain.")] private bool surroundingsBuildingColliders;
         [SerializeField] private Texture2D densitySource;
         [SerializeField, Range(0, 1)] private float coverage = .9f;
         [SerializeField, Min(300)] private float districtSize = 600;
@@ -57,6 +59,7 @@ namespace TacticalMaps.Generation
         private AgricultureInput Capture(MapData map, int radius)
         {
             if (!generateAgriculture) return null;
+            if (buildingLayer < 0 || buildingLayer > 31) throw new InvalidOperationException("Invalid house physics layer.");
             if (densitySource == null || !densitySource.isReadable || densitySource.format != TextureFormat.R16)
                 throw new InvalidOperationException("Agriculture requires a readable linear R16 density map.");
             if (districtSize < 120 || maximumFields < 1 || maximumFarms < 1 || coverage < 0 || coverage > 1 || maximumSlope < 0 || maximumSlope > 20 || fullDensity <= densityThreshold || fieldAreaScale < .1f || fieldAreaScale > 1 || connectionRadius < 0 || maximumAccessLength < 100 || beachClearance < 0)
@@ -69,6 +72,7 @@ namespace TacticalMaps.Generation
                 Coverage = coverage, District = districtSize, Slope = maximumSlope, FarmProbability = 1, Limit = maximumFields, FarmLimit = maximumFarms,
                 Threshold = densityThreshold, FullDensity = fullDensity, Exponent = densityExponent, Seed = seed, Roads = map.Roads, AreaScale = fieldAreaScale, FieldBuildingsChance = fieldBuildingsChance, AccessWidth = GetComponent<RoadGenerator>() != null ? GetComponent<RoadGenerator>().MediumWidth : 3, ConnectionRadius = connectionRadius, AccessLength = maximumAccessLength, BeachClearance = beachClearance, BeachHeight = GetComponent<BiomeGenerator>() != null ? GetComponent<BiomeGenerator>().BeachHeight : 2.5f };
             input.Footprints = houseFootprints != null ? (Vector2[])houseFootprints.Clone() : null;
+            input.BuildingLayer = buildingLayer; input.SurroundingsBuildingColliders = surroundingsBuildingColliders;
             for (int i = 0; i < 3; i++)
             { input.Pixels[i] = map.Heightmaps[i].GetPixelData<ushort>(0).ToArray(); input.Widths[i] = map.Heightmaps[i].width; input.Heights[i] = map.Heightmaps[i].height; input.Sizes[i] = map.Sizes[i]; }
             return input;
@@ -78,6 +82,8 @@ namespace TacticalMaps.Generation
     {
         internal ushort[] Density;
         internal int SourceWidth, SourceHeight, Radius, Limit, Seed, FarmLimit = 450;
+        internal int BuildingLayer;
+        internal bool SurroundingsBuildingColliders;
         internal Vector2Int SourcePoint;
         internal readonly ushort[][] Pixels = new ushort[3][];
         internal readonly int[] Widths = new int[3], Heights = new int[3];
@@ -94,6 +100,7 @@ namespace TacticalMaps.Generation
             ulong h = 1469598103934665603UL;
             void Add(int value) { unchecked { h = (h ^ (uint)value) * 1099511628211UL; } }
             Add(9); Add(SourcePoint.x); Add(SourcePoint.y); Add(Radius); Add(Seed); Add(Limit); Add(FarmLimit);
+            Add(BuildingLayer); Add(SurroundingsBuildingColliders ? 1 : 0);
             foreach (float v in new[] { Height, Sea, Coverage, District, Slope, Threshold, FullDensity, Exponent, AreaScale, ConnectionRadius, AccessLength, BeachClearance, BeachHeight, FieldBuildingsChance, AccessWidth }) Add(BitConverter.SingleToInt32Bits(v));
             foreach (var s in Sizes) { Add(BitConverter.SingleToInt32Bits(s.x)); Add(BitConverter.SingleToInt32Bits(s.y)); }
             if (Footprints != null) foreach (var s in Footprints) { Add(BitConverter.SingleToInt32Bits(s.x)); Add(BitConverter.SingleToInt32Bits(s.y)); }
@@ -229,7 +236,7 @@ namespace TacticalMaps.Generation
             var tracks = AgricultureAccess.Build(this, fields.ToArray(), farms.ToArray(), token, (r,c)=>{requested=r;connected=c;});
 
             double planning = clock.Elapsed.TotalMilliseconds;
-            var result = new AgricultureData(fields.ToArray(), farms.ToArray(), null, new[] { 1024, 1024, 1024 }, tracks);
+            var result = new AgricultureData(fields.ToArray(), farms.ToArray(), null, new[] { 1024, 1024, 1024 }, tracks, BuildingLayer, SurroundingsBuildingColliders);
             result.CombinedRoads=AgricultureRoads.Combine(Roads,tracks,Sizes[2],AccessWidth,p=>Sample(p)>Sea+.2f,token);
             result.AccessRequested=requested;result.AccessConnected=connected;
             result.BuildSurfaces(Sizes, token); result.PlanningMilliseconds = planning; result.SurfaceMilliseconds = clock.Elapsed.TotalMilliseconds - planning;

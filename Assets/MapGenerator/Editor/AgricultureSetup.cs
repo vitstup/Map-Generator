@@ -179,7 +179,7 @@ namespace TacticalMaps.Editor
                 closeRenderers.Clear(); closeRenderers.Add(AgricultureLodBaker.Merge(detailed.transform,"House"+index+"_CloseCombined"));
                 var lod = root.AddComponent<LODGroup>(); lod.fadeMode = LODFadeMode.CrossFade; lod.animateCrossFading = true;
                 lod.SetLODs(new[] { new LOD(.09f, closeRenderers.ToArray()), new LOD(.025f, medium), new LOD(.0004f, distant) }); lod.RecalculateBounds();
-                var collider = root.AddComponent<BoxCollider>(); collider.center = new Vector3(0, bounds.size.y * .4f, 0); collider.size = new Vector3(bounds.size.x * .78f, bounds.size.y * .8f, bounds.size.z * .78f);
+                FarmBuildingColliderBaker.Bake(root, prefab, pivot);
                 var grounding = root.AddComponent<FarmBuildingGrounding>(); grounding.halfFootprint = new Vector2(bounds.size.x, bounds.size.z) * .5f;
                 grounding.supports = FarmFoundationBaker.Anchors(prefab,pivot,bounds);
                 grounding.platformHeight = grounding.supports[0].y;

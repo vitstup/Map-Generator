@@ -98,6 +98,8 @@ namespace TacticalMaps.Construction
                     float offset = grounding != null ? FarmBuildingGrounding.PlatformClearance - grounding.platformHeight * building.scale : -.035f;
                     go.transform.position = Ground(building.center, terrains, center, offset); go.transform.rotation = Quaternion.Euler(0, -building.angle * Mathf.Rad2Deg, 0);
                     go.transform.localScale = Vector3.one * building.scale;
+                    FarmBuildingPhysics.Configure(go, house, FarmBuildingPhysics.Level(building.center, map.Sizes[0], map.Sizes[1]),
+                        map.Agriculture.BuildingLayer, map.Agriculture.SurroundingsBuildingColliders);
                     if (Mathf.Abs(building.center.x)<map.Sizes[0].x/2+600 && Mathf.Abs(building.center.y)<map.Sizes[0].y/2+600)
                     {
                         var supports=FarmSupportBuilder.Build(go,house.GetComponent<FarmBuildingGrounding>(),library.supportMaterial,terrains,center);

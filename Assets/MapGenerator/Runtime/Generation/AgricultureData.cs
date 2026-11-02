@@ -102,6 +102,8 @@ namespace TacticalMaps.Generation
         internal readonly FarmField[] Fields;
         internal readonly Farmstead[] Farms;
         internal readonly FarmTrack[] Tracks;
+        internal readonly int BuildingLayer;
+        internal readonly bool SurroundingsBuildingColliders;
         internal Color32[][] Masks;
         internal int[] Resolutions;
         internal AgricultureSurfaceData Surface;
@@ -109,10 +111,11 @@ namespace TacticalMaps.Generation
         internal int AccessRequested, AccessConnected;
         internal RoadData CombinedRoads;
         private readonly Dictionary<Vector2Int, List<int>> bins = new Dictionary<Vector2Int, List<int>>();
-        internal AgricultureData(FarmField[] fields, Farmstead[] farms, Color32[][] masks, int[] resolutions, FarmTrack[] tracks = null)
+        internal AgricultureData(FarmField[] fields, Farmstead[] farms, Color32[][] masks, int[] resolutions, FarmTrack[] tracks = null, int buildingLayer = 0, bool surroundingsBuildingColliders = false)
         {
             Fields = fields; Farms = farms; Masks = masks; Resolutions = resolutions;
             Tracks = tracks ?? Array.Empty<FarmTrack>();
+            BuildingLayer = buildingLayer; SurroundingsBuildingColliders = surroundingsBuildingColliders;
             for (int i = 0; i < fields.Length; i++)
             {
                 var b = fields[i].Bounds(8);
