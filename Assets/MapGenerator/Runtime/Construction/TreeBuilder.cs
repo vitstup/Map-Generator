@@ -9,6 +9,7 @@ namespace TacticalMaps.Construction
     internal sealed class TreeBuilder : MonoBehaviour
     {
         [SerializeField] private TreeRenderLibrary renderLibrary;
+        [SerializeField, LayerIndex, Tooltip("Physics layer for the separate main-terrain tree colliders. Background trees have no physics.")] private int treeLayer;
         [SerializeField, Min(1)] private float treeDistance = 6000;
         [SerializeField, Min(16)] private float cullingCellSize = 128;
         [SerializeField, Min(0)] private float shadowDistance = 100;
@@ -56,12 +57,84 @@ namespace TacticalMaps.Construction
             }
             if (trees.Placements.Count == 0) return;
             var root = new GameObject("Trees"); root.transform.SetParent(parent, false);
-            try { root.AddComponent<InstancedTreeRenderer>().Configure(terrains, renderLibrary, treeDistance, cullingCellSize, shadowDistance, meshScreenHeight, minimumImpostorPixels, castShadows); }
+            try
+            {
+                root.AddComponent<InstancedTreeRenderer>().Configure(terrains, renderLibrary, treeDistance, cullingCellSize, shadowDistance, meshScreenHeight, minimumImpostorPixels, castShadows);
+                RebuildColliders(terrains[0], root.transform);
+            }
             catch
             {
                 if (Application.isPlaying) Destroy(root); else DestroyImmediate(root);
                 throw;
             }
+        }
+
+        // These static objects own physics only. GPU rendering still reads all three TerrainData sets.
+        internal void RebuildColliders(Terrain main, Transform root)
+        {
+            if (treeLayer < 0 || treeLayer > 31) throw new InvalidOperationException("Invalid tree physics layer.");
+            for (int i = root.childCount - 1; i >= 0; i--)
+            {
+                var child = root.GetChild(i).gameObject;
+                child.SetActive(false);
+                if (Application.isPlaying) Destroy(child); else DestroyImmediate(child);
+            }
+            var data = main.terrainData;
+            var prototypes = data.treePrototypes;
+            var shapes = new CapsuleCollider[prototypes.Length][];
+            for (int i = 0; i < prototypes.Length; i++)
+            {
+                var prefab = prototypes[i].prefab;
+                foreach (var collider in prefab.GetComponentsInChildren<Collider>(true))
+                    if (!(collider is CapsuleCollider)) throw new InvalidOperationException(prefab.name + " needs capsule-only tree physics.");
+                shapes[i] = prefab.GetComponentsInChildren<CapsuleCollider>(true);
+            }
+            int index = 0;
+            foreach (var tree in data.treeInstances)
+            {
+                var prefab = prototypes[tree.prototypeIndex].prefab;
+                var sources = shapes[tree.prototypeIndex];
+                if (sources.Length == 0) continue;
+                var instance = new GameObject(prefab.name + "_" + index++) { layer = treeLayer };
+                instance.transform.SetParent(root, false);
+                var relative = root.worldToLocalMatrix * main.transform.localToWorldMatrix * Matrix4x4.TRS(
+                    Vector3.Scale(tree.position, data.size), Quaternion.Euler(0, tree.rotation * Mathf.Rad2Deg, 0),
+                    Vector3.Scale(prefab.transform.localScale, new Vector3(tree.widthScale, tree.heightScale, tree.widthScale)));
+                instance.transform.localPosition = relative.GetColumn(3);
+                instance.transform.localRotation = relative.rotation;
+                instance.transform.localScale = relative.lossyScale;
+                foreach (var source in sources)
+                {
+                    if (!source.enabled || !ActiveInPrefab(source.transform, prefab.transform)) continue;
+                    var target = instance;
+                    if (source.transform != prefab.transform)
+                    {
+                        target = new GameObject(source.name) { layer = treeLayer };
+                        target.transform.SetParent(instance.transform, false);
+                        var local = prefab.transform.worldToLocalMatrix * source.transform.localToWorldMatrix;
+                        target.transform.localPosition = local.GetColumn(3);
+                        target.transform.localRotation = local.rotation;
+                        target.transform.localScale = local.lossyScale;
+                    }
+                    var capsule = target.AddComponent<CapsuleCollider>();
+                    capsule.center = source.center; capsule.radius = source.radius; capsule.height = source.height; capsule.direction = source.direction;
+                    capsule.sharedMaterial = source.sharedMaterial; capsule.isTrigger = source.isTrigger;
+                    capsule.contactOffset = source.contactOffset; capsule.providesContacts = source.providesContacts;
+                    capsule.includeLayers = source.includeLayers; capsule.excludeLayers = source.excludeLayers;
+                    capsule.layerOverridePriority = source.layerOverridePriority;
+                }
+            }
+        }
+
+        private static bool ActiveInPrefab(Transform node, Transform root)
+        {
+            // Prefab assets are not active in a scene; activeInHierarchy is always false there.
+            for (var current = node; current != null; current = current.parent)
+            {
+                if (!current.gameObject.activeSelf) return false;
+                if (current == root) return true;
+            }
+            return false;
         }
     }
 }

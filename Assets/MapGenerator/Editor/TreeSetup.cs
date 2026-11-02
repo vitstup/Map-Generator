@@ -39,6 +39,12 @@ namespace TacticalMaps.Editor
                     bamboo.GetArrayElementAtIndex(i).objectReferenceValue = prefab;
                 }
             }
+            foreach (var palette in new[] { prefabs, bamboo })
+                for (int i = 0; i < palette.arraySize; i++)
+                {
+                    var item = palette.GetArrayElementAtIndex(i);
+                    item.objectReferenceValue = TreePhysicsSetup.LocalPrefab((GameObject)item.objectReferenceValue);
+                }
             settings.ApplyModifiedProperties();
             var sources = new GameObject[prefabs.arraySize + bamboo.arraySize];
             for (int i = 0; i < prefabs.arraySize; i++) sources[i] = (GameObject)prefabs.GetArrayElementAtIndex(i).objectReferenceValue;

@@ -25,6 +25,9 @@ namespace TacticalMaps.Editor
             {
                 var generator = root.AddComponent<MapGenerator>(); var builder = root.AddComponent<MapBuilder>();
                 TreeSetup.Configure(generator, builder); ConstructionSetup.Configure(builder);
+                var physicsSettings = new SerializedObject(builder.GetComponent<TreeBuilder>());
+                physicsSettings.FindProperty("treeLayer").intValue = 8;
+                physicsSettings.ApplyModifiedPropertiesWithoutUndo();
                 var sizes = new[] { new Vector2(1024, 768), new Vector2(2048, 1536), new Vector2(4096, 3072) };
                 for (int level = 0; level < 3; level++)
                 {
@@ -106,6 +109,25 @@ namespace TacticalMaps.Editor
                 Check(terrains.All(t => !t.drawTreesAndFoliage), "No duplicate native Terrain tree draws");
                 Check(terrains.All(t => t.terrainData.treeInstanceCount > 0), "All levels retain their placement data");
                 Check(builder.GetComponentInChildren<InstancedTreeRenderer>().TreeCount == all.Placements.Count, "GPU renderer owns all three terrain zones");
+                Check(terrains.All(t => !new SerializedObject(t.GetComponent<TerrainCollider>()).FindProperty("m_EnableTreeColliders").boolValue), "Native tree physics disabled on every generated terrain, including the runtime template");
+                var treeRoot = builder.GetComponentInChildren<InstancedTreeRenderer>().transform;
+                var capsules = treeRoot.GetComponentsInChildren<CapsuleCollider>();
+                Check(treeRoot.childCount == first.Placements.Count && capsules.Length == first.Placements.Count, "One physics object per main tree; zero background tree colliders");
+                Check(capsules.All(c => c.gameObject.layer == 8), "TreeBuilder physics layer applies to every tree collider");
+                Check(treeRoot.GetComponentsInChildren<Renderer>().Length == 0 && treeRoot.GetComponentsInChildren<Rigidbody>().Length == 0, "Physics objects contain no renderers or rigidbodies");
+                Check(all.Prefabs.All(p => AssetDatabase.GetAssetPath(p).StartsWith("Assets/Prefabs/Trees/")), "Placement palette uses project-owned prefab copies");
+                var mainInstances = main.terrainData.treeInstances;
+                for (int i = 0; i < mainInstances.Length; i++)
+                {
+                    var tree = mainInstances[i]; var proxy = treeRoot.GetChild(i);
+                    var expectedPosition = main.transform.TransformPoint(Vector3.Scale(tree.position, main.terrainData.size));
+                    var prefab = main.terrainData.treePrototypes[tree.prototypeIndex].prefab;
+                    var sourceCapsule = prefab.GetComponent<CapsuleCollider>(); var proxyCapsule = proxy.GetComponent<CapsuleCollider>();
+                    Check(Vector3.Distance(proxy.position, expectedPosition) < .001f, "Physics placement respects map centre and terrain height");
+                    Check(Quaternion.Angle(proxy.rotation, main.transform.rotation * Quaternion.Euler(0, tree.rotation * Mathf.Rad2Deg, 0)) < .01f, "Physics rotation matches rendered trees");
+                    Check(Vector3.Distance(proxy.localScale, Vector3.Scale(prefab.transform.localScale, new Vector3(tree.widthScale, tree.heightScale, tree.widthScale))) < .001f, "Physics scale matches rendered trees");
+                    Check(proxyCapsule.center == sourceCapsule.center && proxyCapsule.radius == sourceCapsule.radius && proxyCapsule.height == sourceCapsule.height, "Collider shape comes from local prefab");
+                }
                 var library = AssetDatabase.LoadAssetAtPath<TreeRenderLibrary>(TreeInstancingSetup.Folder + "/TreeRenderLibrary.asset");
                 Check(library.SpeciesList.All(s => (s.originalLevels ?? s.levels).Length == s.source.GetComponentInChildren<LODGroup>().lodCount), "Every original LOD is preserved for authoring and A/B profiling");
                 Check(library.ImpostorMesh.triangles.Length == 6 && library.ImpostorCulling.HasKernel("CullTrees"), "Two-triangle distant mesh and GPU culling kernel");
@@ -136,9 +158,11 @@ namespace TacticalMaps.Editor
                 }
                 builder.Build(complete);
                 Check(builder.GetComponentsInChildren<Terrain>().First(t => t.name == "Terrain_Main").terrainData.treeInstanceCount == first.Placements.Count, "Rebuild replaces rather than duplicates trees");
+                Check(builder.GetComponentsInChildren<CapsuleCollider>().Length == first.Placements.Count, "Rebuilding replaces tree physics without duplicates");
                 Check(first.Prefabs.All(p => p != null), "Rebuild preserves borrowed prefab assets");
                 builder.Build(map);
                 Check(builder.GetComponentsInChildren<Terrain>().All(t => t.terrainData.treeInstanceCount == 0), "Height-only maps remain supported");
+                Check(builder.GetComponentsInChildren<Collider>().All(c => c is TerrainCollider), "Height-only rebuild removes previous tree physics");
 
                 var settings = new SerializedObject(stage); settings.FindProperty("maximumCoverage").floatValue = 0; settings.ApplyModifiedPropertiesWithoutUndo();
                 Check(stage.Generate(map, CancellationToken.None).Placements.Count == 0, "Zero coverage disables forest");

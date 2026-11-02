@@ -21,6 +21,7 @@ namespace TacticalMaps.Editor
                 AssetDatabase.CreateAsset(material, path);
             }
             var terrain = new SerializedObject(builder.GetComponent<TerrainGenerator>());
+            terrain.FindProperty("terrainTemplate").objectReferenceValue = TreePhysicsSetup.EnsureTerrainTemplate();
             if (terrain.FindProperty("terrainMaterial").objectReferenceValue == null)
                 terrain.FindProperty("terrainMaterial").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Material>("Assets/MapGenerator/Materials/MatteTerrain.mat");
             terrain.FindProperty("terrainLayer").intValue = Mathf.Max(0, LayerMask.NameToLayer("Terrain"));

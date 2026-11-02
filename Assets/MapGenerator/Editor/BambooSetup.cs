@@ -59,6 +59,8 @@ namespace TacticalMaps.Editor
                 int count = next.Count(t => t.prototypeIndex >= ordinary.arraySize);
                 report.AppendLine($"{names[level]}: {count} bamboo / {next.Length} placements ({(double)count/Math.Max(1,next.Length):P1}); {groups.Distinct().Count()} groups, all retain ordinary trees.");
             }
+            var treeRoot = built.Find("Trees");
+            if (treeRoot != null) builder.GetComponent<TreeBuilder>().RebuildColliders(built.Find("Terrain_Main").GetComponent<Terrain>(), treeRoot);
             foreach (var renderer in built.GetComponentsInChildren<InstancedTreeRenderer>()) { renderer.enabled = false; renderer.enabled = true; }
             AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(builder.gameObject.scene); EditorSceneManager.SaveScene(builder.gameObject.scene);
             Directory.CreateDirectory("Temp/Bamboo"); File.WriteAllText("Temp/Bamboo/Placement.txt",report.ToString()); Debug.Log(report.ToString());

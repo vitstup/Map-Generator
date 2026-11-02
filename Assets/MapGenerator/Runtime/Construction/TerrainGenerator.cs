@@ -9,6 +9,7 @@ namespace TacticalMaps.Construction
     internal sealed class TerrainGenerator : MonoBehaviour
     {
         [SerializeField, LayerIndex] private int terrainLayer;
+        [SerializeField, Tooltip("Terrain template with native tree colliders disabled; TreeBuilder owns tree physics.")] private Terrain terrainTemplate;
         [SerializeField, Min(0)] private float seamBlendMeters = 100;
         [SerializeField, Min(0.01f)] private float overlapDepth = 0.25f;
         [SerializeField, Range(1, 200)] private float mainPixelError = 1;
@@ -27,16 +28,20 @@ namespace TacticalMaps.Construction
             float heightMeters = map.TerrainHeightMeters;
             Validate(heightmaps, sizes, heightMeters);
             if (terrainMaterial == null) throw new InvalidOperationException("Assign the terrain surface material on TerrainGenerator.");
+            if (terrainTemplate == null) throw new InvalidOperationException("Assign the terrain template on TerrainGenerator.");
             for (int level = 0; level < 3; level++)
             {
                 var texture = heightmaps[level];
                 int resolution = Mathf.Clamp(Mathf.NextPowerOfTwo(Mathf.Max(texture.width, texture.height) - 1) + 1, 33, 4097);
                 var data = new TerrainData { name = "TerrainData_" + (level + 1), heightmapResolution = resolution };
 
-                var go = new GameObject(level == 0 ? "Terrain_Main" : level == 1 ? "Terrain_Surroundings" : "Terrain_Horizon");
-                go.transform.SetParent(parent, false);
-                var terrain = go.AddComponent<Terrain>(); terrain.terrainData = data;
-                var collider = go.AddComponent<TerrainCollider>(); collider.terrainData = data;
+                // The native tree-collider switch has no public runtime API in Unity 6000.3.
+                // Instantiate its serialized setting so builds also avoid duplicate tree physics.
+                var terrain = Instantiate(terrainTemplate, parent, false);
+                var go = terrain.gameObject;
+                go.name = level == 0 ? "Terrain_Main" : level == 1 ? "Terrain_Surroundings" : "Terrain_Horizon";
+                terrain.terrainData = data;
+                var collider = go.GetComponent<TerrainCollider>(); collider.terrainData = data;
                 data.size = new Vector3(sizes[level].x, heightMeters, sizes[level].y);
                 var heights = CreateHeights(heightmaps, sizes, level, resolution);
                 AgricultureTerrain.Apply(map, heights, level, overlapDepth);

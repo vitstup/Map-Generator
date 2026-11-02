@@ -14,6 +14,12 @@ namespace TacticalMaps.Editor
         internal static TreeRenderLibrary EnsureLibrary(IReadOnlyList<GameObject> sources)
         {
             var library = AssetDatabase.LoadAssetAtPath<TreeRenderLibrary>(LibraryPath);
+            if (library != null) foreach (var entry in library.SpeciesList)
+            {
+                var local = TreePhysicsSetup.LocalPrefab(entry.source);
+                if (local == entry.source) continue;
+                entry.source = local; EditorUtility.SetDirty(library);
+            }
             bool current = library != null && library.SpeciesList.Length == sources.Count;
             for (int i = 0; current && i < sources.Count; i++)
             {

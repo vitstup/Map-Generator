@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TreeRenderLibrary
   m_EditorClassIdentifier: Assembly-CSharp::TacticalMaps.Construction.TreeRenderLibrary
   species:
-  - source: {fileID: 3425031849882270963, guid: d03c5ab14673e2446b05e3071cfeb56a, type: 3}
+  - source: {fileID: 3425031849882270963, guid: 587b944b83c33c345a0784419e3ee10f, type: 3}
     referencePoint: {x: 0.8263941, y: 2.9972134, z: 0.46662664}
     rootScale: {x: 1, y: 1, z: 1}
     size: 8.544
@@ -239,7 +239,7 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: cb2054739058fe24595be03c65467311, type: 2}
     impostorCapture: {x: 0.78335285, y: 2.8066936, z: 0.4215803, w: 6.6612864}
-  - source: {fileID: 2337450482053155267, guid: a5c99a9c68df73e4fbf562654eae9953, type: 3}
+  - source: {fileID: 2337450482053155267, guid: 92ca5b07b09312f40a6a24e13c255805, type: 3}
     referencePoint: {x: -0.28699958, y: 2.525555, z: 0.032077312}
     rootScale: {x: 1, y: 1, z: 1}
     size: 6.52556
@@ -465,7 +465,7 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: 483711a9600f9ac41a5e926bbef69c56, type: 2}
     impostorCapture: {x: -0.52498174, y: 2.322091, z: 0.00855875, w: 4.821768}
-  - source: {fileID: 2640615806114228349, guid: ef2bd8cf5004c664696f70e3e694b4fa, type: 3}
+  - source: {fileID: 2640615806114228349, guid: 755d38b2f83770e4a8c114dbddb8e369, type: 3}
     referencePoint: {x: 0.19064808, y: 1.1331928, z: 0.030980945}
     rootScale: {x: 1, y: 1, z: 1}
     size: 3.422751
@@ -611,7 +611,7 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: d5bcdd5842882604f9e4f9571751347b, type: 2}
     impostorCapture: {x: 0.20425129, y: 1.0406258, z: -0.030664444, w: 2.3459241}
-  - source: {fileID: 7728709216723660740, guid: b7a3a4877a4f190409fbca8fe4bcfa67, type: 3}
+  - source: {fileID: 7728709216723660740, guid: d8e19f93dc2dc2a4483cf81cdb6cbe4b, type: 3}
     referencePoint: {x: 0.6169338, y: 7.376214, z: -2.4723291}
     rootScale: {x: 1, y: 1, z: 1}
     size: 23.251957
@@ -837,7 +837,7 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: 7e8b694a657e0974caf99e0ca6f361c5, type: 2}
     impostorCapture: {x: 0.66937065, y: 7.128665, z: -2.3992157, w: 19.197668}
-  - source: {fileID: 4467678524264583855, guid: 474f447736efd014e9c1eba2a68e2b95, type: 3}
+  - source: {fileID: 4467678524264583855, guid: 28fd295870c7efa4d81d2563b5822e6a, type: 3}
     referencePoint: {x: 0.16808975, y: 1.3565534, z: 0.063402176}
     rootScale: {x: 1, y: 1, z: 1}
     size: 3.4593668
@@ -1040,7 +1040,7 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: bb36b415e9469e3498e46a0b8117e85d, type: 2}
     impostorCapture: {x: 0.16808975, y: 1.3565534, z: 0.063402176, w: 2.8774242}
-  - source: {fileID: 2174982424311862829, guid: 8fdefb0f141e5424db392a3c1e982881, type: 3}
+  - source: {fileID: 2174982424311862829, guid: 59395996393b00c41817bd11d0333e13, type: 3}
     referencePoint: {x: 0.03949821, y: 6.2359962, z: -0.12961912}
     rootScale: {x: 1, y: 1, z: 1}
     size: 13.089996
@@ -1163,7 +1163,7 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: 6d07982cb60747f4992b17b3801f5458, type: 2}
     impostorCapture: {x: 0.075115204, y: 6.2359962, z: -0.18540335, w: 8.21691}
-  - source: {fileID: 405606203298129695, guid: 3a73f30ef50d68649b0f431b5e6ff2eb, type: 3}
+  - source: {fileID: 405606203298129695, guid: 7cb8e1dabaf32b241bf81a0659c097dc, type: 3}
     referencePoint: {x: 0.011216581, y: 3.0813787, z: 0.12728822}
     rootScale: {x: 1, y: 1, z: 1}
     size: 7.4064
@@ -1286,7 +1286,7 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: 1a910e1b746fbfc469a1a3bb62a8094b, type: 2}
     impostorCapture: {x: 0.011216581, y: 3.0813787, z: 0.12728822, w: 4.0600524}
-  - source: {fileID: 6370720739051437596, guid: 726e0a47b3fe539418dc04be77f08296, type: 3}
+  - source: {fileID: 6370720739051437596, guid: 00428938c37d12447b3dfc7cf77af233, type: 3}
     referencePoint: {x: 0.0414114, y: 3.0299718, z: -0.06671548}
     rootScale: {x: 1, y: 1, z: 1}
     size: 7.3727155
@@ -1409,7 +1409,7 @@ MonoBehaviour:
       screenHeight: 0.01
     impostorMaterial: {fileID: 2100000, guid: 292e92a2bd634724491709c7a6cbb428, type: 2}
     impostorCapture: {x: 0.0414114, y: 3.0299718, z: -0.06671548, w: 4.4430747}
-  - source: {fileID: 1177704603548196594, guid: 2f4b75adc8b6d9d49b0ca832e499d85f, type: 3}
+  - source: {fileID: 1177704603548196594, guid: 3983c6afdbaee0244a7abc2b3551af5c, type: 3}
     referencePoint: {x: -0.52044535, y: 3.1786954, z: 0.11040068}
     rootScale: {x: 1, y: 1, z: 1}
     size: 7.6701627
