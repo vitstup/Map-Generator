@@ -189,7 +189,7 @@ Two waves displace vertices on the GPU. Fragment derivatives supply flat triangl
 
 Water snapshots the three heightmaps at up to 1025 / 513 / 257 pixels per axis (about 2.8 MB of R16 texels for square defaults). They provide world-space seabed depth and land clipping without changing renderer or camera settings. The snapshots and a per-built-map material belong to MapBuilder; later MapData.Release calls cannot invalidate water. Rebuilds dispose the previous transient meshes, terrain data, material and snapshots, while preserving saved assets.
 
-Demo has a saved preview in `Generated/MapPreview`. Change the source water material, then rebuild to apply it to a new surface. Test controls generate MapData, call MapBuilder.Build(map), then GrassSystem.Build(map). All implementation and generated assets remain under Assets/Plugins/MapGenerator.
+Open Demo in Play mode and click **ПОСТРОИТЬ КАРТУ** to build the map from the current selection. The workbench generates MapData, calls MapBuilder.Build(map), then GrassSystem.Build(map). The generated terrain and road textures are created during play.
 
 ## Terrain surfaces and biomes
 
