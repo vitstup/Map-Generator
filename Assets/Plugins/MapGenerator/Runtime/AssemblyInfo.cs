@@ -1,3 +1,3 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Assembly-CSharp-Editor-firstpass")]
+[assembly: InternalsVisibleTo("MapGenerator.Editor")]
