@@ -13,6 +13,8 @@ namespace TacticalMaps.Generation
         private readonly float[] original, playable, seaBaseline;
         private readonly MapSettings settings;
         private readonly float compression;
+        private readonly Vector2 outerSize, innerHalfSize;
+        private readonly float blendWidth;
 
         internal HeightField(float[] sourceHeights, byte[] land, int width, int height, Vector2Int point, MapSettings settings)
         {
@@ -42,6 +44,11 @@ namespace TacticalMaps.Generation
             seaBaseline = new float[original.Length];
             Vector2 outer = settings.Levels[2].Size;
             Vector2 inner = settings.Levels[0].Size;
+            Vector2 middle = settings.Levels[1].Size;
+            outerSize = outer;
+            innerHalfSize = inner * 0.5f;
+            // Finish the transition before reaching the middle terrain boundary.
+            blendWidth = Mathf.Max(0.01f, Mathf.Min(settings.TransitionMeters, Mathf.Min(middle.x - inner.x, middle.y - inner.y) * 0.45f));
             float dx = outer.x / (side - 1), dy = outer.y / (side - 1);
             float sea = settings.SeaLevelMeters / settings.TerrainHeightMeters;
             float slopeLimit = Mathf.Tan(settings.MaxSlope * Mathf.Deg2Rad);
@@ -80,14 +87,9 @@ namespace TacticalMaps.Generation
 
         internal float Sample(float worldX, float worldY)
         {
-            var inner = settings.Levels[0].Size;
-            var middle = settings.Levels[1].Size;
-            var outer = settings.Levels[2].Size;
-            float u = worldX / outer.x + 0.5f, v = worldY / outer.y + 0.5f;
-            float distance = Mathf.Max(Mathf.Abs(worldX) - inner.x * 0.5f, Mathf.Abs(worldY) - inner.y * 0.5f);
-            // Finish the transition before reaching the middle terrain boundary.
-            float blendWidth = Mathf.Min(settings.TransitionMeters, Mathf.Min(middle.x - inner.x, middle.y - inner.y) * 0.45f);
-            float blend = Smooth(Mathf.Clamp01(distance / Mathf.Max(0.01f, blendWidth)));
+            float u = worldX / outerSize.x + 0.5f, v = worldY / outerSize.y + 0.5f;
+            float distance = Mathf.Max(Mathf.Abs(worldX) - innerHalfSize.x, Mathf.Abs(worldY) - innerHalfSize.y);
+            float blend = Smooth(Mathf.Clamp01(distance / blendWidth));
             return Mathf.Lerp(Bilinear(seaBaseline, side, u, v) + Bilinear(playable, side, u, v) * compression, Bilinear(original, side, u, v), blend);
         }
 

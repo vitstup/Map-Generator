@@ -96,25 +96,44 @@ namespace TacticalMaps.Generation
             var map = CreateResult(point, snapshot, textures, compression);
             try
             {
-                var roads = Roads != null ? await Roads.GenerateAsync(map, snapshot.SourceRadius, heightSource.width, heightSource.height, cancellation) : null;
-                map.Roads = roads;
-                var agriculture = agricultureGenerator != null ? await agricultureGenerator.GenerateAsync(map, snapshot.SourceRadius, cancellation) : null;
-                roads = agriculture?.CombinedRoads ?? roads; map.Roads=roads;
-                map.SetAgriculture(agriculture);
-                var surface = await ResolveBiomeGenerator().GenerateAsync(textures, ToSizes(snapshot), snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, cancellation);
-                var rocks = await ResolveRockGenerator().GenerateAsync(map, cancellation);
+                var sizes = ToSizes(snapshot);
+                var biome = ResolveBiomeGenerator();
+                var surfaceTask = biome.GenerateAsync(textures, sizes, snapshot.TerrainHeightMeters, snapshot.SeaLevelMeters, point, snapshot.SourceRadius, cancellation);
+                var rocksTask = GenerateRoadsAgricultureAndRocksAsync(map, snapshot.SourceRadius, cancellation);
+                // Both branches must finish before the shared heightmaps can be released on failure.
+                await Task.WhenAll(surfaceTask, rocksTask);
+
+                var surface = await surfaceTask;
+                var rocks = await rocksTask;
                 var withRocks = CreateResult(point, snapshot, textures, compression, surface, rocks);
-                withRocks.Roads = roads;
-                withRocks.SetAgriculture(agriculture);
-                var trees = await ResolveTreeGenerator().GenerateAsync(withRocks, cancellation);
-                var grass = await Task.Run(() => TacticalMaps.Grass.GrassCoverage.Generate(surface, cancellation), cancellation);
-                if (grass != null) await Task.Run(() => grass.ExcludeAgriculture(agriculture, ToSizes(snapshot)), cancellation);
-                var result = CreateResult(point, snapshot, textures, compression, surface, rocks, trees, grass);
-                result.Roads = roads;
-                result.SetAgriculture(agriculture);
+                withRocks.Roads = map.Roads;
+                withRocks.SetAgriculture(map.Agriculture);
+                var treesTask = ResolveTreeGenerator().GenerateAsync(withRocks, cancellation);
+                var grassTask = Task.Run(() =>
+                {
+                    var grass = TacticalMaps.Grass.GrassCoverage.Generate(surface, cancellation);
+                    grass?.ExcludeAgriculture(map.Agriculture, sizes);
+                    return grass;
+                }, cancellation);
+                await Task.WhenAll(treesTask, grassTask);
+
+                var result = CreateResult(point, snapshot, textures, compression, surface, rocks, await treesTask, await grassTask);
+                result.Roads = map.Roads;
+                result.SetAgriculture(map.Agriculture);
                 return result;
             }
             catch { map.Release(); throw; }
+        }
+
+        private async Task<RockData> GenerateRoadsAgricultureAndRocksAsync(MapData map, int radius, CancellationToken cancellation)
+        {
+            var roadGenerator = Roads;
+            if (roadGenerator != null)
+                map.Roads = await roadGenerator.GenerateAsync(map, radius, heightSource.width, heightSource.height, cancellation);
+            var agriculture = agricultureGenerator != null ? await agricultureGenerator.GenerateAsync(map, radius, cancellation) : null;
+            map.Roads = agriculture?.CombinedRoads ?? map.Roads;
+            map.SetAgriculture(agriculture);
+            return await ResolveRockGenerator().GenerateAsync(map, cancellation);
         }
         private static Vector2[] ToSizes(MapSettings snapshot)
         {
