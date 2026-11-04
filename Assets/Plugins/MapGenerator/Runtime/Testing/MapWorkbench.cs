@@ -6,12 +6,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 namespace TacticalMaps.Testing
 {
     [UnityEngine.Scripting.APIUpdating.MovedFrom("TacticalMaps")]
+    [RequireComponent(typeof(UnityEngine.Canvas))]
     internal sealed class MapWorkbench : MonoBehaviour
     {
+        [SerializeField] private Key toggleCanvasKey = Key.H;
         [SerializeField] private MapGenerator generator;
         [SerializeField, UnityEngine.Serialization.FormerlySerializedAs("terrainBuilder")] private MapBuilder mapBuilder;
         [SerializeField] private TacticalMaps.Grass.GrassSystem grassSystem;
@@ -40,6 +44,9 @@ namespace TacticalMaps.Testing
         private float queuedAt = -1;
         private bool buildPending;
         private bool hasBuiltTerrain;
+        private UnityEngine.Canvas canvas;
+        private UnityEngine.UI.GraphicRaycaster canvasRaycaster;
+        private bool restoreRaycaster;
 
         internal MapGenerator Generator => generator;
         internal Vector2Int SelectedPoint => selectedPoint;
@@ -47,6 +54,8 @@ namespace TacticalMaps.Testing
         private void Awake()
         {
             if (!Application.isPlaying) return;
+            canvas = GetComponent<UnityEngine.Canvas>();
+            canvasRaycaster = GetComponent<UnityEngine.UI.GraphicRaycaster>();
             runtimePreviewMaterial = new Material(previewMaterial);
             foreach (var image in results) image.material = runtimePreviewMaterial;
             SyncControls();
@@ -134,6 +143,10 @@ namespace TacticalMaps.Testing
 
         private void Update()
         {
+            var keyboard = Keyboard.current;
+            if (toggleCanvasKey != Key.None && keyboard != null && keyboard[toggleCanvasKey].wasPressedThisFrame)
+                ToggleCanvas();
+
             if (job != null && job.IsCompleted)
             {
                 if (job.IsFaulted) { status.text = "Ошибка: " + job.Exception.GetBaseException().Message; Debug.LogException(job.Exception); }
@@ -146,6 +159,25 @@ namespace TacticalMaps.Testing
                 job = null;
             }
             if (queuedAt >= 0 && Time.unscaledTime >= queuedAt && job == null) Generate();
+        }
+
+        private void ToggleCanvas()
+        {
+            if (canvas.enabled)
+            {
+                var events = EventSystem.current;
+                var selected = events?.currentSelectedGameObject;
+                if (selected != null && selected.transform.IsChildOf(transform))
+                    events.SetSelectedGameObject(null);
+
+                restoreRaycaster = canvasRaycaster != null && canvasRaycaster.enabled;
+                if (restoreRaycaster) canvasRaycaster.enabled = false;
+                canvas.enabled = false;
+                return;
+            }
+
+            canvas.enabled = true;
+            if (restoreRaycaster && canvasRaycaster != null) canvasRaycaster.enabled = true;
         }
 
         private void BuildTerrains()
