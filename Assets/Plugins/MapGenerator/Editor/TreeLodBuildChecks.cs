@@ -13,7 +13,7 @@ namespace TacticalMaps.Editor
         {
             if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode before building.");
             var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-            if (scene.path != "Assets/Scenes/MainScene.unity") throw new InvalidOperationException("Open MainScene for the performance build.");
+            if (scene.path != "Assets/Plugins/MapGenerator/Scenes/Demo.unity") throw new InvalidOperationException("Open Demo for the performance build.");
             EditorSceneManager.SaveScene(scene);
             bool timing = PlayerSettings.enableFrameTimingStats;
             try

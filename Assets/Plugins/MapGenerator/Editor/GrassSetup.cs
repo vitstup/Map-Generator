@@ -12,7 +12,7 @@ namespace TacticalMaps.Editor
 {
     internal static class GrassSetup
     {
-        internal const string Folder = "Assets/MapGenerator/Generated/Grass";
+        internal const string Folder = "Assets/Plugins/MapGenerator/Generated/Grass";
         [MenuItem("Tools/Tactical Maps/Upgrade Meadow Rendering")]
         internal static void Upgrade()
         {
@@ -108,7 +108,7 @@ namespace TacticalMaps.Editor
             foreach (var t in terrains) EditorUtility.SetDirty(t.materialTemplate);
             EditorUtility.SetDirty(system); EditorUtility.SetDirty(builder); EditorUtility.SetDirty(built);
             AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(root.gameObject.scene); EditorSceneManager.SaveScene(root.gameObject.scene);
-            Debug.Log("Low-poly grass configured: GPU near/middle geometry and Terrain coverage. Saved MainScene.");
+            Debug.Log("Low-poly grass configured: GPU near/middle geometry and Terrain coverage. Saved Demo.");
         }
         internal static GrassLibrary EnsureLibrary()
         {
@@ -124,8 +124,8 @@ namespace TacticalMaps.Editor
             so.FindProperty("nearMesh").objectReferenceValue = near; so.FindProperty("middleMesh").objectReferenceValue = middle;
             so.FindProperty("simplifiedMesh").objectReferenceValue = GrassMeshFactory.Ensure(Folder + "/GrassSimplified.asset",false,true);
             so.FindProperty("material").objectReferenceValue = material;
-            so.FindProperty("compute").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/GrassCulling.compute");
-            so.FindProperty("flowerField").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/GrassFlowerField.compute");
+            so.FindProperty("compute").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Plugins/MapGenerator/Shaders/GrassCulling.compute");
+            so.FindProperty("flowerField").objectReferenceValue = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Plugins/MapGenerator/Shaders/GrassFlowerField.compute");
             so.ApplyModifiedPropertiesWithoutUndo(); return library;
         }
         private static Mesh EnsureMesh(string name, int blades, bool bent) => GrassMeshFactory.Ensure(Folder + "/" + name + ".asset", bent);

@@ -1,5 +1,11 @@
 # Tactical map heightmap workbench
 
+## Export as a Unity package
+
+Select `Assets/Plugins/MapGenerator` in the Project window and choose **Assets > Export Package**. Clear **Include dependencies** to export only the Map Generator folder. Unity imports those assets at the same paths, with the demo at `Assets/Plugins/MapGenerator/Scenes/Demo.unity`.
+
+The demo also references Synty assets, the camera controller in `Assets/Scripts/Camera`, `Assets/Input/Actions.inputactions`, `Assets/Settings/SampleSceneProfile.asset`, and a TextMesh Pro shader. Provide these separately in the target project to preserve the demo's references. The target project also needs URP, Shader Graph, Cinemachine, Input System, and Unity UI. Enable **Include dependencies** to review the external assets Unity would add to the export.
+
 ## Agriculture: Sengoku fields and farmsteads
 
 `Tools > Tactical Maps > Set Up Agriculture` imports the agriculture source as readable, linear R16, prepares five PolygonSamuraiEmpire houses with individual three-level mesh LODs, two Synty fence sections and support metadata, upgrades old settings and connects the existing density-overlay toggle. `Generate Agriculture` controls generation independently of overlay visibility. `Rebuild Agriculture Preview` saves the current selection, including compact PNG far masks and owned distance/mesh resources.
@@ -62,7 +68,7 @@ Rendering uses compact blade templates and separate GPU lists containing only fl
 
 `Tools > Tactical Maps > Verify Grass Optimization` compares the original combined-mesh path and optimized path on identical frozen-wind cameras, checks sparse flower lists and flower toggling, and saves captures/timings in `Logs/GrassOptimization/Verified`. Its synchronized Editor timings include submission/readback and are not gameplay FPS. The internal reference switch is diagnostic only and defaults to the optimized path. `OptimizationForChecks` independently enables small near patches (1), small meadow patches (2), eight-triangle cards (8), and the combined pass (64); its default is 75. Setting it to zero retains the first optimization stage for paired comparisons.
 
-MainScene has a separate `GrassSystem` object. Disable its component to release GPU buffers and disable the Terrain meadow material. Rocks and trees remain disabled. Implementation is isolated in `Runtime/Grass`; no per-plant GameObjects, colliders or materials are created.
+Demo has a separate `GrassSystem` object. Disable its component to release GPU buffers and disable the Terrain meadow material. Rocks and trees remain disabled. Implementation is isolated in `Runtime/Grass`; no per-plant GameObjects, colliders or materials are created.
 
 The testing UI holds separate references to the generator, builder and grass system. The integration sequence is:
 
@@ -119,7 +125,7 @@ Editor tools in `Tools > Tactical Maps`:
 
 The benchmark waits for GPU readback after a sequence of offscreen renders. It includes CPU submission, GPU execution and readback overhead; it is not isolated GPU time or gameplay FPS. Static comparisons explicitly use mature streamed cells, while the camera flight retains normal streaming/fade behavior. Profile a player build at target resolution before setting final quality budgets.
 
-Open `Assets/Scenes/MainScene.unity`, select the Game tab and enter Play mode.
+Open `Assets/Plugins/MapGenerator/Scenes/Demo.unity`, select the Game tab and enter Play mode.
 Click or drag on the large map. The selected source pixels and all three heightmaps update automatically.
 `СГЕНЕРИРОВАТЬ` also regenerates the images after editing parameters.
 `ПОСТРОИТЬ КАРТУ` passes the completed output to the separate `MapBuilder`. Once built during Play mode, terrains are rebuilt after subsequent successful generations. A pending generation finishes before construction starts. Inspect the geometry in the Scene tab; the existing full-screen Canvas remains the testing interface.
@@ -136,7 +142,7 @@ Click or drag on the large map. The selected source pixels and all three heightm
 
 The three centered terrains preserve their individual world dimensions and a shared vertical scale. Unity Terrain requires a square height grid of `2^n + 1` samples; a rectangular input is bilinearly resampled to the next supported square resolution, without changing the input texture or the rectangular world dimensions. Background terrain interiors are lowered and cut out beneath the previous level, retaining an overlap band. Only the main terrain collider is enabled. Rebuilding replaces only this builder's previous output and releases its transient TerrainData; saved project assets are preserved.
 
-MainScene contains an initial built set with saved data in `Generated/Terrains`. `Tools > Tactical Maps > Set Up Terrain Construction` installs construction in a workbench scene and saves an initial preview. `Tools > Tactical Maps > Verify Terrain Construction` checks dimensions, height orientation, rectangular resampling, holes, collider selection, replacement, cleanup and the single-entry-point API in a preview scene.
+Demo contains an initial built set with saved data in `Generated/Terrains`. `Tools > Tactical Maps > Set Up Terrain Construction` installs construction in a workbench scene and saves an initial preview. `Tools > Tactical Maps > Verify Terrain Construction` checks dimensions, height orientation, rectangular resampling, holes, collider selection, replacement, cleanup and the single-entry-point API in a preview scene.
 
 ## Coordinates and scale
 
@@ -169,7 +175,7 @@ Runtime regeneration runs on a background task. Changing the selection cancels t
 
 `Tools > Tactical Maps > Verify Height Generation` checks water override, rectangular output, shared coordinates, slope, transitions, source borders and cancellation. It also checks standalone generation, private configuration, internal result getters/private setters, independent result lifetime, point arguments, defensive settings copies, nonzero-sea coast slopes and proportional scaling into different Terrain ranges and a seabed that deepens away from shore.
 
-`Tools > Tactical Maps > Create MainScene Workbench` builds the interface, generator and construction object in an open MainScene that has no workbench yet. It refuses to overwrite an existing workbench. Scene creation uses Unity Editor APIs.
+`Tools > Tactical Maps > Create Demo Workbench` builds the interface, generator and construction object in an open Demo that has no workbench yet. It refuses to overwrite an existing workbench. Scene creation uses Unity Editor APIs.
 
 Unity Pipeline is included to allow editor automation; TMP Essentials and a local Arial font asset provide the Russian interface.
 
@@ -183,7 +189,7 @@ Two waves displace vertices on the GPU. Fragment derivatives supply flat triangl
 
 Water snapshots the three heightmaps at up to 1025 / 513 / 257 pixels per axis (about 2.8 MB of R16 texels for square defaults). They provide world-space seabed depth and land clipping without changing renderer or camera settings. The snapshots and a per-built-map material belong to MapBuilder; later MapData.Release calls cannot invalidate water. Rebuilds dispose the previous transient meshes, terrain data, material and snapshots, while preserving saved assets.
 
-MainScene has a saved preview in `Generated/MapPreview`. Change the source water material, then rebuild to apply it to a new surface. Test controls generate MapData, call MapBuilder.Build(map), then GrassSystem.Build(map). All implementation and generated assets remain under Assets/MapGenerator.
+Demo has a saved preview in `Generated/MapPreview`. Change the source water material, then rebuild to apply it to a new surface. Test controls generate MapData, call MapBuilder.Build(map), then GrassSystem.Build(map). All implementation and generated assets remain under Assets/Plugins/MapGenerator.
 
 ## Terrain surfaces and biomes
 
@@ -195,7 +201,7 @@ MapData.Surface contains the shared layer library, three normalized splat arrays
 
 The main splat map is 1024 square, backgrounds 512. These maps control material coverage, not fine surface detail. The matte terrain shader reuses URP terrain instancing, holes, lighting and shadows. Six layers can require two terrain layer passes; these are conventional Terrain materials, not a one-pass or measured FPS guarantee. `Detailed Surface Distance` on TerrainGenerator controls the distance before Unity's cheaper far basemap.
 
-`Tools > Tactical Maps > Set Up Terrain Surface Library` configures/imports the six albedo/normal pairs and assigns the generation component. It also enables animated material updates in the active Scene View. `Rebuild Saved Map Preview` regenerates the current selection and saves MainScene. Existing generator height settings and camera setup are preserved.
+`Tools > Tactical Maps > Set Up Terrain Surface Library` configures/imports the six albedo/normal pairs and assigns the generation component. It also enables animated material updates in the active Scene View. `Rebuild Saved Map Preview` regenerates the current selection and saves Demo. Existing generator height settings and camera setup are preserved.
 
 Water now combines GPU vertex waves, drifting fine ripple normals, moving crest highlights and irregular shore foam. The material exposes Ripple Size/Strength, Flow Speed and Ripple Highlights as well as the original wave settings. Transparent blending and depth-dependent opacity remain. In Scene View, animated materials and Always Refresh must be enabled to see continuous motion outside Play Mode; the setup tool enables them. Runtime animation uses shader time with no per-frame CPU mesh updates.
 
@@ -213,7 +219,7 @@ Irregular groves and ranked equal-area masks enforce the area budget. A spatial 
 
 `TreeBuilder` saves placements as native TreePrototype/TreeInstance arrays on all three TerrainData objects and snaps trunks to the actual built heights. It disables `Terrain.drawTreesAndFoliage` and creates one `GeneratedMap/Trees` object with `InstancedTreeRenderer`. Close trees use **Graphics.RenderMeshInstanced** mesh/material batches of at most 511 instances; distant trees use a two-triangle camera-facing impostor with **Graphics.RenderMeshIndirect**. Nonuniform instance scaling is retained. No GameObject, MeshRenderer, material clone or Update is created per tree. TerrainData retains the editable placement source; after manual Paint Trees edits, rebuild the renderer to refresh its cache.
 
-`Assets/Prefabs/Trees/TreeRenderLibrary.asset` contains four runtime mesh levels per species plus the distant impostor, and retains the original Synty mesh/material levels for authoring and A/B profiling. The originals are not modified. The optimized meshes/materials live under `Assets/Prefabs/Trees/Optimized`; they are direct runtime records and do not need per-tree prefab instances.
+`Assets/Plugins/MapGenerator/Prefabs/Trees/TreeRenderLibrary.asset` contains four runtime mesh levels per species plus the distant impostor, and retains the original Synty mesh/material levels for authoring and A/B profiling. The originals are not modified. The optimized meshes/materials live under `Assets/Plugins/MapGenerator/Prefabs/Trees/Optimized`; they are direct runtime records and do not need per-tree prefab instances.
 
 `Optimize Tree Meshes And Transitions` regenerates all six species and updates the current TreeBuilder/InstancedTreeRenderer threshold. Generation starts from the authored mesh LODs, preserves whole connected leaf cards, distributes a bounded subset across the crown with deterministic farthest-point selection, and enlarges retained cards to preserve coverage. Ordinary MeshLodUtility simplification is applied separately to wood. Attributes, UVs, root transforms and wind masks are retained. Generated ranges are compact ordinary meshes, so runtime rendering does not depend on automatic native Mesh LOD selection. Repeated generation updates existing asset GUIDs and removes obsolete generated meshes.
 
@@ -237,7 +243,7 @@ Editor tools under `Tools > Tactical Maps`:
 - `Verify Optimized Tree LODs`: test all six species at 11 screen sizes, editable thresholds, shader compilation, fade overlap, stationary cache, disable/enable and mesh-only fallback. Contact sheet and report: `Temp/tree-lod-contact-sheet.png`, `Temp/tree-lod-checks.txt`.
 - `Compare Tree Optimization`: compare preserved original mesh LODs with the old 0.20 hybrid threshold against the optimized path, on identical game/near/canopy/grove/wide views. Reports/images: `Temp/tree-cost-hybrid-before*` and `Temp/tree-cost-hybrid-after*`. Both states use the current baked far atlases. Render/readback times include CPU, GPU and synchronization, not isolated GPU timings.
 - `Verify Tree Placement` and `Verify And Profile Tree Rendering`: retain placement, rebuild, ownership, all-three-terrain and culling integration checks; original authoring references are checked separately from generated levels.
-- `Build Tree Performance Check`: save MainScene and build a development player under `Builds/TreeOptimized`. Starting that player with `-tree-benchmark -screen-fullscreen 0 -screen-width 1600 -screen-height 900` runs an opt-in benchmark on the saved map and exits. `Temp/tree-player/report.txt` contains GPU/CPU frame medians and p95 with screenshots; each state has 60 warm-up frames and 180 measurement frames with no synchronous readback. Normal launches create no benchmark component. GPU timings may be unavailable on an unsupported graphics backend.
+- `Build Tree Performance Check`: save Demo and build a development player under `Builds/TreeOptimized`. Starting that player with `-tree-benchmark -screen-fullscreen 0 -screen-width 1600 -screen-height 900` runs an opt-in benchmark on the saved map and exits. `Temp/tree-player/report.txt` contains GPU/CPU frame medians and p95 with screenshots; each state has 60 warm-up frames and 180 measurement frames with no synchronous readback. Normal launches create no benchmark component. GPU timings may be unavailable on an unsupported graphics backend.
 
 ## Shadow performance profiles
 

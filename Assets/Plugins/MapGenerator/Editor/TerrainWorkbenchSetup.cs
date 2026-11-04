@@ -11,7 +11,7 @@ namespace TacticalMaps.Editor
 {
     internal static class TerrainWorkbenchSetup
     {
-        private const string Root = "Assets/MapGenerator/Generated/Terrains";
+        private const string Root = "Assets/Plugins/MapGenerator/Generated/Terrains";
 
         [MenuItem("Tools/Tactical Maps/Set Up Terrain Construction")]
         private static void SetUp()
@@ -20,7 +20,7 @@ namespace TacticalMaps.Editor
             {
                 if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play mode first.");
                 var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-                if (scene.path != "Assets/Scenes/MainScene.unity") throw new InvalidOperationException("Open MainScene.");
+                if (scene.path != "Assets/Plugins/MapGenerator/Scenes/Demo.unity") throw new InvalidOperationException("Open Demo.");
                 var view = UnityEngine.Object.FindAnyObjectByType<MapWorkbench>();
                 if (view == null) throw new InvalidOperationException("Workbench is missing.");
                 var builder = UnityEngine.Object.FindAnyObjectByType<MapBuilder>();
@@ -52,19 +52,19 @@ namespace TacticalMaps.Editor
                 EditorUtility.SetDirty(builder); EditorUtility.SetDirty(view);
                 AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene);
                 Selection.activeGameObject = builder.gameObject;
-                File.WriteAllText("Temp/terrain-setup-result.txt", "PASS: MapBuilder, controller button and three saved TerrainData assets in MainScene.");
+                File.WriteAllText("Temp/terrain-setup-result.txt", "PASS: MapBuilder, controller button and three saved TerrainData assets in Demo.");
             }
             catch (Exception e) { File.WriteAllText("Temp/terrain-setup-result.txt", e.ToString()); Debug.LogException(e); }
         }
 
         private static void ConfigureSurface(MapBuilder builder)
         {
-            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/MapGenerator/Materials/MatteTerrain.mat");
+            var material = AssetDatabase.LoadAssetAtPath<Material>("Assets/Plugins/MapGenerator/Materials/MatteTerrain.mat");
             if (material == null)
             {
                 material = new Material(Shader.Find("TacticalMaps/Terrain/MatteStochastic")) { name = "TacticalTerrain", enableInstancing = true };
                 material.EnableKeyword("_ALPHATEST_ON");
-                AssetDatabase.CreateAsset(material, "Assets/MapGenerator/Materials/MatteTerrain.mat");
+                AssetDatabase.CreateAsset(material, "Assets/Plugins/MapGenerator/Materials/MatteTerrain.mat");
             }
             var serialized = new SerializedObject(builder.GetComponent<TerrainGenerator>());
             serialized.FindProperty("terrainMaterial").objectReferenceValue = material;
@@ -85,7 +85,7 @@ namespace TacticalMaps.Editor
             var labelRect = (RectTransform)labelGo.transform; labelRect.anchorMin = Vector2.zero; labelRect.anchorMax = Vector2.one;
             labelRect.offsetMin = labelRect.offsetMax = Vector2.zero;
             var label = labelGo.GetComponent<TextMeshProUGUI>();
-            label.font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/MapGenerator/Generated/WorkbenchFont.asset");
+            label.font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Plugins/MapGenerator/Generated/WorkbenchFont.asset");
             label.text = "ПОСТРОИТЬ КАРТУ"; label.fontSize = 19; label.alignment = TextAlignmentOptions.Center; label.raycastTarget = false;
             return button;
         }

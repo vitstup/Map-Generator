@@ -10,7 +10,7 @@ namespace TacticalMaps.Editor
 {
     internal static class TreePhysicsSetup
     {
-        private const string TerrainPath = "Assets/Prefabs/Terrain.prefab";
+        private const string TerrainPath = "Assets/Plugins/MapGenerator/Prefabs/Terrain.prefab";
 
         internal static Terrain EnsureTerrainTemplate()
         {
@@ -86,7 +86,7 @@ namespace TacticalMaps.Editor
             config.FindProperty("treeLayer").intValue = layer; config.ApplyModifiedProperties();
 
             // Migrate saved placement stores too, retaining every instance and its prototype index.
-            foreach (var guid in AssetDatabase.FindAssets("t:TerrainData", new[] { "Assets/MapGenerator/Generated" }))
+            foreach (var guid in AssetDatabase.FindAssets("t:TerrainData", new[] { "Assets/Plugins/MapGenerator/Generated" }))
             {
                 var data = AssetDatabase.LoadAssetAtPath<TerrainData>(AssetDatabase.GUIDToAssetPath(guid));
                 var prototypes = data.treePrototypes; bool changed = false;

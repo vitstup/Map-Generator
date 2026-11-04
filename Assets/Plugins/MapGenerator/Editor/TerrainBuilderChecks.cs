@@ -120,7 +120,7 @@ namespace TacticalMaps.Editor
         {
             string[] names = { "Meadow", "DryGrass", "Earth", "Rock", "Sand", "Silt" };
             var layers = new TerrainLayer[6];
-            for (int i = 0; i < 6; i++) layers[i] = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/MapGenerator/Materials/TerrainLayers/" + names[i] + ".terrainlayer");
+            for (int i = 0; i < 6; i++) layers[i] = AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/Plugins/MapGenerator/Materials/TerrainLayers/" + names[i] + ".terrainlayer");
             var weights = new float[3][,,];
             for (int level = 0; level < 3; level++)
             {

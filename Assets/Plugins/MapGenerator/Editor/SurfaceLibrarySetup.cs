@@ -9,8 +9,8 @@ namespace TacticalMaps.Editor
     {
         private static readonly string[] Names = { "Meadow", "DryGrass", "Earth", "Rock", "Sand", "Silt" };
         private static readonly string[] Fields = { "meadow", "dryGrass", "earth", "rock", "sand", "silt" };
-        private const string Textures = "Assets/MapGenerator/Textures/Surfaces/";
-        private const string Layers = "Assets/MapGenerator/Materials/TerrainLayers/";
+        private const string Textures = "Assets/Plugins/MapGenerator/Textures/Surfaces/";
+        private const string Layers = "Assets/Plugins/MapGenerator/Materials/TerrainLayers/";
 
         [MenuItem("Tools/Tactical Maps/Set Up Terrain Surface Library")]
         private static void SetUp()

@@ -17,7 +17,7 @@ namespace TacticalMaps.Editor
                 if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play Mode first.");
                 var shader = Shader.Find("TacticalMaps/Terrain/MatteStochastic");
                 if (shader == null || ShaderUtil.ShaderHasError(shader)) throw new InvalidOperationException("Compile the matte terrain shader first.");
-                const string path = "Assets/MapGenerator/Materials/MatteTerrain.mat";
+                const string path = "Assets/Plugins/MapGenerator/Materials/MatteTerrain.mat";
                 var material = AssetDatabase.LoadAssetAtPath<Material>(path);
                 if (material == null)
                 {
@@ -30,7 +30,7 @@ namespace TacticalMaps.Editor
                 var settings = new SerializedObject(builder.GetComponent<TerrainGenerator>());
                 settings.FindProperty("terrainMaterial").objectReferenceValue = material;
                 settings.ApplyModifiedPropertiesWithoutUndo();
-                foreach (string guid in AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/MapGenerator/Textures/Surfaces" }))
+                foreach (string guid in AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/Plugins/MapGenerator/Textures/Surfaces" }))
                 {
                     var importer = AssetImporter.GetAtPath(AssetDatabase.GUIDToAssetPath(guid)) as TextureImporter;
                     if (importer == null || importer.anisoLevel == 16) continue;
@@ -43,7 +43,7 @@ namespace TacticalMaps.Editor
                     var instance = new Material(material) { name = "TerrainSurface_" + level };
                     var size = terrain.terrainData.size;
                     instance.SetVector("_TacticalTerrainSize", new Vector4(size.x, size.z, 0, 0));
-                    string instancePath = "Assets/MapGenerator/Generated/MapPreview/TerrainSurface_" + level + ".mat";
+                    string instancePath = "Assets/Plugins/MapGenerator/Generated/MapPreview/TerrainSurface_" + level + ".mat";
                     var previous = AssetDatabase.LoadAssetAtPath<Material>(instancePath);
                     if (previous != null)
                     {

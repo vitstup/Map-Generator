@@ -116,7 +116,7 @@ namespace TacticalMaps.Editor
 
         private static void SaveReviewScene(GameObject root, MapBuilder builder, Camera camera, UnityEngine.SceneManagement.Scene preview)
         {
-            const string folder = "Assets/MapGenerator/Generated/RockReview";
+            const string folder = "Assets/Plugins/MapGenerator/Generated/RockReview";
             Directory.CreateDirectory(folder); AssetDatabase.Refresh();
             ConstructionSetup.SavePreviewResources(builder, folder, true);
             File.Copy("Temp/cliff-mountains-overview.png", folder + "/Overview.png", true);

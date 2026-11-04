@@ -10,7 +10,7 @@ namespace TacticalMaps.Editor
 {
     internal static class RoadSetup
     {
-        private const string Source="Assets/Sprites/Maps/japan_roads_RG_4096.png";
+        private const string Source="Assets/Plugins/MapGenerator/Maps/japan_roads_RG_4096.png";
         [MenuItem("Tools/Tactical Maps/Set Up Roads")]
         internal static void Install()
         {
@@ -56,15 +56,15 @@ namespace TacticalMaps.Editor
             var legend=canvas.Find("RoadLegend");if(legend!=null)legend.GetComponent<TMP_Text>().text="Дороги: <color=#B38552>крупные</color> / <color=#704D2E>средние</color>";
             Set(workbench,"showRoadsToggle",toggle.GetComponent<UnityEngine.UI.Toggle>());
             workbench.RefreshRoadOverlay();workbench.RefreshSelection();EditorUtility.SetDirty(workbench);
-            SaveTexture(overlay.GetComponent<UnityEngine.UI.RawImage>(),"Assets/MapGenerator/Generated/RoadOverview.asset");
-            SaveTexture((UnityEngine.UI.RawImage)new SerializedObject(workbench).FindProperty("cropImage").objectReferenceValue,"Assets/MapGenerator/Generated/SelectedPixels.asset");
+            SaveTexture(overlay.GetComponent<UnityEngine.UI.RawImage>(),"Assets/Plugins/MapGenerator/Generated/RoadOverview.asset");
+            SaveTexture((UnityEngine.UI.RawImage)new SerializedObject(workbench).FindProperty("cropImage").objectReferenceValue,"Assets/Plugins/MapGenerator/Generated/SelectedPixels.asset");
             EditorSceneManager.MarkSceneDirty(generator.gameObject.scene);EditorSceneManager.SaveScene(generator.gameObject.scene);AssetDatabase.SaveAssets();
             Debug.Log("Road components, source import and workbench overlays configured.");
         }
         private static void SetColor(Object owner,string name,Color value){var s=new SerializedObject(owner);s.FindProperty(name).colorValue=value;s.ApplyModifiedProperties();EditorUtility.SetDirty(owner);}
         private static void UpgradeSurfaces()
         {
-            const string folder="Assets/MapGenerator/Materials/TerrainLayers/";
+            const string folder="Assets/Plugins/MapGenerator/Materials/TerrainLayers/";
             var large=AssetDatabase.LoadAssetAtPath<TerrainLayer>(folder+"LargeRoad.terrainlayer");
             var medium=AssetDatabase.LoadAssetAtPath<TerrainLayer>(folder+"MediumRoad.terrainlayer");
             var rock=AssetDatabase.LoadAssetAtPath<TerrainLayer>(folder+"Rock.terrainlayer");
@@ -82,9 +82,9 @@ namespace TacticalMaps.Editor
         }
         private static TerrainLayer Layer(string name,float tiles)
         {
-            string path="Assets/MapGenerator/Materials/TerrainLayers/"+name+".terrainlayer";var layer=AssetDatabase.LoadAssetAtPath<TerrainLayer>(path);
+            string path="Assets/Plugins/MapGenerator/Materials/TerrainLayers/"+name+".terrainlayer";var layer=AssetDatabase.LoadAssetAtPath<TerrainLayer>(path);
             if(layer!=null)return layer;
-            var earth=AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/MapGenerator/Materials/TerrainLayers/Earth.terrainlayer");
+            var earth=AssetDatabase.LoadAssetAtPath<TerrainLayer>("Assets/Plugins/MapGenerator/Materials/TerrainLayers/Earth.terrainlayer");
             layer=earth!=null?Object.Instantiate(earth):new TerrainLayer();layer.name=name;layer.tileSize=new Vector2(tiles,tiles);AssetDatabase.CreateAsset(layer,path);return layer;
         }
         private static void Set(Object owner,string name,Object value){var s=new SerializedObject(owner);s.FindProperty(name).objectReferenceValue=value;s.ApplyModifiedProperties();EditorUtility.SetDirty(owner);}

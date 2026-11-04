@@ -17,7 +17,7 @@ namespace TacticalMaps.Editor
             {
                 if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play mode first.");
                 var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-                if (scene.path != "Assets/Scenes/MainScene.unity") throw new InvalidOperationException("Open MainScene.");
+                if (scene.path != "Assets/Plugins/MapGenerator/Scenes/Demo.unity") throw new InvalidOperationException("Open Demo.");
                 var view = UnityEngine.Object.FindAnyObjectByType<MapWorkbench>();
                 var builder = UnityEngine.Object.FindAnyObjectByType<MapBuilder>();
                 if (view == null || builder == null) throw new InvalidOperationException("Map workbench and builder are required.");
@@ -30,7 +30,7 @@ namespace TacticalMaps.Editor
                     builder.Build(map); grass.Build(map);
                 }
                 catch { map.Release(); throw; }
-                const string folder = "Assets/MapGenerator/Generated/MapPreview";
+                const string folder = "Assets/Plugins/MapGenerator/Generated/MapPreview";
                 Directory.CreateDirectory(folder); AssetDatabase.Refresh();
                 // Replace only files produced by this tool, after a successful transactional build.
                 for (int i = 0; i < 3; i++) Save(map.Heightmaps[i], folder + "/Heightmap" + (i + 1) + ".asset");

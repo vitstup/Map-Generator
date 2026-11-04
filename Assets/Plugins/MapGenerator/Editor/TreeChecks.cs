@@ -115,7 +115,7 @@ namespace TacticalMaps.Editor
                 Check(treeRoot.childCount == first.Placements.Count && capsules.Length == first.Placements.Count, "One physics object per main tree; zero background tree colliders");
                 Check(capsules.All(c => c.gameObject.layer == 8), "TreeBuilder physics layer applies to every tree collider");
                 Check(treeRoot.GetComponentsInChildren<Renderer>().Length == 0 && treeRoot.GetComponentsInChildren<Rigidbody>().Length == 0, "Physics objects contain no renderers or rigidbodies");
-                Check(all.Prefabs.All(p => AssetDatabase.GetAssetPath(p).StartsWith("Assets/Prefabs/Trees/")), "Placement palette uses project-owned prefab copies");
+                Check(all.Prefabs.All(p => AssetDatabase.GetAssetPath(p).StartsWith("Assets/Plugins/MapGenerator/Prefabs/Trees/")), "Placement palette uses project-owned prefab copies");
                 var mainInstances = main.terrainData.treeInstances;
                 for (int i = 0; i < mainInstances.Length; i++)
                 {

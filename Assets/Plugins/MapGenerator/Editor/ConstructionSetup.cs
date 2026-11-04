@@ -10,11 +10,11 @@ namespace TacticalMaps.Editor
     {
         internal static void Configure(MapBuilder builder)
         {
-            const string path = "Assets/MapGenerator/Materials/LowPolyWater.mat";
+            const string path = "Assets/Plugins/MapGenerator/Materials/LowPolyWater.mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                Directory.CreateDirectory("Assets/MapGenerator/Materials"); AssetDatabase.Refresh();
+                Directory.CreateDirectory("Assets/Plugins/MapGenerator/Materials"); AssetDatabase.Refresh();
                 var shader = Shader.Find("TacticalMaps/LowPolyWater");
                 if (shader == null) throw new InvalidOperationException("Water shader is missing.");
                 material = new Material(shader) { name = "LowPolyWater" };
@@ -23,7 +23,7 @@ namespace TacticalMaps.Editor
             var terrain = new SerializedObject(builder.GetComponent<TerrainGenerator>());
             terrain.FindProperty("terrainTemplate").objectReferenceValue = TreePhysicsSetup.EnsureTerrainTemplate();
             if (terrain.FindProperty("terrainMaterial").objectReferenceValue == null)
-                terrain.FindProperty("terrainMaterial").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Material>("Assets/MapGenerator/Materials/MatteTerrain.mat");
+                terrain.FindProperty("terrainMaterial").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Material>("Assets/Plugins/MapGenerator/Materials/MatteTerrain.mat");
             terrain.FindProperty("terrainLayer").intValue = Mathf.Max(0, LayerMask.NameToLayer("Terrain"));
             terrain.ApplyModifiedPropertiesWithoutUndo();
             var water = new SerializedObject(builder.GetComponent<WaterGenerator>());

@@ -8,7 +8,7 @@ namespace TacticalMaps.Editor
 {
     internal static class TreeInstancingSetup
     {
-        internal const string Folder = "Assets/Prefabs/Trees";
+        internal const string Folder = "Assets/Plugins/MapGenerator/Prefabs/Trees";
         private const string LibraryPath = Folder + "/TreeRenderLibrary.asset";
 
         internal static TreeRenderLibrary EnsureLibrary(IReadOnlyList<GameObject> sources)

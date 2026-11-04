@@ -34,7 +34,7 @@ namespace TacticalMaps.Editor
             if (!AssetDatabase.IsValidFolder(Folder)) AssetDatabase.CreateFolder(TreeInstancingSetup.Folder, "Impostors");
             var shader = Shader.Find("TacticalMaps/Trees/Impostor");
             if (shader == null) throw new InvalidOperationException("Tree impostor shader is missing.");
-            var culling = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/TreeImpostorCulling.compute");
+            var culling = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Plugins/MapGenerator/Shaders/TreeImpostorCulling.compute");
             string meshPath = Folder + "/TreeImpostorQuad.asset";
             var quad = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
             if (quad == null)

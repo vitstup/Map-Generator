@@ -16,24 +16,24 @@ namespace TacticalMaps.Editor
 {
     internal static class MapWorkbenchBuilder
     {
-        private const string Root = "Assets/MapGenerator/Generated";
+        private const string Root = "Assets/Plugins/MapGenerator/Generated";
         private static TMP_FontAsset font;
         private static readonly Color Ink = new Color(0.87f, 0.91f, 0.94f);
         private static readonly Color Muted = new Color(0.48f, 0.59f, 0.64f);
 
-        [MenuItem("Tools/Tactical Maps/Create MainScene Workbench")]
+        [MenuItem("Tools/Tactical Maps/Create Demo Workbench")]
         private static void Build()
         {
             if (EditorApplication.isPlaying) throw new InvalidOperationException("Exit Play mode first.");
             var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-            if (scene.path != "Assets/Scenes/MainScene.unity")
-                throw new InvalidOperationException("Open Assets/Scenes/MainScene.unity before building.");
+            if (scene.path != "Assets/Plugins/MapGenerator/Scenes/Demo.unity")
+                throw new InvalidOperationException("Open Assets/Plugins/MapGenerator/Scenes/Demo.unity before building.");
             if (UnityEngine.Object.FindAnyObjectByType<MapWorkbench>() != null)
                 throw new InvalidOperationException("Workbench already exists; it will not be overwritten.");
             Directory.CreateDirectory(Root);
             PrepareFont();
-            var heights = ImportSource("Assets/Sprites/Maps/japan_heightmap_4096_16bit.png", TextureImporterFormat.R16);
-            var land = ImportSource("Assets/Sprites/Maps/japan_square_land_water_4096.png", TextureImporterFormat.R8);
+            var heights = ImportSource("Assets/Plugins/MapGenerator/Maps/japan_heightmap_4096_16bit.png", TextureImporterFormat.R16);
+            var land = ImportSource("Assets/Plugins/MapGenerator/Maps/japan_square_land_water_4096.png", TextureImporterFormat.R8);
             var canvasGO = new GameObject("MapGeneratorCanvas", typeof(RectTransform), typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler), typeof(UnityEngine.UI.GraphicRaycaster));
             Undo.RegisterCreatedObjectUndo(canvasGO, "Create map workbench");
             canvasGO.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
@@ -180,8 +180,8 @@ namespace TacticalMaps.Editor
             AssetDatabase.CreateAsset((Texture2D)cropImage.texture, Root + "/SelectedPixels.asset");
             AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene);
             Selection.activeGameObject = canvasGO;
-            File.WriteAllText("Temp/map-workbench-built.txt", "MainScene built successfully: Canvas, selection, 3 R16 textures; no Terrain objects.");
-            Debug.Log("Tactical map workbench created in MainScene.");
+            File.WriteAllText("Temp/map-workbench-built.txt", "Demo built successfully: Canvas, selection, 3 R16 textures; no Terrain objects.");
+            Debug.Log("Tactical map workbench created in Demo.");
         }
 
         private static Texture2D ImportSource(string path, TextureImporterFormat format)

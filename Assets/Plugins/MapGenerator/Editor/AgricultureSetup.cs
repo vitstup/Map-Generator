@@ -14,8 +14,8 @@ namespace TacticalMaps.Editor
 {
     internal static class AgricultureSetup
     {
-        internal const string Folder = "Assets/MapGenerator/Generated/Agriculture";
-        private const string Source = "Assets/Sprites/Maps/japan_agriculture_density_4096_16bit.png";
+        internal const string Folder = "Assets/Plugins/MapGenerator/Generated/Agriculture";
+        private const string Source = "Assets/Plugins/MapGenerator/Maps/japan_agriculture_density_4096_16bit.png";
         [MenuItem("Tools/Tactical Maps/Set Up Agriculture")]
         internal static void Install()
         {
@@ -36,7 +36,7 @@ namespace TacticalMaps.Editor
             library.waterMaterial = null;
             library.cropMaterial = Material("Rice", "TacticalMaps/Agriculture/Rice");
             library.cropMaterial.enableInstancing = true;
-            library.culling = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/MapGenerator/Shaders/CropCulling.compute");
+            library.culling = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Plugins/MapGenerator/Shaders/CropCulling.compute");
             library.closeRice = SaveMesh(RiceMesh(false), Folder + "/RiceClose.asset"); library.distantRice = SaveMesh(RiceMesh(true), Folder + "/RiceDistant.asset");
             library.houses = new GameObject[5];
             for (int i = 0; i < 5; i++) library.houses[i] = BakeHouse(i);
@@ -44,7 +44,7 @@ namespace TacticalMaps.Editor
             FarmPropBaker.Install(library);
             EditorUtility.SetDirty(library);
             var generator = Object.FindAnyObjectByType<MapGenerator>(); var builder = Object.FindAnyObjectByType<MapBuilder>();
-            if (generator == null || builder == null) throw new InvalidOperationException("Open MainScene with the map workbench.");
+            if (generator == null || builder == null) throw new InvalidOperationException("Open Demo with the map workbench.");
             library.soilProfile = new SerializedObject(generator.GetComponent<BiomeGenerator>()).FindProperty("earth").objectReferenceValue as TerrainLayer; EditorUtility.SetDirty(library);
             library.bankMaterial.SetTexture("_BaseMap", library.soilProfile.diffuseTexture);
             library.bankMaterial.SetTexture("_NormalMap", library.soilProfile.normalMapTexture != null ? library.soilProfile.normalMapTexture : Texture2D.normalTexture);
